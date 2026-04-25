@@ -204,6 +204,46 @@ cargo test --all-features
 
 ## Repository Structure
 
+```
+cli-tools/
+├── src/
+│   ├── main.rs
+│   ├── cli.rs
+│   └── commands/
+│       ├── build.rs
+│       └── run.rs
+├── tests/
+│   └── integration.rs
+├── Cargo.toml
+└── justfile
+
+web-api/
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── handlers/
+│   │   ├── __init__.py
+│   │   └── api.py
+│   └── models/
+│       ├── __init__.py
+│       └── user.py
+├── tests/
+│   ├── conftest.py
+│   └── test_api.py
+├── pyproject.toml
+└── Makefile
+
+utils-lib/
+├── src/
+│   ├── lib.rs
+│   └── helpers.rs
+├── go/
+│   ├── handler.go
+│   └── handler_test.go
+├── Cargo.toml
+└── go.mod
+```
+
 ### File Naming
 - **Dominant style:** snake_case
 

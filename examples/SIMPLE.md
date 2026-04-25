@@ -33,6 +33,24 @@ Python CLI project. Pragmatic, fail-fast. Descriptive names, type hints on publi
 - **Order:** stdlib → third-party → local
 - Use `isort` profile
 
+## Repository Structure
+
+```
+my-cli-tool/
+├── src/
+│   ├── __init__.py
+│   ├── cli.py
+│   ├── commands/
+│   │   ├── __init__.py
+│   │   └── run.py
+│   └── utils.py
+├── tests/
+│   ├── conftest.py
+│   └── test_cli.py
+├── pyproject.toml
+└── requirements.txt
+```
+
 ## Commands and Workflows
 
 ### Install
