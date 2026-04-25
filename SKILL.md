@@ -10,7 +10,7 @@ Analyze repos, synthesize AGENTS.md.
 ## Workflow
 
 1. **Collect** — Ask for repo paths (local or remote).
-2. **Extract** — Run `scripts/extract.py <repos...>` → JSON report.
+2. **Extract** — Run `scripts/agentskill.py <repos...>` → JSON report.
 3. **Check GOTCHAS.md** — Read `references/GOTCHAS.md` before synthesis.
 4. **Review examples/** — Browse for templates if needed.
 5. **Synthesize** — Use `references/synthesis-prompt.md` with extraction data.
@@ -34,4 +34,4 @@ Analyze repos, synthesize AGENTS.md.
 
 ## Scripts
 
-- `scripts/extract.py` — Multi-language extraction.
+- `scripts/agentskill.py` — Multi-language extraction.

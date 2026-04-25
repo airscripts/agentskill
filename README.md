@@ -16,7 +16,7 @@ clawhub install clawdeeo/agentskill
 
 Or standalone:
 ```bash
-python3 scripts/extract.py /path/to/repo
+python3 scripts/agentskill.py /path/to/repo
 ```
 
 ## Usage
@@ -28,7 +28,7 @@ With OpenClaw:
 
 Standalone:
 ```bash
-python3 scripts/extract.py ~/projects/myapp -o report.json
+python3 scripts/agentskill.py ~/projects/myapp -o report.json
 ```
 
 ## Detected Patterns
