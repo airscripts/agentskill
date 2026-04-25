@@ -6,8 +6,10 @@ import sys
 from pathlib import Path
 
 from .constants import SAMPLE_SIZE_SMALL, SAMPLE_SIZE_MEDIUM, JSON_INDENT
-from .extractors.git import analyze_git_commits, analyze_branches
-from .extractors.filesystem import scan_source_files, detect_tooling, is_git_repo, get_project_metadata
+from .extractors.git import analyze_git_commits, analyze_branches, analyze_git_config, get_remote_info
+from .extractors.filesystem import scan_source_files, detect_tooling, is_git_repo, get_project_metadata, analyze_dependency_philosophy
+from .extractors.structure import extract_repo_structure
+from .extractors.commands import extract_commands
 from .analyzers.language.rust import RustAnalyzer
 from .analyzers.language.python import PythonAnalyzer
 from .analyzers.language.generic import GenericAnalyzer
@@ -46,6 +48,8 @@ def analyze_repository(repo_path: str) -> dict:
     git_data = {
         "commits": analyze_git_commits(abs_path),
         "branches": analyze_branches(abs_path),
+        "config": analyze_git_config(abs_path),
+        "remotes": get_remote_info(abs_path),
     }
 
     # Tooling detection
@@ -54,12 +58,24 @@ def analyze_repository(repo_path: str) -> dict:
     # Project metadata
     metadata = get_project_metadata(abs_path)
 
+    # Repository structure
+    structure = extract_repo_structure(abs_path)
+
+    # Dependency philosophy
+    dependencies = analyze_dependency_philosophy(abs_path)
+
+    # Commands and workflows
+    commands = extract_commands(abs_path)
+
     return {
         "path": abs_path,
         "languages": languages,
         "git": git_data,
         "tooling": tooling,
         "metadata": metadata,
+        "structure": structure,
+        "dependencies": dependencies,
+        "commands": commands,
     }
 
 

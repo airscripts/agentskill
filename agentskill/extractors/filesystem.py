@@ -40,6 +40,83 @@ def scan_source_files(repo_path: str) -> Dict[str, List[Path]]:
     return {k: v for k, v in files_by_lang.items() if v}
 
 
+def analyze_dependency_philosophy(repo_path: str) -> Dict:
+    """Analyze dependency management philosophy."""
+    repo = Path(repo_path)
+    result = {
+        "lockfiles": [],
+        "pin_style": "unknown",
+        "total_deps": 0,
+        "dev_deps": 0,
+        "manager": "unknown",
+    }
+
+    # Detect lockfiles
+    lockfiles = {
+        "Cargo.lock": "cargo",
+        "package-lock.json": "npm",
+        "yarn.lock": "yarn",
+        "pnpm-lock.yaml": "pnpm",
+        "poetry.lock": "poetry",
+        "Pipfile.lock": "pipenv",
+        "go.sum": "go",
+        "Gemfile.lock": "bundler",
+        "composer.lock": "composer",
+    }
+    for lf, manager in lockfiles.items():
+        if (repo / lf).exists():
+            result["lockfiles"].append(lf)
+            result["manager"] = manager
+
+    # Count deps from package.json
+    pkg = repo / "package.json"
+    if pkg.exists():
+        try:
+            import json
+            data = json.loads(pkg.read_text(errors='ignore'))
+            deps = len(data.get("dependencies", {}))
+            dev_deps = len(data.get("devDependencies", {}))
+            result["total_deps"] += deps
+            result["dev_deps"] += dev_deps
+            if result["manager"] == "unknown":
+                result["manager"] = "npm"
+        except Exception:
+            pass
+
+    # Count deps from Cargo.toml (approximate)
+    cargo = repo / "Cargo.toml"
+    if cargo.exists():
+        try:
+            content = cargo.read_text(errors='ignore')
+            deps = content.count('version =')
+            result["total_deps"] += deps
+            if result["manager"] == "unknown":
+                result["manager"] = "cargo"
+        except Exception:
+            pass
+
+    # Count deps from requirements.txt
+    reqs = repo / "requirements.txt"
+    if reqs.exists():
+        try:
+            lines = reqs.read_text(errors='ignore').strip().split('\n')
+            result["total_deps"] += len([l for l in lines if l.strip() and not l.startswith('#')])
+            if result["manager"] == "unknown":
+                result["manager"] = "pip"
+        except Exception:
+            pass
+
+    # Determine pin style
+    if result["lockfiles"]:
+        result["pin_style"] = "locked"
+    elif result["total_deps"] > 0:
+        result["pin_style"] = "pinned"
+    else:
+        result["pin_style"] = "unknown"
+
+    return result
+
+
 def detect_tooling(repo_path: str) -> Dict:
     """Detect tooling configs (linters, formatters, CI)."""
     from ..constants import TOOL_FILES

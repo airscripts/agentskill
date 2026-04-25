@@ -46,9 +46,14 @@ class PythonAnalyzer(LanguageAnalyzer):
         spacing = {"blank_line_counts": []}
         imports = {"stdlib": 0, "third_party": 0, "local": 0}
         code_metrics = {"total_lines": 0}
+        type_metrics = {"annotated": 0, "total_params": 0, "return_annotations": 0, "total_functions": 0}
+        import_order = {"stdlib_then_third": 0, "mixed": 0, "total_files": 0}
 
         for filepath in files[:self.sample_size]:
-            self._analyze_file(filepath, naming_patterns, error_patterns, comment_metrics, spacing, imports, code_metrics)
+            self._analyze_file(filepath, naming_patterns, error_patterns, comment_metrics, spacing, imports, code_metrics, type_metrics, import_order)
+
+        type_density = type_metrics["annotated"] / max(type_metrics["total_params"], 1)
+        return_density = type_metrics["return_annotations"] / max(type_metrics["total_functions"], 1)
 
         return AnalysisResult(
             naming_patterns=self._format_naming(naming_patterns),
@@ -66,11 +71,14 @@ class PythonAnalyzer(LanguageAnalyzer):
             metrics={
                 "avg_var_length": 0.0,
                 "avg_fn_length": 0.0,
+                "type_annotation_density": round(type_density, 2),
+                "return_annotation_density": round(return_density, 2),
+                "import_order_style": "stdlib_first" if import_order.get("stdlib_then_third", 0) > import_order.get("mixed", 0) else "mixed",
             },
             file_count=len(files),
         )
 
-    def _analyze_file(self, filepath: Path, naming: Dict, errors: Dict, comments: Dict, spacing: Dict, imports: Dict, metrics: Dict):
+    def _analyze_file(self, filepath: Path, naming: Dict, errors: Dict, comments: Dict, spacing: Dict, imports: Dict, metrics: Dict, type_metrics: Dict, import_order: Dict):
         lines = self._read_file_lines(filepath)
         if not lines:
             return
@@ -131,6 +139,17 @@ class PythonAnalyzer(LanguageAnalyzer):
                         imports["stdlib"] += 1
                     else:
                         imports["third_party"] += 1
+
+            # Type annotations
+            if re.match(r'^def\s+', stripped):
+                type_metrics["total_functions"] += 1
+                params = re.search(r'\((.+?)\)', stripped)
+                if params:
+                    param_str = params.group(1)
+                    type_metrics["total_params"] += param_str.count(',') + 1
+                    type_metrics["annotated"] += param_str.count(':')
+                if '->' in stripped:
+                    type_metrics["return_annotations"] += 1
 
     def _extract_naming(self, line: str, naming: Dict):
         if re.match(r'^\s*\w+\s*=\s*', line) and not line.strip().startswith('#'):

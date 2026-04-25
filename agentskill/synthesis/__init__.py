@@ -13,6 +13,8 @@ class SynthesisConfig:
     include_git: bool = True
     include_tooling: bool = True
     include_red_lines: bool = True
+    include_structure: bool = True
+    include_commands: bool = True
     confidence_threshold: float = 0.6
     max_examples_per_section: int = 3
 
@@ -38,6 +40,14 @@ class AgentSynthesizer:
         # Per-language sections
         sections.append(self._generate_language_sections(analyses))
 
+        # Repository Structure
+        if self.config.include_structure:
+            sections.append(self._generate_structure_section(analyses))
+
+        # Commands and Workflows
+        if self.config.include_commands:
+            sections.append(self._generate_commands_section(analyses))
+
         # Git
         if self.config.include_git:
             sections.append(self._generate_git_section(analyses))
@@ -45,6 +55,9 @@ class AgentSynthesizer:
         # Tooling
         if self.config.include_tooling:
             sections.append(self._generate_tooling_section(analyses))
+
+        # Dependencies
+        sections.append(self._generate_dependencies_section(analyses))
 
         # Red Lines
         if self.config.include_red_lines:
@@ -143,6 +156,21 @@ class AgentSynthesizer:
                     dominant = info.get("dominant_case", "unknown")
                     lines.append(f"- **{category.title()}:** {dominant}")
 
+        # Type annotations (Python)
+        metrics = data.get("metrics", {})
+        if "type_annotation_density" in metrics:
+            lines.append("")
+            lines.append("### Type Annotations")
+            density = metrics["type_annotation_density"]
+            return_density = metrics.get("return_annotation_density", 0)
+            if density > 0.5:
+                lines.append(f"- **Density:** High ({density:.0%} of params)")
+            elif density > 0.2:
+                lines.append(f"- **Density:** Medium ({density:.0%} of params)")
+            else:
+                lines.append(f"- **Density:** Low ({density:.0%} of params)")
+            lines.append(f"- **Return annotations:** {return_density:.0%} of functions")
+
         # Error Handling
         errors = data.get("error_handling", {})
         if errors and not errors.get("note"):
@@ -176,6 +204,166 @@ class AgentSynthesizer:
         file_count = data.get("file_count", 0)
         if file_count > 0:
             lines.append(f"\n*{file_count} files analyzed*")
+
+        return "\n".join(lines)
+
+    def _generate_structure_section(self, analyses: List[Dict]) -> str:
+        """Generate Repository Structure section."""
+        lines = [
+            "## Repository Structure",
+            "",
+        ]
+
+        all_file_naming = []
+        all_test_patterns = []
+        all_module_patterns = []
+        max_depths = []
+
+        for analysis in analyses:
+            structure = analysis.get("structure", {})
+
+            file_naming = structure.get("file_naming", {})
+            if file_naming.get("dominant"):
+                all_file_naming.append(file_naming["dominant"])
+
+            test_patterns = structure.get("test_patterns", {})
+            if test_patterns:
+                all_test_patterns.append(test_patterns)
+
+            module_patterns = structure.get("module_patterns", {})
+            if module_patterns:
+                all_module_patterns.append(module_patterns)
+
+            depth_stats = structure.get("depth_stats", {})
+            if depth_stats.get("max"):
+                max_depths.append(depth_stats["max"])
+
+        # File naming
+        if all_file_naming:
+            from collections import Counter
+            dominant = Counter(all_file_naming).most_common(1)[0][0]
+            lines.append(f"### File Naming")
+            lines.append(f"- **Dominant style:** {dominant}")
+            lines.append("")
+
+        # Directory depth
+        if max_depths:
+            avg_depth = sum(max_depths) / len(max_depths)
+            lines.append(f"### Directory Depth")
+            lines.append(f"- **Max:** {max(max_depths)} levels")
+            lines.append(f"- **Average:** {avg_depth:.1f} levels")
+            lines.append("")
+
+        # Test patterns
+        if all_test_patterns:
+            lines.append(f"### Test Organization")
+            test_locations = set()
+            for tp in all_test_patterns:
+                if tp.get("test_location"):
+                    test_locations.add(tp["test_location"])
+            if test_locations:
+                lines.append(f"- **Location:** {', '.join(sorted(test_locations))}")
+            frameworks = set()
+            for tp in all_test_patterns:
+                for fw in tp.get("test_framework", []):
+                    frameworks.add(fw)
+            if frameworks:
+                lines.append(f"- **Frameworks:** {', '.join(sorted(frameworks))}")
+            lines.append("")
+
+        # Module patterns
+        if all_module_patterns:
+            lines.append(f"### Module Patterns")
+            barrel_count = sum(1 for mp in all_module_patterns if mp.get("has_barrel_files"))
+            init_count = sum(1 for mp in all_module_patterns if mp.get("has_init_files"))
+            index_count = sum(1 for mp in all_module_patterns if mp.get("has_index_files"))
+            if barrel_count > 0:
+                lines.append("- **Barrel files:** mod.rs, lib.rs detected")
+            if init_count > 0:
+                lines.append("- **Init files:** __init__.py detected")
+            if index_count > 0:
+                lines.append("- **Index files:** index.js, index.ts detected")
+
+        return "\n".join(lines)
+
+    def _generate_commands_section(self, analyses: List[Dict]) -> str:
+        """Generate Commands and Workflows section."""
+        lines = [
+            "## Commands and Workflows",
+            "",
+        ]
+
+        # Aggregate commands across repos
+        all_commands = {}
+        for analysis in analyses:
+            commands = analysis.get("commands", {})
+            for category, cmds in commands.items():
+                if category not in all_commands:
+                    all_commands[category] = []
+                for cmd in cmds:
+                    if cmd not in all_commands[category]:
+                        all_commands[category].append(cmd)
+
+        if not all_commands:
+            lines.append("No explicit commands detected. Check README.md for manual instructions.")
+            return "\n".join(lines)
+
+        category_order = ["install", "dev", "build", "test", "lint", "format", "deploy", "ci"]
+
+        for category in category_order:
+            if category not in all_commands or not all_commands[category]:
+                continue
+
+            lines.append(f"### {category.title()}")
+            for cmd in all_commands[category][:5]:  # Limit to 5 per category
+                cmd_str = cmd.get("command", "")
+                source = cmd.get("source", "")
+                if len(cmd_str) < 80:
+                    lines.append(f"```bash")
+                    lines.append(f"{cmd_str}")
+                    lines.append(f"```")
+            lines.append("")
+
+        return "\n".join(lines)
+
+    def _generate_dependencies_section(self, analyses: List[Dict]) -> str:
+        """Generate Dependencies section."""
+        lines = [
+            "## Dependencies",
+            "",
+        ]
+
+        all_managers = set()
+        total_deps = []
+        pin_styles = []
+
+        for analysis in analyses:
+            deps = analysis.get("dependencies", {})
+            if deps.get("manager") and deps["manager"] != "unknown":
+                all_managers.add(deps["manager"])
+            if deps.get("total_deps"):
+                total_deps.append(deps["total_deps"])
+            if deps.get("pin_style") and deps["pin_style"] != "unknown":
+                pin_styles.append(deps["pin_style"])
+
+        if not all_managers:
+            lines.append("No dependency information detected.")
+            return "\n".join(lines)
+
+        lines.append(f"### Package Managers")
+        for manager in sorted(all_managers):
+            lines.append(f"- {manager}")
+
+        if total_deps:
+            avg_deps = sum(total_deps) / len(total_deps)
+            lines.append(f"")
+            lines.append(f"### Philosophy")
+            lines.append(f"- **Average dependency count:** {avg_deps:.0f} per project")
+
+        if pin_styles:
+            from collections import Counter
+            dominant_pin = Counter(pin_styles).most_common(1)[0][0]
+            lines.append(f"- **Pin style:** {dominant_pin}")
 
         return "\n".join(lines)
 
