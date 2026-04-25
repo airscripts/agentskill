@@ -5,78 +5,56 @@ import json
 import sys
 from pathlib import Path
 
-from .constants import SAMPLE_SIZE_SMALL, SAMPLE_SIZE_MEDIUM, JSON_INDENT
+from .constants import JSON_INDENT
 from .extractors.git import analyze_git_commits, analyze_branches, analyze_git_config, get_remote_info
 from .extractors.filesystem import scan_source_files, detect_tooling, is_git_repo, get_project_metadata, analyze_dependency_philosophy
 from .extractors.structure import extract_repo_structure
 from .extractors.commands import extract_commands
-from .analyzers.language.rust import RustAnalyzer
-from .analyzers.language.python import PythonAnalyzer
-from .analyzers.language.generic import GenericAnalyzer
+from .engine import analyze_codebase
 from .synthesis import AgentSynthesizer, SynthesisConfig
 
 
-def get_analyzer(language: str):
-    """Get appropriate analyzer for language."""
-    analyzers = {
-        "rust": RustAnalyzer,
-        "python": PythonAnalyzer,
-    }
-    if language in analyzers:
-        return analyzers[language]()
-    return GenericAnalyzer(language)
-
-
 def analyze_repository(repo_path: str) -> dict:
-    """Analyze a single repository."""
+    """Analyze a single repository using the language-agnostic engine."""
     abs_path = str(Path(repo_path).resolve())
-
+    
     if not is_git_repo(abs_path):
         print(f"Warning: {repo_path} may not be a git repository", file=sys.stderr)
-
-    # Scan for source files
+    
+    # Scan for source files and group by extension
     files_by_lang = scan_source_files(abs_path)
-
-    # Analyze each language
-    languages = {}
+    
+    # Group by extension for the engine
+    files_by_ext = {}
     for lang, files in files_by_lang.items():
-        analyzer = get_analyzer(lang)
-        result = analyzer.analyze_files(files)
-        languages[lang] = result.to_dict()
-
-    # Git analysis
-    git_data = {
-        "commits": analyze_git_commits(abs_path),
-        "branches": analyze_branches(abs_path),
-        "config": analyze_git_config(abs_path),
-        "remotes": get_remote_info(abs_path),
-    }
-
-    # Tooling detection
-    tooling = detect_tooling(abs_path)
-
-    # Project metadata
-    metadata = get_project_metadata(abs_path)
-
-    # Repository structure
-    structure = extract_repo_structure(abs_path)
-
-    # Dependency philosophy
-    dependencies = analyze_dependency_philosophy(abs_path)
-
-    # Commands and workflows
-    commands = extract_commands(abs_path)
-
-    return {
+        for filepath in files:
+            ext = filepath.suffix
+            if ext not in files_by_ext:
+                files_by_ext[ext] = []
+            files_by_ext[ext].append(filepath)
+    
+    # Run the agnostic engine
+    result = analyze_codebase(abs_path, files_by_ext)
+    
+    # Add other extractions
+    result_dict = {
         "path": abs_path,
-        "languages": languages,
-        "git": git_data,
-        "tooling": tooling,
-        "metadata": metadata,
-        "structure": structure,
-        "dependencies": dependencies,
-        "commands": commands,
+        "languages": result.languages,
+        "examples": result.examples,
+        "git": {
+            "commits": analyze_git_commits(abs_path),
+            "branches": analyze_branches(abs_path),
+            "config": analyze_git_config(abs_path),
+            "remotes": get_remote_info(abs_path),
+        },
+        "tooling": detect_tooling(abs_path),
+        "metadata": get_project_metadata(abs_path),
+        "structure": extract_repo_structure(abs_path),
+        "dependencies": analyze_dependency_philosophy(abs_path),
+        "commands": extract_commands(abs_path),
     }
+    
+    return result_dict
 
 
 def generate_agents_md(analyses: list, repos: list, config: SynthesisConfig = None) -> str:
@@ -120,9 +98,9 @@ Examples:
         action="store_true",
         help="Skip tooling detection"
     )
-
+    
     args = parser.parse_args()
-
+    
     # Validate repos
     valid_repos = []
     for repo in args.repos:
@@ -130,18 +108,18 @@ Examples:
             valid_repos.append(repo)
         else:
             print(f"Error: Not a directory: {repo}", file=sys.stderr)
-
+    
     if not valid_repos:
         print("Error: No valid repositories to analyze", file=sys.stderr)
         sys.exit(1)
-
+    
     # Analyze each repo
     analyses = []
     for repo in valid_repos:
         print(f"Analyzing {repo}...", file=sys.stderr)
         analysis = analyze_repository(repo)
         analyses.append(analysis)
-
+    
     # Build report
     if args.json:
         output = json.dumps({
@@ -155,7 +133,7 @@ Examples:
             include_tooling=not args.skip_tooling,
         )
         output = generate_agents_md(analyses, valid_repos, config)
-
+    
     # Output
     if args.output:
         Path(args.output).write_text(output)

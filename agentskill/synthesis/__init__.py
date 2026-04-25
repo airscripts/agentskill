@@ -63,10 +63,41 @@ class AgentSynthesizer:
         if self.config.include_red_lines:
             sections.append(self._generate_red_lines(analyses))
 
+        # Code Examples
+        sections.append(self._generate_examples_section(analyses))
+
         # Footer
         sections.append(self._generate_footer(analyses, repos))
 
         return "\n\n".join(sections)
+
+    def _generate_examples_section(self, analyses: List[Dict]) -> str:
+        """Generate Code Examples section from actual codebase."""
+        lines = [
+            "## Code Examples",
+            "",
+            "Actual patterns from the codebase:",
+            "",
+        ]
+        
+        all_examples = []
+        for analysis in analyses:
+            examples = analysis.get("examples", [])
+            all_examples.extend(examples)
+        
+        if not all_examples:
+            lines.append("*No representative examples extracted.*")
+            return "\n".join(lines)
+        
+        for i, example in enumerate(all_examples[:10], 1):  # Limit to 10
+            lines.append(f"### Example {i}")
+            lines.append("")
+            lines.append("```")
+            lines.append(example)
+            lines.append("```")
+            lines.append("")
+        
+        return "\n".join(lines)
 
     def _generate_overview(self, analyses: List[Dict], repos: List[str]) -> str:
         """Generate overview section."""
