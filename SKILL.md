@@ -10,7 +10,7 @@ Analyze repos, synthesize AGENTS.md.
 ## Workflow
 
 1. **Collect** — Ask for repo paths (local or remote).
-2. **Extract** — Run `scripts/agentskill.py <repos...>` → JSON report.
+2. **Extract** — Run `scripts/agentskill.py <repos...>` → JSON report or AGENTS.md.
 3. **Check GOTCHAS.md** — Read `references/GOTCHAS.md` before synthesis.
 4. **Review examples/** — Browse for templates if needed.
 5. **Synthesize** — Use `references/synthesis-prompt.md` with extraction data.
@@ -34,4 +34,14 @@ Analyze repos, synthesize AGENTS.md.
 
 ## Scripts
 
-- `scripts/agentskill.py` — Multi-language extraction.
+- `scripts/agentskill.py` — CLI entry point (delegates to `agentskill` package).
+- `agentskill/` — Core package:
+  - `constants.py` — All constants and configuration
+  - `extractors/git.py` — Git commit and branch analysis
+  - `extractors/filesystem.py` — File scanning, tooling detection, project metadata
+  - `analyzers/base.py` — Abstract `LanguageAnalyzer` interface
+  - `analyzers/language/rust.py` — Rust-specific analysis
+  - `analyzers/language/python.py` — Python-specific analysis
+  - `analyzers/language/generic.py` — Fallback for other languages
+  - `synthesis/` — AGENTS.md generation engine
+  - `cli.py` — Main CLI logic

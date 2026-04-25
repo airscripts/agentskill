@@ -11,12 +11,15 @@ Generate AGENTS.md from your actual coding style.
 ## Install
 
 ```bash
-clawhub install clawdeeo/agentskill
-```
+# Generate AGENTS.md
+python3 scripts/agentskill.py ~/projects/myapp
 
-Or standalone:
-```bash
-python3 scripts/agentskill.py /path/to/repo
+# Raw JSON analysis
+python3 scripts/agentskill.py ~/projects/repo1 ~/projects/repo2 --json -o report.json
+
+# Install as package
+pip install .
+agentskill ~/projects/myapp
 ```
 
 ## Usage
@@ -52,13 +55,31 @@ Every language is supported.
 agentskill/
 ├── SKILL.md
 ├── README.md
-├── scripts/extract.py
+├── scripts/
+│   └── agentskill.py       # CLI entry point
+├── agentskill/              # Core package
+│   ├── __init__.py
+│   ├── cli.py
+│   ├── constants.py
+│   ├── extractors/
+│   │   ├── git.py
+│   │   └── filesystem.py
+│   ├── analyzers/
+│   │   ├── base.py
+│   │   └── language/
+│   │       ├── rust.py
+│   │       ├── python.py
+│   │       └── generic.py
+│   └── synthesis/
+│       └── __init__.py
 ├── references/
 │   ├── GOTCHAS.md
 │   ├── OUTPUT-TEMPLATE.md
 │   └── SYNTHESIS-PROMPT.md
-└── examples/
-    └── SAMPLE.md
+├── examples/
+│   └── SAMPLE.md
+└── tests/
+    └── test_agentskill.py
 ```
 
 ## License
