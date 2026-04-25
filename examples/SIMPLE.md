@@ -89,6 +89,32 @@ ruff format .
 - **Manager:** pip / uv
 - **Pin style:** locked (requirements.txt)
 
+## Code Examples
+
+Actual patterns from the codebase:
+
+### Example 1
+```python
+# From cli.py
+@click.command()
+def main(config_path: str) -> None:
+    cfg = Config.load(config_path)
+    result = run_pipeline(cfg)
+    if result.errors:
+        raise SystemExit(1)
+```
+
+### Example 2
+```python
+# From utils.py
+def parse_input(raw: str) -> dict[str, Any]:
+    """Parse raw input into structured data."""
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid input: {e}") from e
+```
+
 ---
 
 **Source:** my-cli-tool
