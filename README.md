@@ -36,6 +36,40 @@ Script output feeds directly into `AGENTS.md` synthesis. The synthesis step foll
 pip install -e .
 ```
 
+For local development:
+
+```bash
+python -m pip install -r <(python - <<'PY'
+import tomllib
+with open("pyproject.toml", "rb") as f:
+    deps = tomllib.load(f)["project"]["optional-dependencies"]["dev"]
+print("\n".join(deps))
+PY
+)
+```
+
+If you prefer installing from project metadata once editable packaging is updated, use the `dev` extra instead.
+
+---
+
+## Development Checks
+
+Run the baseline quality checks locally:
+
+```bash
+ruff format .
+ruff check .
+pytest
+```
+
+To verify without changing files:
+
+```bash
+ruff format --check .
+ruff check .
+pytest
+```
+
 ---
 
 ## Usage
@@ -71,13 +105,27 @@ SYSTEM.md           # behavioral spec for AGENTS.md generation — never modify
 SKILL.md            # operational workflow — never modify
 AGENTS.md           # conventions for this repo itself
 scripts/
-  scan.py           # directory tree walk, file inventory, read order
-  measure.py        # indentation, line lengths, blank lines, trailing whitespace
-  config.py         # formatter/linter/type-checker detection from config files
-  git.py            # commit log parsing, branch analysis, merge strategy
-  graph.py          # internal import graph, cycle detection, monorepo detection
-  symbols.py        # symbol name extraction and naming pattern clustering
-  tests.py          # test-to-source mapping, framework detection, fixture extraction
+  commands/
+    scan.py         # directory tree walk, file inventory, read order
+    measure.py      # indentation, line lengths, blank lines, trailing whitespace
+    config.py       # formatter/linter/type-checker detection from config files
+    git.py          # commit log parsing, branch analysis, merge strategy
+    graph.py        # internal import graph, cycle detection, monorepo detection
+    symbols.py      # symbol name extraction and naming pattern clustering
+    tests.py        # test-to-source mapping, framework detection, fixture extraction
+  lib/
+    runner.py       # aggregate analyzer orchestration for `analyze`
+    output.py       # shared JSON output helpers for CLI and scripts
+  common/
+    constants.py    # shared repository-walk constants
+    fs.py           # shared low-level filesystem helpers
+  scan.py           # thin wrapper for direct script execution
+  measure.py        # thin wrapper for direct script execution
+  config.py         # thin wrapper for direct script execution
+  git.py            # thin wrapper for direct script execution
+  graph.py          # thin wrapper for direct script execution
+  symbols.py        # thin wrapper for direct script execution
+  tests.py          # thin wrapper for direct script execution
 references/
   GOTCHAS.md        # extraction and synthesis errors to avoid
 examples/
@@ -97,6 +145,8 @@ Three files govern behavior. Read all three before modifying anything.
 | `SYSTEM.md`     | The canonical spec: what every section of `AGENTS.md` must contain and how to evaluate it |
 | `SKILL.md`      | The operational workflow: when to invoke, what scripts to run, in what order       |
 | `GOTCHAS.md`    | Extraction and synthesis errors from previous runs — read before writing           |
+
+The public commands stay the same after refactors. Internal code is organized by technical role: analyzers in `scripts/commands/`, shared CLI infrastructure in `scripts/lib/`, and low-level helpers in `scripts/common/`.
 
 ---
 
