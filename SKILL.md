@@ -21,13 +21,13 @@ Analyze repos, synthesize AGENTS.md.
 
 ```bash
 # Generate AGENTS.md (default)
-python3 scripts/agentskill.py ~/projects/myapp
+agentskill ~/projects/myapp
 
 # Raw JSON analysis
-python3 scripts/agentskill.py ~/projects/repo1 ~/projects/repo2 --json -o report.json
+agentskill ~/projects/repo1 ~/projects/repo2 --json -o report.json
 
 # Skip git or tooling
-python3 scripts/agentskill.py ~/projects/myapp --skip-git --skip-tooling
+agentskill ~/projects/myapp --skip-git --skip-tooling
 
 # Install as package
 pip install .
@@ -37,7 +37,7 @@ agentskill ~/projects/myapp
 ## Principles
 
 - **Extract, don't guess.** Metrics from actual code, not assumptions.
-- **Multi-language.** Document every language found. Rust and Python have deep analyzers; all others use generic heuristics.
+- **Multi-language.** Document every language found. All languages analyzed via the same language-agnostic engine in `engine.py`.
 - **Triangulate.** Patterns across repos = personal; single repo = project-specific.
 - **Actionable.** "Prefer early extraction" > "Keep functions short."
 - **Minimal.** Distinctive rules only, no universal noise.
@@ -45,22 +45,20 @@ agentskill ~/projects/myapp
 ## Architecture
 
 ```
-scripts/agentskill.py       CLI entry point (delegates to package)
 agentskill/
   constants.py              All constants and configuration
-  cli.py                   Argument parsing, orchestration
+  cli.py                    Argument parsing, orchestration
+  engine.py                 Language-agnostic code analysis engine
   extractors/
     git.py                  Commit messages, branches, config, remotes
     filesystem.py           File scanning, tooling, project metadata
-  analyzers/
-    base.py                Abstract LanguageAnalyzer + AnalysisResult
-    language/
-      rust.py              Deep: naming, errors, comments, imports, spacing
-      python.py            Deep: naming, errors, comments, imports, spacing
-      generic.py           Fallback: line counts, comment density
+    structure.py            Directory structure and conventions
+    commands.py             Build/test/dev command extraction
   synthesis/
-    __init__.py            AgentSynthesizer + SynthesisConfig
+    __init__.py             AgentSynthesizer + SynthesisConfig
 ```
+
+The analysis engine in `engine.py` is fully language-agnostic. It detects naming conventions, comments, spacing, imports, and errors via text patterns — no language-specific analyzers needed. All languages are analyzed with the same pipeline.
 
 ## References
 

@@ -495,8 +495,9 @@ class AgentSynthesizer:
 
     def _generate_footer(self, analyses: List[Dict], repos: List[str]) -> str:
         """Generate footer with source and confidence."""
-        repo_names = [Path(r).name for r in repos]
-        source_str = ", ".join(repo_names)
+        from pathlib import Path
+        repo_names = [Path(r).resolve().name for r in repos]
+        source_str = ", ".join(repo_names) if repo_names else "unknown"
 
         total_files = sum(
             sum(lang.get("metrics", {}).get("file_count", 0) for lang in a.get("languages", {}).values())
