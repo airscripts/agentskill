@@ -1,7 +1,7 @@
 import json
-import tomllib
 from pathlib import Path
 
+import tomllib
 from test_support import create_sample_repo
 
 import cli
