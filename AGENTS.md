@@ -2,25 +2,31 @@
 
 ## 1. Overview
 
-agentskill is a single-repo Python CLI that analyzes another repository and emits a JSON report used to synthesize an `AGENTS.md`. The architecture is split between a thin root CLI, analyzer implementations in `scripts/commands/`, shared support code in `scripts/lib/` and `scripts/common/`, and a separate `tests/` tree that exercises the CLI, analyzers, and helpers.
+agentskill is a single-repo Python CLI that analyzes another repository and emits JSON signals used to synthesize an `AGENTS.md`. The codebase is organized around a thin root CLI in `cli.py`, concrete analyzers in `scripts/commands/`, shared output and orchestration helpers in `scripts/lib/`, low-level filesystem helpers in `scripts/common/`, reference docs and examples at the repo root, and a separate `tests/` tree that exercises both analyzer internals and CLI entrypoints.
 
 ## 2. Repository Structure
 
 ```text
 agentskill/
-  cli.py                    # root entry point; subcommand parsing and dispatch only
+  cli.py                    # root entry point; argument parsing and dispatch only
   pyproject.toml            # packaging, pytest, ruff, coverage config
   README.md                 # user-facing overview and command reference
   SYSTEM.md                 # synthesis spec for generated AGENTS.md files
   SKILL.md                  # operational workflow for the skill
+  AGENTS.md                 # conventions for this repo
+  LICENSE                   # MIT license text
   references/
-    GOTCHAS.md              # known extraction/synthesis failure modes
+    GOTCHAS.md              # extraction and synthesis failure modes
+  examples/
+    SINGLE_LANGUAGE.md      # reference output for a standard single-language repo
+    MULTI_LANGUAGE.md       # reference output for a multi-language single repo
+    MONOREPO.md             # reference output for a monorepo
   scripts/
-    commands/               # real analyzer implementations
-      config.py             # formatter/linter/type checker detection
+    commands/               # analyzer implementations
+      config.py             # formatter/linter/type-checker detection
       git.py                # commit and branch analysis
-      graph.py              # internal import graph
-      measure.py            # exact formatting measurements
+      graph.py              # import graph and boundary detection
+      measure.py            # formatting measurements
       scan.py               # tree and file inventory
       symbols.py            # naming-pattern extraction
       tests.py              # test-structure analysis
@@ -38,12 +44,15 @@ agentskill/
     symbols.py              # thin direct-execution wrapper
     tests.py                # thin direct-execution wrapper
   tests/                    # pytest suite; separate tree, not colocated
+    conftest.py             # sys.path test bootstrap
+    test_support.py         # shared repo/setup helpers for tests
 ```
 
 - New analyzer logic goes in `scripts/commands/`, not in `cli.py`.
 - Shared CLI plumbing belongs in `scripts/lib/`; low-level reusable helpers belong in `scripts/common/`.
 - Files under `scripts/*.py` stay as thin wrappers around `commands.<name>.main`.
 - New tests go in `tests/` as `test_<subject>.py`; this repo does not colocate tests beside source files.
+- New examples for unfamiliar repo shapes belong in `examples/`, not mixed into `references/`.
 - Keep the repo root small: entrypoint, metadata, docs/spec files, and no business logic outside `cli.py`.
 
 ## 5. Commands and Workflows
@@ -64,9 +73,14 @@ PY
 # Run all analyzers
 python cli.py analyze <repo> --pretty
 
-# Run a single analyzer
+# Run individual analyzers through the root CLI
 python cli.py scan <repo> --pretty
 python cli.py measure <repo> --lang python --pretty
+python cli.py config <repo> --pretty
+python cli.py git <repo> --pretty
+python cli.py graph <repo> --pretty
+python cli.py symbols <repo> --pretty
+python cli.py tests <repo> --pretty
 
 # Direct wrapper execution
 python scripts/scan.py <repo> --pretty
@@ -78,14 +92,15 @@ pytest
 ```
 
 - `python cli.py analyze <repo> --pretty` is the canonical aggregate workflow.
-- `python scripts/<name>.py <repo> --pretty` is supported for direct single-script execution, but the root CLI is the main entrypoint.
+- `python cli.py <command> <repo> --pretty` is the main single-analyzer interface; `python scripts/<name>.py <repo> --pretty` remains supported as a thin direct wrapper.
 - Use `pytest` as the canonical test command; that is what the repo advertises in `README.md` and what the analyzer detects from `pyproject.toml`.
+- Use `ruff format .` and `ruff check .` for local formatting and lint passes; Ruff is the only configured code-quality tool in project metadata.
 
 ## 6. Code Formatting
 
 ### Python
 
-Configured tooling: Ruff linting is configured in `pyproject.toml`; no formatter config is declared. Follow the observed formatting directly.
+Configured tooling: Ruff is configured in `pyproject.toml` for linting, and the repo documents `ruff format .` as the formatting command. No formatter-specific overrides are declared, so follow the observed formatting directly.
 
 **Indentation:** 4 spaces.
 
@@ -186,6 +201,7 @@ return None, None, False
 prefixes[k] = {
     "count": v["count"],
     "pct": round(v["count"] / total * 100, 1),
+    "example": v["example"],
 }
 ```
 
@@ -193,17 +209,15 @@ prefixes[k] = {
 def run_many(repos: list[str], lang_filter: str | None = None) -> dict:
 ```
 
-**Spacing — decorators:** decorators are flush with the function they decorate, with no blank line between decorator and `def`. This is visible in fixture samples created in tests.
+**Spacing — decorators:** decorators are flush with the function they decorate, with no blank line between decorator and `def`.
 
 ```python
-"tests/test_main.py": (
-    "import pytest\n\n"
-    "from pkg.main import main_entry\n\n\n"
-    "@pytest.fixture\n"
-    "def sample_fixture():\n"
+@pytest.fixture
+def repo_fixture(tmp_path):
+    return create_sample_repo(tmp_path)
 ```
 
-**Import block formatting:** one import per line; groups are separated by a blank line. Tests often place local test-support imports before a direct `import cli`.
+**Import block formatting:** one import per line; groups are separated by a blank line. In source files, stdlib imports come first and local package imports follow. Tests often place local test-support imports before a direct `import cli`.
 
 ```python
 import json
@@ -269,7 +283,7 @@ tests/test_measure.py
 tests/test_support.py
 ```
 
-**Directory names:** lowercase simple nouns: `scripts`, `commands`, `common`, `lib`, `tests`, `references`.
+**Directory names:** lowercase simple nouns: `scripts`, `commands`, `common`, `lib`, `tests`, `references`, `examples`.
 
 **Test function names:** `test_<behavior>` with long descriptive tails is the dominant pattern.
 
@@ -282,7 +296,7 @@ def test_graph_detects_relative_imports_cycles_and_parse_errors(tmp_path):
 
 ```python
 def sample_fixture():
-def repo_fixture():
+def repo_fixture(tmp_path):
 ```
 
 ## 8. Type Annotations
@@ -293,7 +307,7 @@ def repo_fixture():
 - Internal helpers are also usually annotated; this repo does not reserve annotations only for public APIs.
 - Use built-in generics like `list[str]`, `dict[str, int]`, and union syntax like `str | None` instead of `List`, `Dict`, or `Optional`.
 - Container-rich return types are accepted directly in signatures instead of being hidden behind aliases.
-- No dedicated type-checker is configured; `pyproject.toml` only declares Ruff lint settings.
+- No dedicated type-checker is configured; `pyproject.toml` declares Ruff lint settings only.
 
 ```python
 def main(argv: list[str] | None = None) -> int:
@@ -387,7 +401,7 @@ def _detect_merge_strategy(cwd: str) -> tuple[str, str]:
 ```
 
 ```python
-j = last_import  # 1-indexed → 0-indexed
+j = last_import  # 1-indexed -> 0-indexed
 ```
 
 ## 12. Testing
@@ -397,8 +411,8 @@ j = last_import  # 1-indexed → 0-indexed
 - Framework: `pytest`.
 - Tests live in `tests/`, not beside source files.
 - Test files are named `test_<subject>.py`.
+- `tests/conftest.py` is used for shared import-path bootstrap; helper setup code is centralized in `tests/test_support.py`.
 - Tests use plain `assert` statements and `tmp_path`, `capsys`, and `monkeypatch` fixtures heavily.
-- Helper setup code is centralized in `tests/test_support.py`.
 - The suite tests both pure functions and command-line entrypoints.
 
 ```python
@@ -437,9 +451,9 @@ Examples from current history:
 
 ```text
 refactor: code clean up
-feat: add code examples to SIMPLE.md
+feat: add AGENTS.md file
 docs: mark all roadmap items complete
-fix: resolve all 8 accuracy bugs from self-analysis
+fix: add missing frontmatter to SKILL.md
 ```
 
 Branch example:
@@ -450,15 +464,19 @@ chore/strip-comments
 
 ## 14. Dependencies and Tooling
 
-- Packaging uses `setuptools.backends.legacy:build`.
+- Packaging uses `setuptools.backends.legacy:build` with `setuptools>=68` in `build-system.requires`.
 - The published console script is `agentskill = "cli:main"`.
 - Runtime requirement is Python `>=3.9`.
 - Dev dependencies are `pytest`, `pytest-cov`, and `ruff`.
-- Ruff lint rules are configured in `pyproject.toml` with `select = ["E4", "E7", "E9", "F", "I"]` and `ignore = ["E402"]`.
+- Ruff targets `py39`, excludes cache and virtualenv directories, and lint rules are configured in `pyproject.toml` with `select = ["E4", "E7", "E9", "F", "I"]` and `ignore = ["E402"]`.
 - Coverage omits `tests/*`.
 - License is MIT.
 
 ```toml
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
 [project]
 name = "agentskill"
 version = "0.1.0"
@@ -469,6 +487,9 @@ agentskill = "cli:main"
 ```
 
 ```toml
+[tool.ruff]
+target-version = "py39"
+
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I"]
 ignore = ["E402"]
@@ -476,9 +497,10 @@ ignore = ["E402"]
 
 ## 15. Red Lines
 
-- Do not put analyzer implementation logic into `cli.py`; keep it as dispatch/orchestration only.
+- Do not put analyzer implementation logic into `cli.py`; keep it as dispatch and orchestration only.
 - Do not add colocated tests under `scripts/`; tests belong under `tests/`.
 - Do not introduce `Optional[...]`, `List[...]`, or `Dict[...]` annotation style; the repo uses built-in generics and `| None`.
 - Do not switch quote style to single quotes in ordinary Python code.
 - Do not start using wildcard imports or `__future__` imports without a repo-wide reason.
 - Do not rely on exceptions escaping CLI/output wrappers when the existing pattern returns `{"error": ..., "script": ...}` payloads.
+- Do not fold example reference files into `references/` or analyzer code; keep sample outputs in `examples/`.
