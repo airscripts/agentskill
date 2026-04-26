@@ -1,3 +1,7 @@
+---
+name: agentskill
+description: Analyze a code repository and synthesize an AGENTS.md.
+---
 # SKILL.md — agentskill
 
 > **Operational spec for agentskill.**
