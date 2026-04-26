@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 from common.constants import should_skip_dir
-from common.fs import read_text
+from common.fs import read_text, validate_repo
 from lib.output import run_and_output
 
 MAX_EDGES = 200
@@ -337,10 +337,10 @@ def _detect_monorepo_boundaries(repo: Path) -> dict:
 
 
 def build_graph(repo_path: str, lang_filter: str | None = None) -> dict:
-    repo = Path(repo_path).resolve()
-
-    if not repo.exists():
-        return {"error": f"path does not exist: {repo_path}", "script": "graph"}
+    try:
+        repo = validate_repo(repo_path)
+    except ValueError as exc:
+        return {"error": str(exc), "script": "graph"}
 
     result: dict = {}
 

@@ -65,3 +65,12 @@ def test_config_detects_typescript_go_and_rust_tooling(tmp_path):
     assert result["go"]["linter"]["name"] == "golangci-lint"
     assert result["rust"]["formatter"]["name"] == "rustfmt"
     assert result["rust"]["linter"]["name"] == "clippy"
+
+
+def test_config_reports_invalid_repo_paths(tmp_path):
+    missing = tmp_path / "missing"
+
+    assert detect(str(missing)) == {
+        "error": f"path does not exist: {missing}",
+        "script": "config",
+    }

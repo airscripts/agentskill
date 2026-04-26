@@ -27,3 +27,19 @@ def test_scan_wrapper_still_executes_directly(tmp_path):
     output = json.loads(completed.stdout)
 
     assert output["summary"]["total_files"] >= 4
+
+
+def test_scan_reports_invalid_repo_paths(tmp_path):
+    missing = tmp_path / "missing"
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("hello\n")
+
+    assert scan(str(missing)) == {
+        "error": f"path does not exist: {missing}",
+        "script": "scan",
+    }
+
+    assert scan(str(file_path)) == {
+        "error": f"not a directory: {file_path}",
+        "script": "scan",
+    }

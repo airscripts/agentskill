@@ -51,3 +51,12 @@ def test_graph_detects_ts_go_and_monorepo_boundaries(tmp_path):
 
     assert {"from": "pkg", "to": "pkg/helper", "line": 0} in result["go"]["edges"]
     assert result["monorepo_boundaries"]["detected"] is True
+
+
+def test_graph_reports_invalid_repo_paths(tmp_path):
+    missing = tmp_path / "missing"
+
+    assert build_graph(str(missing)) == {
+        "error": f"path does not exist: {missing}",
+        "script": "graph",
+    }

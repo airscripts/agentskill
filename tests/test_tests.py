@@ -80,3 +80,12 @@ def test_tests_detect_unittest_ts_and_mapping_gaps(tmp_path):
     assert framework == "vitest"
     assert command == "vitest run"
     assert result["typescript"]["naming"]["file_pattern"] == "<module>.spec.ts"
+
+
+def test_tests_reports_invalid_repo_paths(tmp_path):
+    missing = tmp_path / "missing"
+
+    assert analyze_tests(str(missing)) == {
+        "error": f"path does not exist: {missing}",
+        "script": "tests",
+    }

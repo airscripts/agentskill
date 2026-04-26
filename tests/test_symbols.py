@@ -62,3 +62,12 @@ def test_symbols_extracts_typescript_and_go(tmp_path):
 
     assert result["go"]["functions"]["total"] >= 1
     assert result["go"]["constants"]["total"] >= 2
+
+
+def test_symbols_reports_invalid_repo_paths(tmp_path):
+    missing = tmp_path / "missing"
+
+    assert extract_symbols(str(missing)) == {
+        "error": f"path does not exist: {missing}",
+        "script": "symbols",
+    }

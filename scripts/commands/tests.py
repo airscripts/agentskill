@@ -17,7 +17,7 @@ from collections import Counter
 from pathlib import Path
 
 from common.constants import should_skip_dir
-from common.fs import count_lines, read_text
+from common.fs import count_lines, read_text, validate_repo
 from lib.output import run_and_output
 
 FRAMEWORK_DETECTION_SAMPLE = 5
@@ -431,10 +431,10 @@ def _analyze_typescript(repo: Path) -> dict | None:
 
 
 def analyze_tests(repo_path: str) -> dict:
-    repo = Path(repo_path).resolve()
-
-    if not repo.exists():
-        return {"error": f"path does not exist: {repo_path}", "script": "tests"}
+    try:
+        repo = validate_repo(repo_path)
+    except ValueError as exc:
+        return {"error": str(exc), "script": "tests"}
 
     result: dict = {}
 

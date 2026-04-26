@@ -105,3 +105,12 @@ def test_git_analyze_can_report_empty_history(monkeypatch, tmp_path):
     result = analyze(str(repo))
 
     assert result == {"error": "empty repository", "script": "git"}
+
+
+def test_git_reports_invalid_repo_paths(tmp_path):
+    missing = tmp_path / "missing"
+
+    assert analyze(str(missing)) == {
+        "error": f"path does not exist: {missing}",
+        "script": "git",
+    }

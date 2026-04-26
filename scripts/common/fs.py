@@ -3,6 +3,18 @@
 from pathlib import Path
 
 
+def validate_repo(path: str) -> Path:
+    repo = Path(path).resolve()
+
+    if not repo.exists():
+        raise ValueError(f"path does not exist: {path}")
+
+    if not repo.is_dir():
+        raise ValueError(f"not a directory: {path}")
+
+    return repo
+
+
 def count_lines(path: Path) -> int:
     try:
         with open(path, "rb") as file_obj:

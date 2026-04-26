@@ -18,7 +18,7 @@ from collections import Counter
 from pathlib import Path
 
 from common.constants import should_skip_dir
-from common.fs import read_text
+from common.fs import read_text, validate_repo
 from lib.output import run_and_output
 
 MAX_SMALL_INDENT = 8
@@ -409,10 +409,10 @@ def _measure_lang(lang: str, files: list[Path]) -> dict:
 
 
 def measure(repo_path: str, lang_filter: str | None = None) -> dict:
-    repo = Path(repo_path).resolve()
-
-    if not repo.exists():
-        return {"error": f"path does not exist: {repo_path}", "script": "measure"}
+    try:
+        repo = validate_repo(repo_path)
+    except ValueError as exc:
+        return {"error": str(exc), "script": "measure"}
 
     by_lang = _collect_files(repo, lang_filter)
     result: dict = {}

@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from common.fs import validate_repo
 from lib.output import run_and_output
 
 MAX_CONFIG_READ_BYTES = 32_000
@@ -587,10 +588,10 @@ def _attach_editorconfig(lang_result: dict, ec_sections: dict, lang: str) -> Non
 
 
 def detect(repo_path: str) -> dict:
-    repo = Path(repo_path).resolve()
-
-    if not repo.exists():
-        return {"error": f"path does not exist: {repo_path}", "script": "config"}
+    try:
+        repo = validate_repo(repo_path)
+    except ValueError as exc:
+        return {"error": str(exc), "script": "config"}
 
     toml_data: dict = {}
     pyproject = repo / "pyproject.toml"

@@ -74,3 +74,13 @@ def test_measure_entrypoint_handles_lang_filters_and_missing_paths(tmp_path):
 
     assert set(result) == {"typescript"}
     assert measure(str(repo / "missing"))["script"] == "measure"
+
+
+def test_measure_reports_file_paths_as_invalid_repos(tmp_path):
+    file_path = tmp_path / "sample.py"
+    file_path.write_text("print('hi')\n")
+
+    assert measure(str(file_path)) == {
+        "error": f"not a directory: {file_path}",
+        "script": "measure",
+    }

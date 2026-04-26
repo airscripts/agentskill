@@ -18,7 +18,7 @@ from collections import Counter
 from pathlib import Path
 
 from common.constants import should_skip_dir
-from common.fs import read_text
+from common.fs import read_text, validate_repo
 from lib.output import run_and_output
 
 MIN_NAME_LENGTH = 4
@@ -370,10 +370,10 @@ def _extract_go(files: list[Path]) -> dict:
 
 
 def extract_symbols(repo_path: str, lang_filter: str | None = None) -> dict:
-    repo = Path(repo_path).resolve()
-
-    if not repo.exists():
-        return {"error": f"path does not exist: {repo_path}", "script": "symbols"}
+    try:
+        repo = validate_repo(repo_path)
+    except ValueError as exc:
+        return {"error": str(exc), "script": "symbols"}
 
     result: dict = {}
 

@@ -11,8 +11,8 @@ Usage:
 import re
 import subprocess
 import sys
-from pathlib import Path
 
+from common.fs import validate_repo
 from lib.output import run_and_output
 
 GIT_TIMEOUT = 30
@@ -193,10 +193,10 @@ def _detect_merge_strategy(cwd: str) -> tuple[str, str]:
 
 
 def analyze(repo_path: str) -> dict:
-    repo = Path(repo_path).resolve()
-
-    if not repo.exists():
-        return {"error": f"path does not exist: {repo_path}", "script": "git"}
+    try:
+        repo = validate_repo(repo_path)
+    except ValueError as exc:
+        return {"error": str(exc), "script": "git"}
 
     if not (repo / ".git").exists():
         return {"error": "not a git repository", "script": "git"}

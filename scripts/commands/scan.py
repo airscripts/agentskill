@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 from common.constants import should_skip_dir
-from common.fs import count_lines
+from common.fs import count_lines, validate_repo
 from lib.output import run_and_output
 
 SKIP_EXTENSIONS: set[str] = {
@@ -96,13 +96,10 @@ def _is_entry_point(stem: str) -> bool:
 
 
 def scan(repo_path: str, lang_filter: str | None = None) -> dict:
-    repo = Path(repo_path).resolve()
-
-    if not repo.exists():
-        return {"error": f"path does not exist: {repo_path}", "script": "scan"}
-
-    if not repo.is_dir():
-        return {"error": f"not a directory: {repo_path}", "script": "scan"}
+    try:
+        repo = validate_repo(repo_path)
+    except ValueError as exc:
+        return {"error": str(exc), "script": "scan"}
 
     tree: list[dict] = []
     depths: list[int] = []
