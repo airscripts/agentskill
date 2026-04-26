@@ -14,6 +14,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 from lib.output import run_and_output
 
@@ -96,8 +97,8 @@ def _split_toml_array(s: str) -> list[str]:
     return [i for i in items if i]
 
 
-def _parse_toml(content: str) -> dict:
-    result: dict = {}
+def _parse_toml(content: str) -> dict[str, Any]:
+    result: dict[str, Any] = {}
     current_section: list[str] = []
     lines = content.splitlines()
     i = 0
@@ -161,7 +162,7 @@ def _parse_toml(content: str) -> dict:
     return result
 
 
-def _get_nested(d: dict, *keys: str):
+def _get_nested(d: Any, *keys: str) -> Any | None:
     for k in keys:
         if not isinstance(d, dict):
             return None

@@ -39,16 +39,8 @@ pip install -e .
 For local development:
 
 ```bash
-python -m pip install -r <(python - <<'PY'
-import tomllib
-with open("pyproject.toml", "rb") as f:
-    deps = tomllib.load(f)["project"]["optional-dependencies"]["dev"]
-print("\n".join(deps))
-PY
-)
+python -m pip install -e '.[dev]'
 ```
-
-If you prefer installing from project metadata once editable packaging is updated, use the `dev` extra instead.
 
 ---
 
@@ -59,6 +51,7 @@ Run the baseline quality checks locally:
 ```bash
 ruff format .
 ruff check .
+mypy
 pytest
 ```
 
@@ -67,6 +60,7 @@ To verify without changing files:
 ```bash
 ruff format --check .
 ruff check .
+mypy
 pytest
 ```
 

@@ -21,22 +21,29 @@ def test_parse_commit_subject_and_subject_analysis():
     assert _parse_commit_subject("feat(api)!: add endpoint") == ("feat", "api", True)
     assert _parse_commit_subject("plain message") == (None, None, False)
 
-    prefix_data, scope_counts, scoped_count, total, lengths, signed_count = (
-        _analyze_subjects(
-            "a" * 40
-            + "|feat(api): add endpoint|test@example.com|G\n"
-            + "b" * 40
-            + "|fix: patch bug|test@example.com|N\n"
-            + "c" * 40
-            + "|plain message|test@example.com|G\n"
-        )
+    (
+        prefix_counts,
+        prefix_examples,
+        scope_counts,
+        scoped_count,
+        total,
+        lengths,
+        signed_count,
+    ) = _analyze_subjects(
+        "a" * 40
+        + "|feat(api): add endpoint|test@example.com|G\n"
+        + "b" * 40
+        + "|fix: patch bug|test@example.com|N\n"
+        + "c" * 40
+        + "|plain message|test@example.com|G\n"
     )
 
     assert total == 3
     assert scoped_count == 1
     assert scope_counts == {"api": 1}
-    assert prefix_data["feat"]["count"] == 1
-    assert prefix_data["unprefixed"]["count"] == 1
+    assert prefix_counts["feat"] == 1
+    assert prefix_counts["unprefixed"] == 1
+    assert prefix_examples["feat"] == "feat(api): add endpoint"
     assert signed_count == 2
     assert lengths[0] == len("feat(api): add endpoint")
 

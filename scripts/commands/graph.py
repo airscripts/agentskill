@@ -206,10 +206,10 @@ def _extract_go_imports(source: str) -> list[str]:
             imports.append(im)
 
     for line in source.splitlines():
-        m = single_import_re.match(line.strip())
+        single_match = single_import_re.match(line.strip())
 
-        if m:
-            imports.append(m.group(1))
+        if single_match:
+            imports.append(single_match.group(1))
 
     return imports
 
@@ -248,17 +248,23 @@ def _build_go_graph(files: list[Path], repo: Path) -> dict:
     return _graph_result(sorted(adjacency.keys()), edges, adjacency, parse_errors)
 
 
-def _compute_most_depended(adjacency: dict[str, list[str]]) -> list[dict]:
+def _compute_most_depended(
+    adjacency: dict[str, list[str]],
+) -> list[dict[str, str | int]]:
     dep_counts: dict[str, int] = {}
 
     for deps in adjacency.values():
         for d in deps:
             dep_counts[d] = dep_counts.get(d, 0) + 1
 
-    return sorted(
-        [{"module": m, "dependents": c} for m, c in dep_counts.items()],
-        key=lambda x: -x["dependents"],
-    )[:MAX_MOST_DEPENDED]
+    most_depended = sorted(dep_counts.items(), key=lambda item: -item[1])[
+        :MAX_MOST_DEPENDED
+    ]
+
+    return [
+        {"module": module, "dependents": dependents}
+        for module, dependents in most_depended
+    ]
 
 
 def _find_cycles(adjacency: dict[str, list[str]]) -> list[list[str]]:

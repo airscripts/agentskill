@@ -66,9 +66,12 @@ def _pct(data: list[int], p: int) -> int:
     return s[min(idx, len(s) - 1)]
 
 
-def _analyze_subjects(out: str) -> tuple[dict, dict[str, int], int, int, list[int]]:
-    """Parse subject log lines. Return (prefix_data, scope_counts, scoped_count, total, subject_lengths, signed_count)."""
-    prefix_data: dict[str, dict] = {}
+def _analyze_subjects(
+    out: str,
+) -> tuple[dict[str, int], dict[str, str], dict[str, int], int, int, list[int], int]:
+    """Parse subject log lines and return subject stats plus signed-commit count."""
+    prefix_counts: dict[str, int] = {}
+    prefix_examples: dict[str, str] = {}
     scope_counts: dict[str, int] = {}
     scoped_count = 0
     total = 0
@@ -91,16 +94,22 @@ def _analyze_subjects(out: str) -> tuple[dict, dict[str, int], int, int, list[in
         prefix, scope, _breaking = _parse_commit_subject(subject)
         bucket = prefix if prefix else "unprefixed"
 
-        if bucket not in prefix_data:
-            prefix_data[bucket] = {"count": 0, "example": subject}
-
-        prefix_data[bucket]["count"] += 1
+        prefix_counts[bucket] = prefix_counts.get(bucket, 0) + 1
+        prefix_examples.setdefault(bucket, subject)
 
         if scope:
             scoped_count += 1
             scope_counts[scope] = scope_counts.get(scope, 0) + 1
 
-    return prefix_data, scope_counts, scoped_count, total, subject_lengths, signed_count
+    return (
+        prefix_counts,
+        prefix_examples,
+        scope_counts,
+        scoped_count,
+        total,
+        subject_lengths,
+        signed_count,
+    )
 
 
 def _analyze_bodies(cwd: str) -> int:
@@ -202,20 +211,26 @@ def analyze(repo_path: str) -> dict:
     if rc != 0:
         return {"error": "git log failed", "script": "git"}
 
-    prefix_data, scope_counts, scoped_count, total, subject_lengths, signed_count = (
-        _analyze_subjects(out)
-    )
+    (
+        prefix_counts,
+        prefix_examples,
+        scope_counts,
+        scoped_count,
+        total,
+        subject_lengths,
+        signed_count,
+    ) = _analyze_subjects(out)
 
     if total == 0:
         return {"error": "empty repository", "script": "git"}
 
     prefixes: dict[str, dict] = {}
 
-    for k, v in sorted(prefix_data.items(), key=lambda x: -x[1]["count"]):
+    for k, count in sorted(prefix_counts.items(), key=lambda item: -item[1]):
         prefixes[k] = {
-            "count": v["count"],
-            "pct": round(v["count"] / total * 100, 1),
-            "example": v["example"],
+            "count": count,
+            "pct": round(count / total * 100, 1),
+            "example": prefix_examples[k],
         }
 
     top_scopes = sorted(scope_counts, key=lambda k: -scope_counts[k])[

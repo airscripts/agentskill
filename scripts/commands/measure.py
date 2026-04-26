@@ -337,13 +337,9 @@ def _measure_blank_lines_generic(files: list[Path], lang: str) -> dict:
     return result
 
 
-def _file_metrics(fp: Path) -> dict | None:
-    """Return raw per-file measurements, or None if the file can't be read."""
-    try:
-        content = read_text(fp)
-    except Exception:
-        return None
-
+def _file_metrics(fp: Path) -> dict:
+    """Return raw per-file measurements for a single source file."""
+    content = read_text(fp)
     raw_lines = content.split("\n")
     lines = raw_lines[:-1] if content.endswith("\n") else raw_lines
 
@@ -376,9 +372,6 @@ def _measure_lang(lang: str, files: list[Path]) -> dict:
 
     for fp in files:
         m = _file_metrics(fp)
-
-        if m is None:
-            continue
 
         indent_votes.append(m["indent"])
         all_line_lengths.extend(m["line_lengths"])

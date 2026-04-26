@@ -54,16 +54,11 @@ def _is_fixture_decorator(decorator: ast.expr) -> bool:
     """Return True if an AST decorator node is a pytest fixture."""
     dec_str = ast.unparse(decorator) if hasattr(ast, "unparse") else ""
 
-    if "fixture" in dec_str:
-        return True
-
-    if isinstance(decorator, ast.Attribute) and decorator.attr == "fixture":
-        return True
-
-    if isinstance(decorator, ast.Name) and decorator.id == "fixture":
-        return True
-
-    return False
+    return (
+        "fixture" in dec_str
+        or (isinstance(decorator, ast.Attribute) and decorator.attr == "fixture")
+        or (isinstance(decorator, ast.Name) and decorator.id == "fixture")
+    )
 
 
 def _ts_framework_from_deps(test_cmd: str, dev_deps: dict) -> str | None:
@@ -136,9 +131,9 @@ def _collect_ts_files(repo: Path) -> tuple[list[Path], list[Path]]:
                 or ".spec." in fn
                 or stem.endswith("-test")
                 or stem.endswith("-spec")
+                or "__tests__" in Path(dirpath).parts
+                or "tests" in Path(dirpath).parts
             ):
-                test_files.append(fpath)
-            elif "__tests__" in Path(dirpath).parts or "tests" in Path(dirpath).parts:
                 test_files.append(fpath)
             else:
                 source_files.append(fpath)
@@ -352,9 +347,10 @@ def _extract_fixtures_from_conftest(repo: Path, conftest_paths: list[str]) -> li
             tree = ast.parse(source)
 
             for node in ast.walk(tree):
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    if any(_is_fixture_decorator(d) for d in node.decorator_list):
-                        fixture_names.append(node.name)
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and any(
+                    _is_fixture_decorator(d) for d in node.decorator_list
+                ):
+                    fixture_names.append(node.name)
         except Exception:
             continue
 

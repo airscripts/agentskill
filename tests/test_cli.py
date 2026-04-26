@@ -1,10 +1,11 @@
 import json
+import sys
 from pathlib import Path
 
-try:
+if sys.version_info >= (3, 11):
     import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib
+else:
+    import tomli as tomllib  # type: ignore[import-not-found]
 
 from test_support import create_sample_repo
 
