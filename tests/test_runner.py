@@ -1,6 +1,7 @@
 import time
 
 from lib import runner
+from lib.logging_utils import get_logger
 from lib.runner import (
     ANALYZER_TIMEOUT_SECONDS,
     COMMANDS,
@@ -44,8 +45,10 @@ def test_runner_supports_lang_and_multi_repo(tmp_path):
     assert "python" in result[str(repo_one)]["measure"]
 
 
-def test_runner_captures_command_exceptions(monkeypatch):
+def test_runner_captures_command_exceptions(monkeypatch, caplog):
     original = runner.COMMANDS["scan"]["fn"]
+    logger = get_logger()
+    original_propagate = logger.propagate
 
     monkeypatch.setitem(
         runner.COMMANDS["scan"],
@@ -53,36 +56,56 @@ def test_runner_captures_command_exceptions(monkeypatch):
         lambda repo, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
-    result = run_all("repo")
+    logger.propagate = True
+
+    try:
+        with caplog.at_level("ERROR", logger="agentskill"):
+            result = run_all("repo")
+    finally:
+        logger.propagate = original_propagate
+
     assert result["scan"] == {"error": "boom"}
+    assert "Analyzer scan failed for repo repo" in caplog.text
+    assert "Traceback" in caplog.text
     monkeypatch.setitem(runner.COMMANDS["scan"], "fn", original)
 
 
-def test_runner_times_out_slow_commands(monkeypatch):
+def test_runner_times_out_slow_commands(monkeypatch, caplog):
     monkeypatch.setattr(runner, "ANALYZER_TIMEOUT_SECONDS", 0.05)
     monkeypatch.setattr(runner, "POLL_INTERVAL_SECONDS", 0.01)
-
     original = runner.COMMANDS["scan"]["fn"]
+    logger = get_logger()
+    original_propagate = logger.propagate
 
     def slow_command(repo, **kwargs):
         time.sleep(0.2)
         return {"ok": True}
 
     monkeypatch.setitem(runner.COMMANDS["scan"], "fn", slow_command)
-    result = run_all("repo")
+    logger.propagate = True
+
+    try:
+        with caplog.at_level("WARNING", logger="agentskill"):
+            result = run_all("repo")
+    finally:
+        logger.propagate = original_propagate
 
     assert result["scan"] == {
         "error": (f"analyzer timed out after {runner.ANALYZER_TIMEOUT_SECONDS}s")
     }
 
+    assert "Analyzer scan timed out after 0.05s for repo repo" in caplog.text
+
     monkeypatch.setitem(runner.COMMANDS["scan"], "fn", original)
 
 
-def test_runner_handles_mixed_success_exception_and_timeout(monkeypatch):
+def test_runner_handles_mixed_success_exception_and_timeout(monkeypatch, caplog):
     monkeypatch.setattr(runner, "ANALYZER_TIMEOUT_SECONDS", 0.05)
     monkeypatch.setattr(runner, "POLL_INTERVAL_SECONDS", 0.01)
 
     originals = {name: metadata["fn"] for name, metadata in runner.COMMANDS.items()}
+    logger = get_logger()
+    original_propagate = logger.propagate
 
     monkeypatch.setitem(
         runner.COMMANDS,
@@ -119,7 +142,13 @@ def test_runner_handles_mixed_success_exception_and_timeout(monkeypatch):
             },
         )
 
-    result = run_all("repo", "python")
+    logger.propagate = True
+
+    try:
+        with caplog.at_level("WARNING", logger="agentskill"):
+            result = run_all("repo", "python")
+    finally:
+        logger.propagate = original_propagate
 
     assert result["scan"] == {"ok": "scan"}
     assert result["measure"] == {"error": "boom"}
@@ -129,6 +158,9 @@ def test_runner_handles_mixed_success_exception_and_timeout(monkeypatch):
     }
 
     assert set(result) == set(runner.COMMANDS)
+    assert caplog.text.count("Analyzer measure failed for repo repo") == 1
+    assert caplog.text.count("Analyzer config timed out after 0.05s for repo repo") == 1
+    assert "Traceback" in caplog.text
 
     for name, fn in originals.items():
         monkeypatch.setitem(runner.COMMANDS[name], "fn", fn)

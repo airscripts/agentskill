@@ -10,6 +10,7 @@ from commands import measure as measure_command
 from commands import scan as scan_command
 from commands import symbols as symbols_command
 from commands import tests as tests_command
+from lib.logging_utils import get_logger
 
 COMMANDS: dict[str, dict] = {
     "scan": {
@@ -44,6 +45,7 @@ COMMANDS: dict[str, dict] = {
 
 ANALYZER_TIMEOUT_SECONDS = 60
 POLL_INTERVAL_SECONDS = 0.1
+logger = get_logger()
 
 
 def _command_kwargs(command_name: str, lang_filter: str | None) -> dict:
@@ -82,6 +84,7 @@ def run_all(repo: str, lang_filter: str | None = None) -> dict:
                 try:
                     result[name] = future.result()
                 except Exception as exc:
+                    logger.exception("Analyzer %s failed for repo %s", name, repo)
                     result[name] = {"error": str(exc)}
 
                 pending.remove(future)
@@ -95,6 +98,14 @@ def run_all(repo: str, lang_filter: str | None = None) -> dict:
 
             for future in timed_out:
                 name = futures[future]
+
+                logger.warning(
+                    "Analyzer %s timed out after %ss for repo %s",
+                    name,
+                    ANALYZER_TIMEOUT_SECONDS,
+                    repo,
+                )
+
                 result[name] = {
                     "error": (f"analyzer timed out after {ANALYZER_TIMEOUT_SECONDS}s")
                 }
