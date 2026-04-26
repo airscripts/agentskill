@@ -232,7 +232,7 @@ Per language. Cover:
 
 - Required or optional on public signatures
 - Required or optional on private/internal functions
-- Which style: `typing` module generics vs built-in generics (Python 3.9+)
+- Which style: `typing` module generics vs built-in generics (Python 3.10+)
 - Whether `Optional[X]` or `X | None` is preferred — pick the one the codebase uses
 - How complex or nested types are handled
 - Whether a type checker is enforced (mypy, pyright, tsc strict mode, etc.) and its config location

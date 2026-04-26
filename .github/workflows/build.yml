@@ -4,8 +4,8 @@ on:
   workflow_call:
 
 jobs:
-  linux:
-    name: Linux
+  agentskill:
+    name: Agentskill
     runs-on: ubuntu-latest
 
     steps:
@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-python@v6
 
         with:
-          python-version: "3.9"
+          python-version: "3.10"
 
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e '.[dev]'

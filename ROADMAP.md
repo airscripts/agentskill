@@ -57,7 +57,7 @@ This roadmap captures the most impactful robustness and code-quality improvement
 
 12. **Replace custom TOML parser with `tomli`**
     - `_parse_toml` in `config.py` does not handle inline tables, dotted keys, multi-line strings, or comments robustly.
-    - Project targets `>=3.9`; add `tomli` to runtime dependencies and use it instead.
+    - Project targets `>=3.10`; add `tomli` to runtime dependencies and use it instead.
 
 13. **Replace custom YAML parser with `PyYAML`**
     - `_parse_yaml_simple` fails on lists inside mappings, quoted keys, and multi-line values.

@@ -466,7 +466,7 @@ chore/strip-comments
 
 - Packaging uses `setuptools.backends.legacy:build` with `setuptools>=68` in `build-system.requires`.
 - The published console script is `agentskill = "cli:main"`.
-- Runtime requirement is Python `>=3.9`.
+- Runtime requirement is Python `>=3.10`.
 - Dev dependencies are `pytest`, `pytest-cov`, and `ruff`.
 - Ruff targets `py39`, excludes cache and virtualenv directories, and lint rules are configured in `pyproject.toml` with `select = ["E4", "E7", "E9", "F", "I"]` and `ignore = ["E402"]`.
 - Coverage omits `tests/*`.
@@ -480,7 +480,7 @@ build-backend = "setuptools.backends.legacy:build"
 [project]
 name = "agentskill"
 version = "0.1.0"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 [project.scripts]
 agentskill = "cli:main"
