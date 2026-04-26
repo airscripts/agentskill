@@ -41,10 +41,11 @@ def test_cli_analyze_runs_all_commands(tmp_path, capsys):
     }
 
 
-def test_cli_writes_out_file_and_multi_repo_results(tmp_path):
+def test_cli_writes_out_file_and_multi_repo_results(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     repo_one = create_sample_repo(tmp_path / "one")
     repo_two = create_sample_repo(tmp_path / "two")
-    out_file = tmp_path / "report.json"
+    out_file = Path("report.json")
 
     exit_code = cli.main(
         ["analyze", str(repo_one), str(repo_two), "--out", str(out_file)]

@@ -6,13 +6,34 @@ from pathlib import Path
 from lib.logging_utils import configure_logging
 
 
+def validate_out_path(out: str) -> Path:
+    raw_path = Path(out)
+
+    if raw_path.is_absolute():
+        raise ValueError(f"invalid output path: absolute paths are not allowed: {out}")
+
+    base_dir = Path.cwd().resolve()
+    resolved = (base_dir / raw_path).resolve()
+
+    try:
+        resolved.relative_to(base_dir)
+    except ValueError as exc:
+        raise ValueError(
+            f"invalid output path: escaping the working directory is not allowed: {out}"
+        ) from exc
+
+    return resolved
+
+
 def write_output(data: dict, pretty: bool = False, out: str | None = None) -> None:
     configure_logging()
     indent = 2 if pretty else None
     text = json.dumps(data, indent=indent)
 
     if out:
-        Path(out).write_text(text + "\n")
+        output_path = validate_out_path(out)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(text + "\n")
         return
 
     print(text)

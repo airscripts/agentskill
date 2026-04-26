@@ -1,18 +1,72 @@
 import json
 import logging
+from pathlib import Path
 
 from lib.logging_utils import LOGGER_NAME, configure_logging, get_logger
-from lib.output import run_and_output, write_output
+from lib.output import run_and_output, validate_out_path, write_output
 
 
-def test_write_output_prints_and_writes_file(tmp_path, capsys):
+def test_write_output_prints_and_writes_file(tmp_path, capsys, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     write_output({"ok": True}, pretty=False)
     assert json.loads(capsys.readouterr().out) == {"ok": True}
 
-    out_file = tmp_path / "report.json"
+    out_file = Path("report.json")
     write_output({"ok": True}, pretty=True, out=str(out_file))
 
     assert json.loads(out_file.read_text()) == {"ok": True}
+
+
+def test_validate_out_path_accepts_safe_relative_paths(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    assert validate_out_path("report.json") == tmp_path / "report.json"
+    assert validate_out_path("reports/output.json") == tmp_path / "reports/output.json"
+
+
+def test_validate_out_path_rejects_absolute_and_escaping_paths(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    absolute = str(tmp_path / "report.json")
+
+    try:
+        validate_out_path(absolute)
+        raise AssertionError("absolute paths should be rejected")
+    except ValueError as exc:
+        assert str(exc) == (
+            f"invalid output path: absolute paths are not allowed: {absolute}"
+        )
+
+    for out in ["../output.json", "nested/../../escape.json"]:
+        try:
+            validate_out_path(out)
+            raise AssertionError("escaping paths should be rejected")
+        except ValueError as exc:
+            assert str(exc) == (
+                "invalid output path: escaping the working directory is not allowed: "
+                f"{out}"
+            )
+
+
+def test_write_output_creates_parent_directories_and_rejects_invalid_paths(
+    tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+
+    nested = Path("reports/latest/output.json")
+    write_output({"ok": True}, out=str(nested))
+
+    assert json.loads(nested.read_text()) == {"ok": True}
+
+    absolute = str(tmp_path / "escape.json")
+
+    try:
+        write_output({"ok": True}, out=absolute)
+        raise AssertionError("absolute output paths should be rejected")
+    except ValueError as exc:
+        assert str(exc) == (
+            f"invalid output path: absolute paths are not allowed: {absolute}"
+        )
 
 
 def test_logging_configuration_is_stable():
@@ -41,7 +95,9 @@ def test_logging_configuration_is_stable():
         logger.propagate = original_propagate
 
 
-def test_run_and_output_handles_success_and_exceptions(tmp_path, capsys):
+def test_run_and_output_handles_success_and_exceptions(tmp_path, capsys, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
     def ok(repo: str, *, value: int):
         return {"repo": repo, "value": value}
 
@@ -56,7 +112,7 @@ def test_run_and_output_handles_success_and_exceptions(tmp_path, capsys):
     assert exit_code == 0
     assert json.loads(capsys.readouterr().out) == {"repo": "sample", "value": 3}
 
-    out_file = tmp_path / "error.json"
+    out_file = Path("error.json")
 
     def boom(repo: str):
         raise RuntimeError("kaboom")
