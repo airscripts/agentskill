@@ -12,12 +12,11 @@ Usage:
     python scripts/scan.py <repo> --pretty
 """
 
-import os
 import sys
 from pathlib import Path
 
-from common.constants import should_skip_dir
 from common.fs import count_lines, validate_repo
+from common.walk import walk_repo
 from lib.output import run_and_output
 
 SKIP_EXTENSIONS: set[str] = {
@@ -103,48 +102,43 @@ def scan(repo_path: str, lang_filter: str | None = None) -> dict:
 
     tree: list[dict] = []
     depths: list[int] = []
+    paths, _walk_stats = walk_repo(repo)
 
-    for dirpath, dirs, files in os.walk(repo):
-        dirs[:] = sorted(d for d in dirs if not should_skip_dir(d))
-        rel_dir = Path(dirpath).relative_to(repo)
-        depth = len(rel_dir.parts)
+    for filepath in paths:
+        ext = filepath.suffix.lower()
 
-        for filename in sorted(files):
-            filepath = Path(dirpath) / filename
-            ext = filepath.suffix.lower()
+        if ext in SKIP_EXTENSIONS:
+            continue
 
-            if ext in SKIP_EXTENSIONS:
-                continue
+        language = EXTENSIONS.get(ext)
 
-            language = EXTENSIONS.get(ext)
+        if not language:
+            continue
 
-            if not language:
-                continue
+        if lang_filter and language != lang_filter:
+            continue
 
-            if lang_filter and language != lang_filter:
-                continue
+        rel_path = str(filepath.relative_to(repo))
 
-            rel_path = str(filepath.relative_to(repo))
+        try:
+            size_bytes = filepath.stat().st_size
+        except Exception:
+            size_bytes = 0
 
-            try:
-                size_bytes = filepath.stat().st_size
-            except Exception:
-                size_bytes = 0
+        file_depth = len(filepath.relative_to(repo).parts)
+        line_count = count_lines(filepath)
+        depths.append(file_depth)
 
-            line_count = count_lines(filepath)
-            file_depth = depth + 1
-            depths.append(file_depth)
-
-            tree.append(
-                {
-                    "path": rel_path,
-                    "type": "file",
-                    "language": language,
-                    "size_bytes": size_bytes,
-                    "line_count": line_count,
-                    "depth": file_depth,
-                }
-            )
+        tree.append(
+            {
+                "path": rel_path,
+                "type": "file",
+                "language": language,
+                "size_bytes": size_bytes,
+                "line_count": line_count,
+                "depth": file_depth,
+            }
+        )
 
     by_language: dict[str, dict] = {}
     for entry in tree:

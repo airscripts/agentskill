@@ -1,5 +1,8 @@
 """Shared constants for repository walking."""
 
+MAX_FILES_TO_PARSE = 10_000
+MAX_FILE_BYTES = 1_000_000
+
 SKIP_DIRS: set[str] = {
     "node_modules",
     "__pycache__",

@@ -2,7 +2,9 @@ import json
 import subprocess
 import sys
 
+from commands import scan as scan_command
 from commands.scan import scan
+from common.walk import walk_repo as shared_walk_repo
 from test_support import ROOT, create_sample_repo
 
 
@@ -43,3 +45,32 @@ def test_scan_reports_invalid_repo_paths(tmp_path):
         "error": f"not a directory: {file_path}",
         "script": "scan",
     }
+
+
+def test_scan_excludes_skipped_directories_and_keeps_language_filters(tmp_path):
+    repo = create_sample_repo(tmp_path)
+    (repo / ".git").mkdir()
+    (repo / ".git" / "ignored.py").write_text("print('ignored')\n")
+    (repo / "node_modules").mkdir()
+    (repo / "node_modules" / "ignored.js").write_text("console.log('ignored')\n")
+
+    result = scan(str(repo), "python")
+
+    assert all(not path.startswith(".git/") for path in result["read_order"])
+    assert all(not path.startswith("node_modules/") for path in result["read_order"])
+    assert set(result["summary"]["by_language"]) == {"python"}
+
+
+def test_scan_handles_walk_repo_truncation_without_error(monkeypatch, tmp_path):
+    repo = create_sample_repo(tmp_path)
+
+    monkeypatch.setattr(
+        scan_command,
+        "walk_repo",
+        lambda path: shared_walk_repo(path, max_files=1),
+    )
+
+    result = scan(str(repo))
+
+    assert result["summary"]["total_files"] <= 1
+    assert len(result["tree"]) <= 1
