@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-26
+
+### Added
+
+- GitHub Actions CI workflows — build, test, verify, and main branch checks
+- `tomli` runtime dependency for Python < 3.11 TOML support
+
+### Changed
+
+- Bumped minimum Python version to 3.10
+- Switched build backend to `setuptools.build_meta`
+- Expanded `py-modules` to include `cli` for correct CLI invocation
+
+### Fixed
+
+- Import order error flagged by ruff
+- CLI invocation error caused by missing `py-modules` declaration
+
 ## [0.1.0] - 2026-04-26
 
 ### Added
