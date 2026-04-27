@@ -2,10 +2,10 @@ from commands.config import (
     _parse_editorconfig,
     _parse_editorconfig_for_lang,
     _parse_ini_section,
-    _parse_toml,
     _parse_yaml_simple,
     detect,
 )
+from lib.parsers import load_toml_safe
 from test_support import create_repo, create_sample_repo
 
 
@@ -19,7 +19,7 @@ def test_config_detects_python_tooling(tmp_path):
 
 
 def test_config_parsers_cover_toml_yaml_ini_and_editorconfig(tmp_path):
-    parsed_toml = _parse_toml(
+    parsed_toml = load_toml_safe(
         '[tool.demo]\nenabled = true\nnames = [\n  "a",\n  "b",\n]\n'
     )
 
@@ -74,3 +74,33 @@ def test_config_reports_invalid_repo_paths(tmp_path):
         "error": f"path does not exist: {missing}",
         "script": "config",
     }
+
+
+def test_config_load_toml_safe_handles_invalid_toml():
+    assert load_toml_safe("invalid = [this is wrong") == {}
+
+
+def test_config_load_toml_safe_normalizes_non_dict_output():
+    assert load_toml_safe('key = "value"') == {"key": "value"}
+    assert load_toml_safe("[section]\nkey = 1") == {"section": {"key": 1}}
+
+
+def test_config_load_toml_safe_returns_empty_on_unavailable(monkeypatch):
+    import lib.parsers as parsers_mod
+
+    monkeypatch.setattr(parsers_mod, "_toml_module", None)
+    monkeypatch.setattr(parsers_mod, "_toml_checked", False)
+
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name in ("tomllib", "tomli"):
+            raise ImportError(name)
+
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    assert load_toml_safe('[tool]\nkey = "value"') == {}
