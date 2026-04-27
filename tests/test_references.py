@@ -187,6 +187,7 @@ def test_load_local_reference_missing_path(tmp_path):
 
     assert not result.ok
     assert result.document is None
+    assert result.error is not None
     assert "does not exist" in result.error
 
 
@@ -198,6 +199,7 @@ def test_load_local_reference_path_is_file(tmp_path):
     result = load_local_reference(src)
 
     assert not result.ok
+    assert result.error is not None
     assert "not a directory" in result.error
 
 
@@ -209,6 +211,7 @@ def test_load_local_reference_missing_agents_md(tmp_path):
     result = load_local_reference(src)
 
     assert not result.ok
+    assert result.error is not None
     assert "AGENTS.md not found" in result.error
 
 
@@ -221,6 +224,7 @@ def test_load_local_reference_empty_agents_md(tmp_path):
     result = load_local_reference(src)
 
     assert not result.ok
+    assert result.error is not None
     assert "empty" in result.error
 
 
@@ -233,6 +237,7 @@ def test_load_local_reference_whitespace_only_agents_md(tmp_path):
     result = load_local_reference(src)
 
     assert not result.ok
+    assert result.error is not None
     assert "empty" in result.error
 
 
@@ -241,6 +246,7 @@ def test_load_local_reference_unsupported_kind():
     result = load_local_reference(src)
 
     assert not result.ok
+    assert result.error is not None
     assert "unsupported local reference source kind" in result.error
 
 
@@ -265,5 +271,7 @@ def test_load_local_references_batch_preserves_order(tmp_path):
     assert results[0].ok
     assert not results[1].ok
     assert results[2].ok
+    assert results[0].document is not None
+    assert results[2].document is not None
     assert results[0].document.content == "# A\n"
     assert results[2].document.content == "# C\n"
