@@ -7,8 +7,6 @@ from lib.reference_adaptation import (
 )
 from lib.references import ReferenceDocument, ReferenceSource
 
-# --- markdown section splitting ---
-
 
 def test_split_markdown_sections_splits_on_headings():
     content = "# Project\n\nIntro\n\n## Testing\n\nUse pytest.\n\n## Style\n\nUse ruff."
@@ -36,9 +34,6 @@ def test_split_markdown_sections_no_headings():
     assert sections[0].heading == ""
     assert sections[0].level == 0
     assert "Just some plain text" in sections[0].body
-
-
-# --- adaptation classification ---
 
 
 def _make_doc(content: str) -> ReferenceDocument:
