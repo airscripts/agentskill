@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-27
+
+### Added
+
+- `scripts/lib/parsers.py` — shared TOML and YAML parser loading with optional dependency fallback
+- `load_toml` / `load_yaml` — strict parsers that raise `ParserUnavailableError` when deps are missing
+- `load_toml_safe` / `load_yaml_safe` — graceful parsers returning `{}` on any error
+- Comprehensive config parsing tests with real-world fixtures for Python, JS, Go, and Rust
+
+### Changed
+
+- Replaced custom TOML parsing in `config.py` with `tomllib` / `tomli` via shared parser
+- Replaced custom YAML parsing in `config.py` with `PyYAML` `safe_load` via shared parser
+- Moved `tomli` and `PyYAML` to optional `[parsers]` dependency group
+
+### Removed
+
+- `_parse_toml`, `_parse_toml_value`, `_split_toml_array` — replaced by real TOML parser
+- `_parse_yaml_simple`, `_yaml_scalar` — replaced by real YAML parser
+
 ## [0.3.0] - 2026-04-26
 
 ### Added
