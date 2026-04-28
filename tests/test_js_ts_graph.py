@@ -172,7 +172,6 @@ class TestJsTsGraphIntegration:
 
         result = build_graph(str(repo))
 
-        # JS-only repos are categorized under "javascript" key
         key = "javascript" if "javascript" in result else "typescript"
         assert key in result
         edges = result[key].get("edges", [])

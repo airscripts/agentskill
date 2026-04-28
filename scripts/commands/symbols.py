@@ -246,7 +246,6 @@ def _extract_python(files: list[Path]) -> dict:
 
 
 def _extract_ts(files: list[Path], lang: str) -> dict:
-    # Export-aware patterns
     export_func_re = re.compile(
         r"(?:^|\s)(?:export\s+)(?:async\s+)?function\s+(\w+)",
         re.MULTILINE,
@@ -282,23 +281,19 @@ def _extract_ts(files: list[Path], lang: str) -> dict:
         re.MULTILINE,
     )
 
-    # Arrow functions: export const Name = (...)
     export_arrow_re = re.compile(
         r"(?:^|\s)export\s+const\s+(\w+)\s*=\s*(?:async\s+)?\(",
         re.MULTILINE,
     )
-    # Arrow functions: const Name = (...)
     plain_arrow_re = re.compile(
         r"(?:^|\s)const\s+(\w+)\s*=\s*(?:async\s+)?\(",
         re.MULTILINE,
     )
-    # const with function expression
     export_func_expr_re = re.compile(
         r"(?:^|\s)export\s+const\s+(\w+)\s*=\s*function",
         re.MULTILINE,
     )
 
-    # Constants: export const UPPER_SNAKE = ...
     const_re = re.compile(
         r"(?:^|\s)export\s+const\s+([A-Z_][A-Z0-9_]*)\s*[=:]",
         re.MULTILINE,
@@ -319,7 +314,6 @@ def _extract_ts(files: list[Path], lang: str) -> dict:
         except Exception:
             continue
 
-        # Functions
         for m in export_func_re.finditer(source):
             functions.append(m.group(1))
         for m in default_func_re.finditer(source):
@@ -327,7 +321,6 @@ def _extract_ts(files: list[Path], lang: str) -> dict:
         for m in plain_func_re.finditer(source):
             functions.append(m.group(1))
 
-        # Classes
         for m in export_class_re.finditer(source):
             classes.append(m.group(1))
         for m in default_class_re.finditer(source):
@@ -335,13 +328,11 @@ def _extract_ts(files: list[Path], lang: str) -> dict:
         for m in plain_class_re.finditer(source):
             classes.append(m.group(1))
 
-        # Interfaces and types (TypeScript only - but patterns won't match JS anyway)
         for m in export_iface_re.finditer(source):
             interfaces.append(m.group(1))
         for m in export_type_re.finditer(source):
             types.append(m.group(1))
 
-        # Arrow functions
         for m in export_arrow_re.finditer(source):
             functions.append(m.group(1))
         for m in plain_arrow_re.finditer(source):
@@ -349,7 +340,6 @@ def _extract_ts(files: list[Path], lang: str) -> dict:
         for m in export_func_expr_re.finditer(source):
             functions.append(m.group(1))
 
-        # Constants
         for m in const_re.finditer(source):
             constants.append(m.group(1))
 

@@ -43,7 +43,6 @@ class TestJsTsTestDetection:
 
         result = analyze_tests(str(repo))
 
-        # JavaScript files may be categorized under typescript or javascript
         ts_count = result.get("typescript", {}).get("test_files", 0)
         js_count = result.get("javascript", {}).get("test_files", 0)
         assert ts_count + js_count >= 1
@@ -59,7 +58,6 @@ class TestJsTsTestDetection:
 
         result = analyze_tests(str(repo))
 
-        # .cjs files should be detected
         assert (
             result["typescript"]["test_files"] >= 1
             or result.get("javascript", {}).get("test_files", 0) >= 1

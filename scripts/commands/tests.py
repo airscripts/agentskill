@@ -215,22 +215,16 @@ def _map_ts_tests(source_files: list[Path], test_files: list[Path], repo: Path) 
     untested: list[str] = []
     unmatched_tests: list[str] = []
 
-    # Build lookup by stem (without extension)
     source_by_stem: dict[str, Path] = {}
     for sf in source_files:
         stem = sf.stem.lower()
         source_by_stem[stem] = sf
-        # Also handle index files
         if stem == "index":
             source_by_stem[sf.parent.name.lower()] = sf
 
     matched_tests: set[str] = set()
 
     for tf in test_files:
-        # Extract the source name from test file patterns:
-        # foo.test.ts -> foo
-        # foo.spec.ts -> foo
-        # foo-test.ts -> foo
         stem = tf.stem.lower()
         candidate = re.sub(r"[.-](test|spec)$", "", stem)
         candidate = re.sub(r"^(test|spec)[.-]", "", candidate)

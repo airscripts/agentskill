@@ -70,7 +70,6 @@ class TestJsTsSymbolIntegration:
             },
         )
         result = extract_symbols(str(repo), "typescript")
-        # makeUser + Button + helper at minimum
         assert result["typescript"]["functions"]["total"] >= 2
         assert result["typescript"]["classes"]["total"] >= 1
 
