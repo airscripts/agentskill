@@ -8,7 +8,9 @@ ATX_HEADING_RE = re.compile(r"^[ \t]{0,3}(?P<marks>#{1,6})(?:[ \t]+(?P<text>.*))
 
 def normalize_section_name(name: str) -> str:
     """Normalize a section name for deterministic lookup."""
-    return re.sub(r"\s+", " ", name.strip().lower())
+    normalized = re.sub(r"\s+", " ", name.strip().lower())
+    normalized = re.sub(r"^\d+\.\s*", "", normalized)
+    return normalized
 
 
 @dataclass(frozen=True)
@@ -78,6 +80,15 @@ def parse_agents_document(text: str) -> AgentsDocument:
                 preamble_lines.append(line)
             else:
                 body_lines.append(line)
+            continue
+
+        if (
+            current_heading is None
+            and not preamble_lines
+            and heading[0] == 1
+            and normalize_section_name(heading[1]) == "agents"
+        ):
+            preamble_lines.append(line)
             continue
 
         if current_heading is not None:

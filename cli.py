@@ -27,6 +27,7 @@ sys.path.insert(0, str(_HERE / "scripts"))
 from lib.logging_utils import configure_logging
 from lib.output import run_and_output, write_output
 from lib.runner import COMMANDS, run_many
+from lib.update_runner import update_agents
 
 
 def cmd_analyze(args: argparse.Namespace) -> int:
@@ -49,6 +50,20 @@ def _single_script_cmd(command_name: str, args: argparse.Namespace) -> int:
         out=getattr(args, "out", None),
         script_name=command_name,
         extra_kwargs=extra_kwargs,
+    )
+
+
+def cmd_update(args: argparse.Namespace) -> int:
+    if getattr(args, "pretty", False):
+        print("update does not support --pretty", file=sys.stderr)
+        return 1
+
+    return update_agents(
+        args.repo,
+        include_sections=getattr(args, "section", None),
+        exclude_sections=getattr(args, "exclude_section", None),
+        force=args.force,
+        out=getattr(args, "out", None),
     )
 
 
@@ -112,6 +127,29 @@ def main(argv: list[str] | None = None) -> int:
 
     p_tests.add_argument("repo", help="Path to repository")
 
+    p_update = sub.add_parser("update", help="Update or create AGENTS.md")
+    p_update.add_argument("repo", help="Path to repository")
+
+    p_update.add_argument(
+        "--section",
+        action="append",
+        help="Regenerate only the named section; may be repeated",
+    )
+
+    p_update.add_argument(
+        "--exclude-section",
+        action="append",
+        help="Skip regenerating the named section; may be repeated",
+    )
+
+    p_update.add_argument(
+        "--force",
+        action="store_true",
+        help="Rebuild AGENTS.md from regenerated sections only",
+    )
+
+    p_update.add_argument("--out", metavar="FILE", help="Write markdown to file")
+
     for p in [
         p_scan,
         p_measure,
@@ -136,6 +174,7 @@ def main(argv: list[str] | None = None) -> int:
         "graph": lambda a: _single_script_cmd("graph", a),
         "symbols": lambda a: _single_script_cmd("symbols", a),
         "tests": lambda a: _single_script_cmd("tests", a),
+        "update": cmd_update,
     }
 
     handler = dispatch.get(args.command)

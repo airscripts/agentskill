@@ -131,12 +131,16 @@ def order_sections_for_force(
 def _build_force_document(
     regenerated_sections: dict[str, AgentsSection],
     targets: list[str],
+    *,
+    preferred_order: list[str] | None = None,
+    preamble: str = "",
 ) -> AgentsDocument:
     ordered_names = order_sections_for_force(
-        {name: regenerated_sections[name] for name in targets}
+        {name: regenerated_sections[name] for name in targets},
+        preferred_order=preferred_order,
     )
     return AgentsDocument(
-        preamble="",
+        preamble=preamble,
         sections=[regenerated_sections[name] for name in ordered_names],
     )
 
@@ -148,6 +152,8 @@ def merge_agents_document(
     include_sections: list[str] | None = None,
     exclude_sections: list[str] | None = None,
     force: bool = False,
+    document_preamble: str = "",
+    preferred_order: list[str] | None = None,
 ) -> MergeResult:
     """Merge regenerated sections into an existing AGENTS.md document."""
     normalized_sections = _normalize_regenerated_sections(regenerated_sections)
@@ -159,10 +165,23 @@ def merge_agents_document(
     )
 
     existing_document = parse_agents_document(existing_text or "")
+
+    if existing_text is None and not existing_document.preamble:
+        existing_document = AgentsDocument(
+            preamble=document_preamble,
+            sections=existing_document.sections,
+        )
+
     existing_names = [section.normalized_name for section in existing_document.sections]
 
     if force:
-        document = _build_force_document(normalized_sections, targets)
+        document = _build_force_document(
+            normalized_sections,
+            targets,
+            preferred_order=preferred_order,
+            preamble=document_preamble,
+        )
+
         result_names = [section.normalized_name for section in document.sections]
         updated_sections = [name for name in result_names if name in existing_names]
         added_sections = [name for name in result_names if name not in existing_names]
