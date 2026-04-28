@@ -31,7 +31,7 @@ def _collect_files(repo: Path, lang: str) -> list[Path]:
     ext_map = {
         "python": [".py"],
         "typescript": [".ts", ".tsx"],
-        "javascript": [".js", ".jsx", ".mjs"],
+        "javascript": [".js", ".jsx", ".mjs", ".cjs"],
         "go": [".go"],
     }
 
@@ -149,46 +149,100 @@ def _build_python_graph(files: list[Path], repo: Path) -> dict:
     return _graph_result(sorted(module_set), edges, adjacency, parse_errors)
 
 
-def _build_ts_graph(files: list[Path], repo: Path) -> dict:
-    import_re = re.compile(r"""(?:import|from)\s+['"]([^'"]+)['"]""")
-    require_re = re.compile(r"""require\(\s*['"]([^'"]+)['"]\s*\)""")
+def _strip_js_ts_comments(content: str) -> str:
+    content = re.sub(r"//.*", "", content)
+    content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
+    return content
 
+
+def _resolve_js_ts_import(
+    importer: Path, specifier: str, repo: Path, file_stems: set[str]
+) -> str | None:
+    if not specifier.startswith("./") and not specifier.startswith("../"):
+        return None
+
+    base = importer.parent / specifier
+
+    candidates = [
+        base,
+        base.with_suffix(".ts"),
+        base.with_suffix(".tsx"),
+        base.with_suffix(".js"),
+        base.with_suffix(".jsx"),
+        base.with_suffix(".mjs"),
+        base.with_suffix(".cjs"),
+        base / "index.ts",
+        base / "index.tsx",
+        base / "index.js",
+        base / "index.jsx",
+    ]
+
+    for c in candidates:
+        try:
+            rel = str(c.relative_to(repo))
+        except ValueError:
+            continue
+
+        if rel in file_stems:
+            return rel
+
+    return None
+
+
+def _extract_js_ts_imports(content: str) -> list[tuple[str, int]]:
+    content = _strip_js_ts_comments(content)
+    results: list[tuple[str, int]] = []
+
+    es_import_re = re.compile(
+        r"(?:^|\s)import\s+(?:(?:\{[^}]+\}|[^'\"]+)\s+from\s+)?['\"]([^'\"]+)['\"]",
+        re.MULTILINE,
+    )
+
+    reexport_re = re.compile(
+        r"(?:^|\s)export\s+(?:\{[^}]+\}|\*\s+)?\s*from\s+['\"]([^'\"]+)['\"]",
+        re.MULTILINE,
+    )
+
+    require_re = re.compile(
+        r"(?:^|\s)require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+        re.MULTILINE,
+    )
+
+    for lineno, line in enumerate(content.splitlines(), 1):
+        for pattern in (es_import_re, reexport_re, require_re):
+            for m in pattern.finditer(line):
+                spec = m.group(1)
+
+                if spec.startswith("./") or spec.startswith("../"):
+                    results.append((spec, lineno))
+
+    return results
+
+
+def _build_ts_graph(files: list[Path], repo: Path) -> dict:
     edges: list[dict] = []
     adjacency: dict[str, list[str]] = {}
     parse_errors: list[str] = []
 
-    file_stems = {str(f.relative_to(repo).with_suffix("")): f for f in files}
+    file_stems = {str(f.relative_to(repo)): f for f in files}
+    stem_set = set(file_stems.keys())
 
     for fpath in files:
-        rel = str(fpath.relative_to(repo).with_suffix(""))
+        rel = str(fpath.relative_to(repo))
         adjacency.setdefault(rel, [])
 
         try:
             source = read_text(fpath)
         except Exception:
-            parse_errors.append(str(fpath.relative_to(repo)))
+            parse_errors.append(rel)
             continue
 
-        for lineno, line in enumerate(source.splitlines(), 1):
-            for pattern in (import_re, require_re):
-                for m in pattern.finditer(line):
-                    target = m.group(1)
+        for spec, lineno in _extract_js_ts_imports(source):
+            resolved = _resolve_js_ts_import(fpath, spec, repo, stem_set)
 
-                    if not target.startswith("."):
-                        continue
-
-                    resolved = (fpath.parent / target).resolve()
-
-                    try:
-                        rel_resolved = str(resolved.relative_to(repo))
-                    except ValueError:
-                        continue
-
-                    rel_resolved = re.sub(r"\.(ts|tsx|js|jsx|mjs)$", "", rel_resolved)
-
-                    if rel_resolved in file_stems:
-                        edges.append({"from": rel, "to": rel_resolved, "line": lineno})
-                        adjacency[rel].append(rel_resolved)
+            if resolved and resolved != rel:
+                edges.append({"from": rel, "to": resolved, "line": lineno})
+                adjacency[rel].append(resolved)
 
     return _graph_result(sorted(adjacency.keys()), edges, adjacency, parse_errors)
 

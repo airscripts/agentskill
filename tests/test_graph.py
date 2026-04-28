@@ -45,9 +45,9 @@ def test_graph_detects_ts_go_and_monorepo_boundaries(tmp_path):
 
     result = build_graph(str(repo))
 
-    assert {"from": "src/app", "to": "src/util", "line": 1} in result["typescript"][
-        "edges"
-    ]
+    assert {"from": "src/app.ts", "to": "src/util.ts", "line": 1} in result[
+        "typescript"
+    ]["edges"]
 
     assert {"from": "pkg", "to": "pkg/helper", "line": 0} in result["go"]["edges"]
     assert result["monorepo_boundaries"]["detected"] is True

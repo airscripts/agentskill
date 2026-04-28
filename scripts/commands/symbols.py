@@ -246,22 +246,63 @@ def _extract_python(files: list[Path]) -> dict:
 
 
 def _extract_ts(files: list[Path], lang: str) -> dict:
-    func_re = re.compile(
-        r"(?:^|\s)(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+(\w+)"
-        r"|(?:^|\s)const\s+(\w+)\s*=\s*(?:async\s+)?\(",
+    export_func_re = re.compile(
+        r"(?:^|\s)(?:export\s+)(?:async\s+)?function\s+(\w+)",
+        re.MULTILINE,
+    )
+    default_func_re = re.compile(
+        r"(?:^|\s)(?:export\s+)?(?:default\s+)(?:async\s+)?function\s+(\w+)",
+        re.MULTILINE,
+    )
+    plain_func_re = re.compile(
+        r"(?:^|\s)(?:async\s+)?function\s+(\w+)",
         re.MULTILINE,
     )
 
-    class_re = re.compile(r"(?:^|\s)(?:export\s+)?(?:abstract\s+)?class\s+(\w+)")
-    iface_re = re.compile(r"(?:^|\s)(?:export\s+)?interface\s+(\w+)")
-    type_re = re.compile(r"(?:^|\s)(?:export\s+)?type\s+(\w+)\s*=")
+    export_class_re = re.compile(
+        r"(?:^|\s)(?:export\s+)(?:abstract\s+)?class\s+(\w+)",
+        re.MULTILINE,
+    )
+    default_class_re = re.compile(
+        r"(?:^|\s)(?:export\s+)?(?:default\s+)(?:abstract\s+)?class\s+(\w+)",
+        re.MULTILINE,
+    )
+    plain_class_re = re.compile(
+        r"(?:^|\s)(?:abstract\s+)?class\s+(\w+)",
+        re.MULTILINE,
+    )
+
+    export_iface_re = re.compile(
+        r"(?:^|\s)(?:export\s+)?interface\s+(\w+)",
+        re.MULTILINE,
+    )
+    export_type_re = re.compile(
+        r"(?:^|\s)(?:export\s+)?type\s+(\w+)\s*=",
+        re.MULTILINE,
+    )
+
+    export_arrow_re = re.compile(
+        r"(?:^|\s)export\s+const\s+(\w+)\s*=\s*(?:async\s+)?\(",
+        re.MULTILINE,
+    )
+    plain_arrow_re = re.compile(
+        r"(?:^|\s)const\s+(\w+)\s*=\s*(?:async\s+)?\(",
+        re.MULTILINE,
+    )
+    export_func_expr_re = re.compile(
+        r"(?:^|\s)export\s+const\s+(\w+)\s*=\s*function",
+        re.MULTILINE,
+    )
 
     const_re = re.compile(
-        r"^(?:export\s+)?const\s+([A-Z_][A-Z0-9_]+)\s*=", re.MULTILINE
+        r"(?:^|\s)export\s+const\s+([A-Z_][A-Z0-9_]*)\s*[=:]",
+        re.MULTILINE,
     )
 
     functions: list[str] = []
     classes: list[str] = []
+    interfaces: list[str] = []
+    types: list[str] = []
     constants: list[str] = []
     file_names: list[str] = []
 
@@ -273,30 +314,49 @@ def _extract_ts(files: list[Path], lang: str) -> dict:
         except Exception:
             continue
 
-        for m in func_re.finditer(source):
-            name = m.group(1) or m.group(2)
+        for m in export_func_re.finditer(source):
+            functions.append(m.group(1))
+        for m in default_func_re.finditer(source):
+            functions.append(m.group(1))
+        for m in plain_func_re.finditer(source):
+            functions.append(m.group(1))
 
-            if name:
-                functions.append(name)
-
-        for m in class_re.finditer(source):
+        for m in export_class_re.finditer(source):
+            classes.append(m.group(1))
+        for m in default_class_re.finditer(source):
+            classes.append(m.group(1))
+        for m in plain_class_re.finditer(source):
             classes.append(m.group(1))
 
-        for m in iface_re.finditer(source):
-            classes.append(m.group(1))
+        for m in export_iface_re.finditer(source):
+            interfaces.append(m.group(1))
+        for m in export_type_re.finditer(source):
+            types.append(m.group(1))
 
-        for m in type_re.finditer(source):
-            classes.append(m.group(1))
+        for m in export_arrow_re.finditer(source):
+            functions.append(m.group(1))
+        for m in plain_arrow_re.finditer(source):
+            functions.append(m.group(1))
+        for m in export_func_expr_re.finditer(source):
+            functions.append(m.group(1))
 
         for m in const_re.finditer(source):
             constants.append(m.group(1))
 
-    return {
+    result: dict = {
         "functions": _pattern_summary(functions),
         "classes": _pattern_summary(classes),
         "constants": _pattern_summary(constants),
         "files": _pattern_summary(file_names),
     }
+
+    if interfaces:
+        result["interfaces"] = _pattern_summary(interfaces)
+
+    if types:
+        result["types"] = _pattern_summary(types)
+
+    return result
 
 
 def _extract_go_constants(lines: list[str], const_re: re.Pattern) -> list[str]:
@@ -395,7 +455,7 @@ def extract_symbols(repo_path: str, lang_filter: str | None = None) -> dict:
         lang = lang_filter or "typescript"
         _run(
             lang,
-            [".ts", ".tsx", ".js", ".jsx", ".mjs"],
+            [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"],
             lambda files: _extract_ts(files, lang),
         )
 
