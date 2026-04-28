@@ -74,3 +74,15 @@ def test_scan_handles_walk_repo_truncation_without_error(monkeypatch, tmp_path):
 
     assert result["summary"]["total_files"] <= 1
     assert len(result["tree"]) <= 1
+
+
+def test_scan_detects_shebang_bash_scripts_without_extension(tmp_path):
+    repo = tmp_path / "sample_repo"
+    repo.mkdir()
+    script = repo / "deploy"
+    script.write_text("#!/usr/bin/env bash\necho deploy\n")
+
+    result = scan(str(repo))
+
+    assert result["summary"]["by_language"]["bash"]["file_count"] == 1
+    assert "deploy" in result["read_order"]

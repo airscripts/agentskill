@@ -128,6 +128,36 @@ def test_config_detects_csharp_and_c_family_project_markers(tmp_path):
     assert "CMakeLists.txt" in result["cpp"]["project_markers"]
 
 
+def test_config_detects_ruby_and_php_project_markers(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "Gemfile": 'source "https://rubygems.org"\n',
+            "Gemfile.lock": "GEM\n",
+            "demo.gemspec": "Gem::Specification.new do |s| end\n",
+            "composer.json": (
+                '{"autoload":{"psr-4":{"App\\\\":"src/"}},"require-dev":{"phpunit/phpunit":"^10"}}\n'
+            ),
+            "composer.lock": "{}\n",
+            "lib/user_service.rb": "class UserService\nend\n",
+            "src/Service/UserService.php": "<?php\nclass UserService {}\n",
+        },
+    )
+
+    result = detect(str(repo))
+
+    assert result["ruby"]["build_tool"] == "bundler"
+    assert "Gemfile" in result["ruby"]["project_markers"]
+    assert "Gemfile.lock" in result["ruby"]["project_markers"]
+    assert "demo.gemspec" in result["ruby"]["project_markers"]
+
+    assert result["php"]["build_tool"] == "composer"
+    assert "composer.json" in result["php"]["project_markers"]
+    assert "composer.lock" in result["php"]["project_markers"]
+    assert result["php"]["autoload_psr4"] == {"App\\": "src/"}
+    assert result["php"]["test_framework"] == "phpunit"
+
+
 def test_config_reports_invalid_repo_paths(tmp_path):
     missing = tmp_path / "missing"
 

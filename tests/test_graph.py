@@ -141,6 +141,58 @@ def test_graph_detects_csharp_and_c_family_internal_edges(tmp_path):
     } in result["cpp"]["edges"]
 
 
+def test_graph_detects_ruby_php_and_bash_internal_edges(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "lib/my_app/service.rb": "class UserService\nend\n",
+            "lib/my_app/helper.rb": "module MyApp\nend\n",
+            "app/main.rb": (
+                'require "json"\n'
+                'require "my_app/service"\n'
+                'require_relative "../lib/my_app/helper"\n'
+            ),
+            "src/Service/UserService.php": (
+                "<?php\nnamespace App\\Service;\n\n"
+                "use App\\Repository\\UserRepository;\n"
+                "use DateTime;\n\nclass UserService {}\n"
+            ),
+            "src/Repository/UserRepository.php": (
+                "<?php\nnamespace App\\Repository;\n\nclass UserRepository {}\n"
+            ),
+            "scripts/deploy.sh": (
+                "#!/usr/bin/env bash\n"
+                "source ./lib/common.sh\n"
+                ". ./lib/common.sh\n"
+                'source "$DYNAMIC_FILE"\n'
+            ),
+            "scripts/lib/common.sh": "echo common\n",
+        },
+    )
+
+    result = build_graph(str(repo))
+
+    assert {"from": "app/main.rb", "to": "lib/my_app/service.rb", "line": 2} in result[
+        "ruby"
+    ]["edges"]
+
+    assert {"from": "app/main.rb", "to": "lib/my_app/helper.rb", "line": 3} in result[
+        "ruby"
+    ]["edges"]
+
+    assert {
+        "from": "src/Service/UserService.php",
+        "to": "src/Repository/UserRepository.php",
+        "line": 4,
+    } in result["php"]["edges"]
+
+    assert {
+        "from": "scripts/deploy.sh",
+        "to": "scripts/lib/common.sh",
+        "line": 2,
+    } in result["bash"]["edges"]
+
+
 def test_graph_reports_invalid_repo_paths(tmp_path):
     missing = tmp_path / "missing"
 

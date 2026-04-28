@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
 
+SHELL_SHEBANG_MARKERS = ("bash", "sh")
+
 
 @dataclass(frozen=True)
 class LanguageSpec:
@@ -171,9 +173,9 @@ _RUBY = LanguageSpec(
     display_name="Ruby",
     extensions=(".rb",),
     config_files=(".rubocop.yml",),
-    package_files=("Gemfile",),
-    test_patterns=("*_spec.rb", "spec/**/*.rb", "test/**/*.rb"),
-    source_roots=("lib",),
+    package_files=("Gemfile", "Gemfile.lock", ".gemspec"),
+    test_patterns=("*_spec.rb", "spec/**/*.rb", "test/**/*.rb", "test_*.rb"),
+    source_roots=("lib", "app"),
 )
 
 _PHP = LanguageSpec(
@@ -181,7 +183,7 @@ _PHP = LanguageSpec(
     display_name="PHP",
     extensions=(".php",),
     config_files=("phpcs.xml", ".phpcs.xml"),
-    package_files=("composer.json",),
+    package_files=("composer.json", "composer.lock"),
     test_patterns=("*Test.php", "tests/**/*.php"),
     source_roots=("src",),
 )
@@ -212,7 +214,7 @@ _BASH = LanguageSpec(
     extensions=(".sh", ".bash"),
     config_files=(),
     package_files=(),
-    test_patterns=("test_*.sh", "*_test.sh", "*.bats"),
+    test_patterns=("test_*.sh", "*_test.sh", "*.bats", "tests/**/*.sh", "test/**/*.sh"),
     source_roots=(),
 )
 
@@ -281,7 +283,35 @@ def language_for_extension(extension: str) -> LanguageSpec | None:
 
 
 def language_for_path(path: str | Path) -> LanguageSpec | None:
-    return language_for_extension(Path(path).suffix)
+    p = Path(path)
+    spec = language_for_extension(p.suffix)
+
+    if spec is not None:
+        return spec
+
+    if p.exists() and p.is_file() and has_shell_shebang(p):
+        return _BY_ID.get("bash")
+
+    return None
+
+
+def has_shell_shebang(path: str | Path) -> bool:
+    p = Path(path)
+
+    try:
+        first_line = p.read_text(errors="ignore").splitlines()[:1]
+    except Exception:
+        return False
+
+    if not first_line:
+        return False
+
+    line = first_line[0].strip()
+
+    if not line.startswith("#!"):
+        return False
+
+    return any(marker in line for marker in SHELL_SHEBANG_MARKERS)
 
 
 def is_supported_language(language_id: str) -> bool:

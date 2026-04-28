@@ -51,6 +51,10 @@ TOP_LEVEL_DEF_RE: dict[str, re.Pattern] = {
     "cpp": re.compile(
         r"^\s*(?:namespace\s+\w+|template\s*<|class\s+\w+|struct\s+\w+|enum(?:\s+class)?\s+\w+)|^\s*[A-Za-z_][\w:\s<>\*&]+\s+\w+\s*\([^;]*\)\s*\{"
     ),
+    "php": re.compile(
+        r"^\s*(?:class|interface|trait|enum)\s+\w+|^\s*function\s+\w+|^\s*(?:public|protected|private)\s+function\s+\w+"
+    ),
+    "bash": re.compile(r"^\s*(?:function\s+)?[A-Za-z_]\w*\s*\(\)\s*\{"),
 }
 
 METHOD_DEF_RE: dict[str, re.Pattern] = {
@@ -70,6 +74,8 @@ METHOD_DEF_RE: dict[str, re.Pattern] = {
         r"^\s*(?:public|private|protected|internal)\s+(?:static\s+|virtual\s+|override\s+|async\s+)?[\w<>\[\], ?]+\s+\w+\s*\("
     ),
     "cpp": re.compile(r"^\s*[A-Za-z_][\w:\s<>\*&]+\s+\w+\s*\([^;]*\)\s*\{"),
+    "php": re.compile(r"^\s*(?:public|protected|private)\s+function\s+\w+\s*\("),
+    "bash": re.compile(r"^\s*(?:function\s+)?[A-Za-z_]\w*\s*\(\)\s*\{"),
 }
 
 

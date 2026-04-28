@@ -54,6 +54,22 @@ JVM_TEST_FRAMEWORKS = {
     "kotlin.test": "kotlin-test",
 }
 
+RUBY_TEST_FRAMEWORKS = {
+    "RSpec.describe": "rspec",
+    'require "minitest/autorun"': "minitest",
+    "Minitest::Test": "minitest",
+}
+
+PHP_TEST_FRAMEWORKS = {
+    "PHPUnit\\Framework\\TestCase": "phpunit",
+    "extends TestCase": "phpunit",
+}
+
+SHELL_TEST_FRAMEWORKS = {
+    "@test": "bats",
+    ".bats": "bats",
+}
+
 CSHARP_TEST_FRAMEWORKS = {
     "using Xunit;": "xunit",
     "using NUnit.Framework;": "nunit",
@@ -649,6 +665,87 @@ def _collect_c_family_files(
     return test_files, source_files
 
 
+def _collect_ruby_files(repo: Path) -> tuple[list[Path], list[Path]]:
+    test_files: list[Path] = []
+    source_files: list[Path] = []
+
+    for dirpath, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if not should_skip_dir(d)]
+
+        for fn in files:
+            if not fn.endswith(".rb"):
+                continue
+
+            fpath = Path(dirpath) / fn
+            rel = str(fpath.relative_to(repo))
+
+            if (
+                is_test_path(rel, language_id="ruby")
+                or rel.startswith("spec/")
+                or rel.startswith("test/")
+            ):
+                test_files.append(fpath)
+            else:
+                source_files.append(fpath)
+
+    return test_files, source_files
+
+
+def _collect_php_files(repo: Path) -> tuple[list[Path], list[Path]]:
+    test_files: list[Path] = []
+    source_files: list[Path] = []
+
+    for dirpath, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if not should_skip_dir(d)]
+
+        for fn in files:
+            if not fn.endswith(".php"):
+                continue
+
+            fpath = Path(dirpath) / fn
+            rel = str(fpath.relative_to(repo))
+
+            if is_test_path(rel, language_id="php") or rel.startswith("tests/"):
+                test_files.append(fpath)
+            else:
+                source_files.append(fpath)
+
+    return test_files, source_files
+
+
+def _collect_bash_files(repo: Path) -> tuple[list[Path], list[Path]]:
+    test_files: list[Path] = []
+    source_files: list[Path] = []
+
+    for dirpath, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if not should_skip_dir(d)]
+
+        for fn in files:
+            fpath = Path(dirpath) / fn
+            if fpath.suffix.lower() == ".bats":
+                test_files.append(fpath)
+                continue
+
+            spec = language_for_path(fpath)
+
+            if not spec or spec.id != "bash":
+                continue
+
+            rel = str(fpath.relative_to(repo))
+            is_bats = fpath.suffix.lower() == ".bats"
+
+            if (
+                is_bats
+                or is_test_path(rel, language_id="bash")
+                or rel.startswith(("test/", "tests/"))
+            ):
+                test_files.append(fpath)
+            else:
+                source_files.append(fpath)
+
+    return test_files, source_files
+
+
 def _detect_go_framework(repo: Path) -> str:
     return "go test"
 
@@ -703,6 +800,72 @@ def _detect_c_cpp_framework(test_files: list[Path]) -> str:
                 return framework
 
     return "ctest"
+
+
+def _detect_ruby_framework(test_files: list[Path]) -> str:
+    for fpath in test_files:
+        rel = fpath.as_posix()
+
+        if "/spec/" in rel or fpath.name.endswith("_spec.rb"):
+            return "rspec"
+
+    for fpath in test_files[:FRAMEWORK_DETECTION_SAMPLE]:
+        try:
+            content = read_text(fpath)
+        except Exception:
+            continue
+
+        for marker, framework in RUBY_TEST_FRAMEWORKS.items():
+            if marker in content:
+                return framework
+
+        rel = str(fpath)
+        if "/test/" in rel or fpath.name.startswith("test_"):
+            return "minitest"
+
+    return "rspec"
+
+
+def _detect_php_framework(repo: Path, test_files: list[Path]) -> str:
+    composer = repo / "composer.json"
+
+    if composer.exists():
+        try:
+            data = json.loads(read_text(composer))
+        except Exception:
+            data = {}
+
+        if "phpunit/phpunit" in data.get("require-dev", {}):
+            return "phpunit"
+
+    for fpath in test_files[:FRAMEWORK_DETECTION_SAMPLE]:
+        try:
+            content = read_text(fpath)
+        except Exception:
+            continue
+
+        for marker, framework in PHP_TEST_FRAMEWORKS.items():
+            if marker in content:
+                return framework
+
+    return "phpunit"
+
+
+def _detect_bash_framework(test_files: list[Path]) -> str:
+    for fpath in test_files[:FRAMEWORK_DETECTION_SAMPLE]:
+        if fpath.suffix.lower() == ".bats":
+            return "bats"
+
+        try:
+            content = read_text(fpath)
+        except Exception:
+            continue
+
+        for marker, framework in SHELL_TEST_FRAMEWORKS.items():
+            if marker in content:
+                return framework
+
+    return "bash"
 
 
 def _map_go_tests(source_files: list[Path], test_files: list[Path], repo: Path) -> dict:
@@ -1093,6 +1256,87 @@ def _analyze_cpp(repo: Path) -> dict | None:
     }
 
 
+def _analyze_ruby(repo: Path) -> dict | None:
+    test_files, source_files = _collect_ruby_files(repo)
+
+    if not test_files and not source_files:
+        return None
+
+    framework = _detect_ruby_framework(test_files)
+    run_cmd = _extract_run_command(repo, framework) or framework
+    coverage = _map_stem_tests(source_files, test_files, repo)
+    structure = _detect_test_structure(repo, test_files)
+    naming = _detect_naming_patterns(test_files)
+    rep_test = _pick_representative(test_files)
+
+    return {
+        "framework": framework,
+        "run_command": run_cmd,
+        "test_files": len(test_files),
+        "source_files": len(source_files),
+        "coverage_shape": coverage,
+        "structure": structure,
+        "naming": naming,
+        "representative_test": str(Path(rep_test).relative_to(repo))
+        if rep_test
+        else None,
+    }
+
+
+def _analyze_php(repo: Path) -> dict | None:
+    test_files, source_files = _collect_php_files(repo)
+
+    if not test_files and not source_files:
+        return None
+
+    framework = _detect_php_framework(repo, test_files)
+    run_cmd = _extract_run_command(repo, framework) or framework
+    coverage = _map_stem_tests(source_files, test_files, repo)
+    structure = _detect_test_structure(repo, test_files)
+    naming = _detect_naming_patterns(test_files)
+    rep_test = _pick_representative(test_files)
+
+    return {
+        "framework": framework,
+        "run_command": run_cmd,
+        "test_files": len(test_files),
+        "source_files": len(source_files),
+        "coverage_shape": coverage,
+        "structure": structure,
+        "naming": naming,
+        "representative_test": str(Path(rep_test).relative_to(repo))
+        if rep_test
+        else None,
+    }
+
+
+def _analyze_bash(repo: Path) -> dict | None:
+    test_files, source_files = _collect_bash_files(repo)
+
+    if not test_files and not source_files:
+        return None
+
+    framework = _detect_bash_framework(test_files)
+    run_cmd = _extract_run_command(repo, framework) or framework
+    coverage = _map_stem_tests(source_files, test_files, repo)
+    structure = _detect_test_structure(repo, test_files)
+    naming = _detect_naming_patterns(test_files)
+    rep_test = _pick_representative(test_files)
+
+    return {
+        "framework": framework,
+        "run_command": run_cmd,
+        "test_files": len(test_files),
+        "source_files": len(source_files),
+        "coverage_shape": coverage,
+        "structure": structure,
+        "naming": naming,
+        "representative_test": str(Path(rep_test).relative_to(repo))
+        if rep_test
+        else None,
+    }
+
+
 def analyze_tests(repo_path: str) -> dict:
     try:
         repo = validate_repo(repo_path)
@@ -1172,6 +1416,30 @@ def analyze_tests(repo_path: str) -> dict:
             result["cpp"] = cpp
     except Exception as exc:
         result["cpp"] = {"error": str(exc)}
+
+    try:
+        ruby = _analyze_ruby(repo)
+
+        if ruby:
+            result["ruby"] = ruby
+    except Exception as exc:
+        result["ruby"] = {"error": str(exc)}
+
+    try:
+        php = _analyze_php(repo)
+
+        if php:
+            result["php"] = php
+    except Exception as exc:
+        result["php"] = {"error": str(exc)}
+
+    try:
+        bash = _analyze_bash(repo)
+
+        if bash:
+            result["bash"] = bash
+    except Exception as exc:
+        result["bash"] = {"error": str(exc)}
 
     return result
 

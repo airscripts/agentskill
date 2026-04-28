@@ -462,6 +462,24 @@ def _strip_c_family_comments(source: str) -> str:
     return source
 
 
+def _strip_ruby_comments(source: str) -> str:
+    return re.sub(r"#.*", "", source)
+
+
+def _strip_shell_comments(source: str) -> str:
+    lines = source.splitlines()
+    stripped: list[str] = []
+
+    for i, line in enumerate(lines):
+        if i == 0 and line.startswith("#!"):
+            stripped.append(line)
+            continue
+
+        stripped.append(re.sub(r"#.*", "", line))
+
+    return "\n".join(stripped)
+
+
 def _extract_jvm_package(content: str) -> str | None:
     stripped = _strip_jvm_comments(content)
 
@@ -775,6 +793,223 @@ def _build_c_cpp_graph(files: list[Path], repo: Path) -> dict:
     return _graph_result(sorted(adjacency.keys()), edges, adjacency, parse_errors)
 
 
+def _extract_ruby_requires(content: str) -> list[tuple[str, str, int]]:
+    stripped = _strip_ruby_comments(content)
+    results: list[tuple[str, str, int]] = []
+    pattern = re.compile(
+        r'^\s*(require_relative|require)\s+["\']([^"\']+)["\']',
+        re.MULTILINE,
+    )
+
+    for match in pattern.finditer(stripped):
+        results.append(
+            (
+                match.group(1),
+                match.group(2),
+                stripped[: match.start()].count("\n") + 1,
+            )
+        )
+
+    return results
+
+
+def _resolve_ruby_require(
+    importer: Path, kind: str, target: str, repo: Path, file_set: set[str]
+) -> str | None:
+    candidates: list[Path] = []
+
+    if kind == "require_relative":
+        base = importer.parent / target
+        candidates.extend([base, base.with_suffix(".rb"), base / "index.rb"])
+    else:
+        for prefix in (repo / "lib", repo / "app", repo):
+            base = prefix / target
+            candidates.extend([base, base.with_suffix(".rb"), base / "index.rb"])
+
+    for candidate in candidates:
+        try:
+            rel = str(candidate.resolve().relative_to(repo.resolve()))
+        except ValueError:
+            continue
+
+        if rel in file_set:
+            return rel
+
+    return None
+
+
+def _build_ruby_graph(files: list[Path], repo: Path) -> dict:
+    edges: list[dict] = []
+    adjacency: dict[str, list[str]] = {}
+    parse_errors: list[str] = []
+    file_set = {str(f.relative_to(repo)) for f in files}
+
+    for fpath in files:
+        rel = str(fpath.relative_to(repo))
+        adjacency.setdefault(rel, [])
+
+        try:
+            source = read_text(fpath)
+        except Exception:
+            parse_errors.append(rel)
+            continue
+
+        for kind, target, lineno in _extract_ruby_requires(source):
+            resolved = _resolve_ruby_require(fpath, kind, target, repo, file_set)
+
+            if resolved and resolved != rel:
+                edges.append({"from": rel, "to": resolved, "line": lineno})
+                adjacency[rel].append(resolved)
+
+    return _graph_result(sorted(adjacency.keys()), edges, adjacency, parse_errors)
+
+
+def _extract_php_namespace(content: str) -> str | None:
+    stripped = _strip_c_family_comments(content)
+    match = re.search(r"^\s*namespace\s+([A-Za-z_][\w\\]*)\s*;", stripped, re.MULTILINE)
+    return match.group(1) if match else None
+
+
+def _extract_php_uses(content: str) -> list[tuple[str, int]]:
+    stripped = _strip_c_family_comments(content)
+    results: list[tuple[str, int]] = []
+    pattern = re.compile(r"^[ \t]*use\s+([A-Za-z_][\w\\]*)[ \t]*;", re.MULTILINE)
+
+    for match in pattern.finditer(stripped):
+        results.append((match.group(1), stripped[: match.start()].count("\n") + 1))
+
+    return results
+
+
+def _build_php_index(
+    files: list[Path], repo: Path
+) -> tuple[dict[str, str], dict[str, set[str]]]:
+    symbol_index: dict[str, str] = {}
+    namespace_index: dict[str, set[str]] = {}
+
+    for fpath in files:
+        rel = str(fpath.relative_to(repo))
+
+        try:
+            source = read_text(fpath)
+        except Exception:
+            continue
+
+        namespace_name = _extract_php_namespace(source)
+
+        if namespace_name:
+            namespace_index.setdefault(namespace_name, set()).add(rel)
+            symbol_index[f"{namespace_name}\\{fpath.stem}"] = rel
+        else:
+            symbol_index[fpath.stem] = rel
+
+    return symbol_index, namespace_index
+
+
+def _resolve_php_use(
+    use_name: str, symbol_index: dict[str, str], namespace_index: dict[str, set[str]]
+) -> str | None:
+    if use_name in symbol_index:
+        return symbol_index[use_name]
+
+    namespace_name = use_name.rsplit("\\", 1)[0] if "\\" in use_name else use_name
+    matches = namespace_index.get(namespace_name)
+
+    if matches and len(matches) == 1:
+        return next(iter(matches))
+
+    return None
+
+
+def _build_php_graph(files: list[Path], repo: Path) -> dict:
+    edges: list[dict] = []
+    adjacency: dict[str, list[str]] = {}
+    parse_errors: list[str] = []
+    symbol_index, namespace_index = _build_php_index(files, repo)
+
+    for fpath in files:
+        rel = str(fpath.relative_to(repo))
+        adjacency.setdefault(rel, [])
+
+        try:
+            source = read_text(fpath)
+        except Exception:
+            parse_errors.append(rel)
+            continue
+
+        for use_name, lineno in _extract_php_uses(source):
+            resolved = _resolve_php_use(use_name, symbol_index, namespace_index)
+
+            if resolved and resolved != rel:
+                edges.append({"from": rel, "to": resolved, "line": lineno})
+                adjacency[rel].append(resolved)
+
+    return _graph_result(sorted(adjacency.keys()), edges, adjacency, parse_errors)
+
+
+def _extract_shell_sources(content: str) -> list[tuple[str, int]]:
+    stripped = _strip_shell_comments(content)
+    results: list[tuple[str, int]] = []
+    pattern = re.compile(
+        r'^[ \t]*(?:source|\.)\s+([^\s"\']+|["\'][^"\']+["\'])',
+        re.MULTILINE,
+    )
+
+    for match in pattern.finditer(stripped):
+        target = match.group(1).strip("\"'")
+
+        if "$" in target or "{" in target:
+            continue
+
+        results.append((target, stripped[: match.start()].count("\n") + 1))
+
+    return results
+
+
+def _resolve_shell_source(
+    importer: Path, target: str, repo: Path, file_set: set[str]
+) -> str | None:
+    base = importer.parent / target
+    candidates = [base, repo / target]
+
+    for candidate in candidates:
+        try:
+            rel = str(candidate.relative_to(repo))
+        except ValueError:
+            continue
+
+        if rel in file_set:
+            return rel
+
+    return None
+
+
+def _build_shell_graph(files: list[Path], repo: Path) -> dict:
+    edges: list[dict] = []
+    adjacency: dict[str, list[str]] = {}
+    parse_errors: list[str] = []
+    file_set = {str(f.relative_to(repo)) for f in files}
+
+    for fpath in files:
+        rel = str(fpath.relative_to(repo))
+        adjacency.setdefault(rel, [])
+
+        try:
+            source = read_text(fpath)
+        except Exception:
+            parse_errors.append(rel)
+            continue
+
+        for target, lineno in _extract_shell_sources(source):
+            resolved = _resolve_shell_source(fpath, target, repo, file_set)
+
+            if resolved and resolved != rel:
+                edges.append({"from": rel, "to": resolved, "line": lineno})
+                adjacency[rel].append(resolved)
+
+    return _graph_result(sorted(adjacency.keys()), edges, adjacency, parse_errors)
+
+
 def _compute_most_depended(
     adjacency: dict[str, list[str]],
 ) -> list[dict[str, str | int]]:
@@ -885,6 +1120,9 @@ def build_graph(repo_path: str, lang_filter: str | None = None) -> dict:
             "csharp",
             "c",
             "cpp",
+            "ruby",
+            "php",
+            "bash",
         ]
     )
 
@@ -909,6 +1147,12 @@ def build_graph(repo_path: str, lang_filter: str | None = None) -> dict:
                 result[lang] = _build_csharp_graph(files, repo)
             elif lang in ("c", "cpp"):
                 result[lang] = _build_c_cpp_graph(files, repo)
+            elif lang == "ruby":
+                result[lang] = _build_ruby_graph(files, repo)
+            elif lang == "php":
+                result[lang] = _build_php_graph(files, repo)
+            elif lang == "bash":
+                result[lang] = _build_shell_graph(files, repo)
         except Exception as exc:
             result[lang] = {"error": str(exc)}
 

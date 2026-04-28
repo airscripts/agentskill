@@ -19,6 +19,7 @@ from pathlib import Path
 
 from common.constants import should_skip_dir
 from common.fs import read_text, validate_repo
+from common.languages import language_for_path
 from lib.output import run_and_output
 
 MIN_NAME_LENGTH = 4
@@ -57,8 +58,16 @@ def _collect_files(repo: Path, exts: list[str]) -> list[Path]:
         dirs[:] = [d for d in dirs if not should_skip_dir(d)]
 
         for fn in files:
-            if Path(fn).suffix.lower() in exts:
-                found.append(Path(dirpath) / fn)
+            fpath = Path(dirpath) / fn
+            suffix = fpath.suffix.lower()
+
+            if suffix in exts:
+                found.append(fpath)
+            elif ".sh" in exts and ".bash" in exts:
+                spec = language_for_path(fpath)
+
+                if spec and spec.id == "bash":
+                    found.append(fpath)
 
     return found
 
@@ -858,6 +867,138 @@ def _extract_cpp(files: list[Path]) -> dict:
     return result
 
 
+def _extract_ruby(files: list[Path]) -> dict:
+    source_files = files
+    module_re = re.compile(r"^\s*module\s+([A-Za-z_]\w*)", re.MULTILINE)
+    class_re = re.compile(r"^\s*class\s+([A-Za-z_]\w*)", re.MULTILINE)
+    method_re = re.compile(r"^\s*def\s+([A-Za-z_]\w*[!?=]?)", re.MULTILINE)
+    class_method_re = re.compile(r"^\s*def\s+self\.([A-Za-z_]\w*[!?=]?)", re.MULTILINE)
+
+    modules: list[str] = []
+    classes: list[str] = []
+    methods: list[str] = []
+    class_methods: list[str] = []
+    file_names: list[str] = []
+
+    for fpath in source_files:
+        file_names.append(fpath.stem)
+
+        try:
+            source = re.sub(r"#.*", "", read_text(fpath))
+        except Exception:
+            continue
+
+        modules.extend(module_re.findall(source))
+        classes.extend(class_re.findall(source))
+        class_methods.extend(class_method_re.findall(source))
+
+        for name in method_re.findall(source):
+            if not any(name == method for method in class_methods):
+                methods.append(name)
+
+    result: dict = {
+        "classes": _pattern_summary(classes),
+        "methods": _pattern_summary(methods),
+        "files": _pattern_summary(file_names),
+    }
+
+    if modules:
+        result["modules"] = _pattern_summary(modules)
+
+    if class_methods:
+        result["class_methods"] = _pattern_summary(class_methods)
+
+    return result
+
+
+def _extract_php(files: list[Path]) -> dict:
+    type_re = re.compile(
+        r"^\s*(class|interface|trait|enum)\s+([A-Za-z_]\w*)",
+        re.MULTILINE,
+    )
+
+    function_re = re.compile(r"^\s*function\s+([A-Za-z_]\w*)\s*\(", re.MULTILINE)
+
+    method_re = re.compile(
+        r"^\s*(?:public|protected|private)\s+function\s+([A-Za-z_]\w*)\s*\(",
+        re.MULTILINE,
+    )
+
+    classes: list[str] = []
+    interfaces: list[str] = []
+    traits: list[str] = []
+    enums: list[str] = []
+    functions: list[str] = []
+    methods: list[str] = []
+    file_names: list[str] = []
+
+    for fpath in files:
+        file_names.append(fpath.stem)
+
+        try:
+            source = _strip_c_family_comments(read_text(fpath))
+        except Exception:
+            continue
+
+        for kind, name in type_re.findall(source):
+            if kind == "class":
+                classes.append(name)
+            elif kind == "interface":
+                interfaces.append(name)
+            elif kind == "trait":
+                traits.append(name)
+            elif kind == "enum":
+                enums.append(name)
+
+        methods.extend(method_re.findall(source))
+
+        for name in function_re.findall(source):
+            if name not in methods:
+                functions.append(name)
+
+    result: dict = {
+        "classes": _pattern_summary(classes),
+        "functions": _pattern_summary(functions),
+        "methods": _pattern_summary(methods),
+        "files": _pattern_summary(file_names),
+    }
+
+    if interfaces:
+        result["interfaces"] = _pattern_summary(interfaces)
+
+    if traits:
+        result["traits"] = _pattern_summary(traits)
+
+    if enums:
+        result["enums"] = _pattern_summary(enums)
+
+    return result
+
+
+def _extract_bash(files: list[Path]) -> dict:
+    function_re = re.compile(
+        r"^\s*(?:function\s+)?([A-Za-z_]\w*)\s*\(\)\s*\{", re.MULTILINE
+    )
+
+    functions: list[str] = []
+    file_names: list[str] = []
+
+    for fpath in files:
+        file_names.append(fpath.stem or fpath.name)
+
+        try:
+            source = read_text(fpath)
+        except Exception:
+            continue
+
+        functions.extend(function_re.findall(source))
+
+    return {
+        "functions": _pattern_summary(functions),
+        "files": _pattern_summary(file_names),
+    }
+
+
 def _extract_rust(files: list[Path]) -> dict:
     func_re = re.compile(r"^\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)", re.MULTILINE)
     struct_re = re.compile(r"^\s*(?:pub\s+)?struct\s+(\w+)", re.MULTILINE)
@@ -975,6 +1116,15 @@ def extract_symbols(repo_path: str, lang_filter: str | None = None) -> dict:
 
     if not lang_filter or lang_filter == "cpp":
         _run("cpp", [".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx"], _extract_cpp)
+
+    if not lang_filter or lang_filter == "ruby":
+        _run("ruby", [".rb"], _extract_ruby)
+
+    if not lang_filter or lang_filter == "php":
+        _run("php", [".php"], _extract_php)
+
+    if not lang_filter or lang_filter == "bash":
+        _run("bash", [".sh", ".bash"], _extract_bash)
 
     return result
 

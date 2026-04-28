@@ -151,6 +151,8 @@ def _parse_editorconfig_for_lang(sections: dict, lang: str) -> dict:
         "c": ["*.c", "*.h"],
         "cpp": ["*.cpp", "*.cc", "*.cxx", "*.hpp", "*.hh", "*.hxx"],
         "ruby": ["*.rb"],
+        "php": ["*.php"],
+        "bash": ["*.sh", "*.bash"],
     }
 
     exts = lang_ext_map.get(lang, [])
@@ -504,6 +506,59 @@ def _detect_c_family_markers(repo: Path, language: str) -> dict:
     }
 
 
+def _detect_ruby_markers(repo: Path) -> dict:
+    markers: list[str] = []
+
+    for marker in ("Gemfile", "Gemfile.lock"):
+        if (repo / marker).exists():
+            markers.append(marker)
+
+    markers.extend(sorted(path.name for path in repo.rglob("*.gemspec")))
+
+    if not markers:
+        return {}
+
+    return {
+        "project_markers": sorted(set(markers)),
+        "build_tool": "bundler" if "Gemfile" in markers else None,
+    }
+
+
+def _detect_php_markers(repo: Path) -> dict:
+    markers: list[str] = []
+
+    for marker in ("composer.json", "composer.lock"):
+        if (repo / marker).exists():
+            markers.append(marker)
+
+    if not markers:
+        return {}
+
+    result: dict = {
+        "project_markers": sorted(markers),
+        "build_tool": "composer",
+    }
+
+    composer = repo / "composer.json"
+
+    if composer.exists():
+        data = _parse_json_safe(_read(composer))
+        autoload = data.get("autoload", {})
+        autoload_dev = data.get("autoload-dev", {})
+        require_dev = data.get("require-dev", {})
+
+        if autoload.get("psr-4"):
+            result["autoload_psr4"] = autoload["psr-4"]
+
+        if autoload_dev.get("psr-4"):
+            result["autoload_dev_psr4"] = autoload_dev["psr-4"]
+
+        if "phpunit/phpunit" in require_dev:
+            result["test_framework"] = "phpunit"
+
+    return result
+
+
 def _attach_editorconfig(lang_result: dict, ec_sections: dict, lang: str) -> None:
     """Mutate lang_result in place: attach editorconfig entry if one exists."""
     ec = _parse_editorconfig_for_lang(ec_sections, lang)
@@ -589,6 +644,18 @@ def detect(repo_path: str) -> dict:
     ):
         _attach_editorconfig(cpp, ec_sections, "cpp")
         result["cpp"] = cpp
+
+    ruby = _detect_ruby_markers(repo)
+
+    if ruby or list(repo.rglob("*.rb")):
+        _attach_editorconfig(ruby, ec_sections, "ruby")
+        result["ruby"] = ruby
+
+    php = _detect_php_markers(repo)
+
+    if php or list(repo.rglob("*.php")):
+        _attach_editorconfig(php, ec_sections, "php")
+        result["php"] = php
 
     if ec_sections:
         result["editorconfig"] = ec_sections

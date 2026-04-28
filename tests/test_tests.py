@@ -218,6 +218,53 @@ def test_map_stem_tests_reports_untested_sources(tmp_path):
     assert mapping["untested_source_files"] == ["src/helper.c"]
 
 
+def test_tests_detect_ruby_php_and_bash_mappings(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "lib/user_service.rb": "class UserService\nend\n",
+            "spec/user_service_spec.rb": "RSpec.describe UserService do\nend\n",
+            "test/user_service_test.rb": (
+                'require "minitest/autorun"\nclass UserServiceTest < Minitest::Test\nend\n'
+            ),
+            "src/Service/UserService.php": "<?php\nclass UserService {}\n",
+            "tests/Service/UserServiceTest.php": (
+                "<?php\nuse PHPUnit\\Framework\\TestCase;\n"
+                "class UserServiceTest extends TestCase {}\n"
+            ),
+            "scripts/deploy.sh": "#!/usr/bin/env bash\necho deploy\n",
+            "tests/deploy_test.sh": "#!/usr/bin/env bash\ntrue\n",
+            "deploy.bats": '@test "deploy" { true; }\n',
+        },
+    )
+
+    result = analyze_tests(str(repo))
+
+    assert result["ruby"]["framework"] == "rspec"
+    assert {
+        "source": "lib/user_service.rb",
+        "test": "spec/user_service_spec.rb",
+    } in result["ruby"]["coverage_shape"]["mapped"]
+
+    assert {
+        "source": "lib/user_service.rb",
+        "test": "test/user_service_test.rb",
+    } in result["ruby"]["coverage_shape"]["mapped"]
+
+    assert result["php"]["framework"] == "phpunit"
+    assert result["php"]["coverage_shape"]["mapped"] == [
+        {
+            "source": "src/Service/UserService.php",
+            "test": "tests/Service/UserServiceTest.php",
+        }
+    ]
+
+    assert result["bash"]["framework"] == "bats"
+    assert {"source": "scripts/deploy.sh", "test": "tests/deploy_test.sh"} in result[
+        "bash"
+    ]["coverage_shape"]["mapped"]
+
+
 def test_tests_reports_invalid_repo_paths(tmp_path):
     missing = tmp_path / "missing"
 

@@ -171,6 +171,53 @@ def test_symbols_extracts_csharp_c_and_cpp(tmp_path):
     assert result["cpp"]["templates"]["total"] >= 1
 
 
+def test_symbols_extracts_ruby_php_and_bash(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "lib/user_service.rb": (
+                "module MyApp\nend\n\n"
+                "class UserService\n"
+                "  def call\n  end\n\n"
+                "  def self.build\n  end\n"
+                "end\n"
+            ),
+            "src/Service/UserService.php": (
+                "<?php\nnamespace App\\Service;\n\n"
+                "class UserService {\n"
+                "    public function start() {}\n"
+                "    private function helper() {}\n"
+                "}\n\n"
+                "interface Store {}\n"
+                "trait HasLogger {}\n"
+                "enum Status {}\n"
+                "function utility() {}\n"
+            ),
+            "scripts/deploy": (
+                "#!/usr/bin/env bash\n"
+                "deploy() {\n  echo deploy\n}\n\n"
+                "function build() {\n  echo build\n}\n"
+            ),
+        },
+    )
+
+    result = extract_symbols(str(repo))
+
+    assert result["ruby"]["modules"]["total"] >= 1
+    assert result["ruby"]["classes"]["total"] >= 1
+    assert result["ruby"]["methods"]["total"] >= 1
+    assert result["ruby"]["class_methods"]["total"] >= 1
+
+    assert result["php"]["classes"]["total"] >= 1
+    assert result["php"]["methods"]["total"] >= 2
+    assert result["php"]["interfaces"]["total"] >= 1
+    assert result["php"]["traits"]["total"] >= 1
+    assert result["php"]["enums"]["total"] >= 1
+    assert result["php"]["functions"]["total"] >= 1
+
+    assert result["bash"]["functions"]["total"] >= 2
+
+
 def test_symbols_reports_invalid_repo_paths(tmp_path):
     missing = tmp_path / "missing"
 
