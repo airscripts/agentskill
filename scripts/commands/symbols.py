@@ -359,8 +359,89 @@ def _extract_ts(files: list[Path], lang: str) -> dict:
     return result
 
 
+def _strip_go_comments(source: str) -> str:
+    source = re.sub(r"//.*", "", source)
+    source = re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
+    return source
+
+
+def _extract_go(files: list[Path]) -> dict:
+    func_re = re.compile(r"^func\s+(?:\(\w+\s+\*?\w+\)\s+)?(\w+)\s*\(")
+    method_re = re.compile(r"^func\s+\((\w+)\s+\*?(\w+)\)\s+(\w+)\s*\(")
+    type_struct_re = re.compile(r"^type\s+(\w+)\s+struct")
+    type_iface_re = re.compile(r"^type\s+(\w+)\s+interface")
+    type_alias_re = re.compile(
+        r"^type\s+(\w+)\s+(?:string|int|float64|bool|error|byte|rune|any)"
+    )
+    const_re = re.compile(r"^\s+(\w+)\s*(?:=|[A-Z])")
+    var_re = re.compile(r"^var\s+(\w+)")
+
+    functions: list[str] = []
+    methods: list[str] = []
+    structs: list[str] = []
+    interfaces: list[str] = []
+    type_aliases: list[str] = []
+    constants: list[str] = []
+    variables: list[str] = []
+    file_names: list[str] = []
+
+    for fpath in files:
+        file_names.append(fpath.stem)
+
+        try:
+            source = _strip_go_comments(read_text(fpath))
+        except Exception:
+            continue
+
+        lines = source.splitlines()
+        constants.extend(_extract_go_constants(lines, const_re))
+
+        for line in lines:
+            m = func_re.match(line)
+            if m:
+                functions.append(m.group(1))
+
+            m = method_re.match(line)
+            if m:
+                methods.append(m.group(3))
+
+            m = type_struct_re.match(line)
+            if m:
+                structs.append(m.group(1))
+
+            m = type_iface_re.match(line)
+            if m:
+                interfaces.append(m.group(1))
+
+            m = type_alias_re.match(line)
+            if m:
+                type_aliases.append(m.group(1))
+
+            m = var_re.match(line)
+            if m:
+                variables.append(m.group(1))
+
+    result: dict = {
+        "functions": _pattern_summary(functions),
+        "methods": _pattern_summary(methods),
+        "types": _pattern_summary(structs),
+        "constants": _pattern_summary(constants),
+        "files": _pattern_summary(file_names),
+    }
+
+    if interfaces:
+        result["interfaces"] = _pattern_summary(interfaces)
+
+    if type_aliases:
+        result["type_aliases"] = _pattern_summary(type_aliases)
+
+    if variables:
+        result["variables"] = _pattern_summary(variables)
+
+    return result
+
+
 def _extract_go_constants(lines: list[str], const_re: re.Pattern) -> list[str]:
-    """Extract constant names from a Go file's const blocks."""
     constants: list[str] = []
     in_const = False
 
@@ -377,56 +458,83 @@ def _extract_go_constants(lines: list[str], const_re: re.Pattern) -> list[str]:
 
         if in_const:
             m = const_re.match(line)
-
             if m:
                 constants.append(m.group(1))
 
     return constants
 
 
-def _extract_go(files: list[Path]) -> dict:
-    func_re = re.compile(r"^func\s+(?:\(\w+\s+\*?\w+\)\s+)?(\w+)\s*\(")
-    type_re = re.compile(r"^type\s+(\w+)\s+(?:struct|interface)")
-    const_re = re.compile(r"^\s+(\w+)\s*(?:=|[A-Z])")
-    var_re = re.compile(r"^var\s+(\w+)\s+")
+def _strip_rust_comments(source: str) -> str:
+    source = re.sub(r"//.*", "", source)
+    source = re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
+    return source
+
+
+def _extract_rust(files: list[Path]) -> dict:
+    func_re = re.compile(r"^\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)", re.MULTILINE)
+    struct_re = re.compile(r"^\s*(?:pub\s+)?struct\s+(\w+)", re.MULTILINE)
+    enum_re = re.compile(r"^\s*(?:pub\s+)?enum\s+(\w+)", re.MULTILINE)
+    trait_re = re.compile(r"^\s*(?:pub\s+)?trait\s+(\w+)", re.MULTILINE)
+    impl_re = re.compile(r"^\s*impl\s+(?:(?:\w+)\s+for\s+)?(\w+)", re.MULTILINE)
+    const_re = re.compile(r"^\s*(?:pub\s+)?const\s+(\w+)", re.MULTILINE)
+    static_re = re.compile(r"^\s*(?:pub\s+)?static\s+(\w+)", re.MULTILINE)
 
     functions: list[str] = []
-    classes: list[str] = []
+    structs: list[str] = []
+    enums: list[str] = []
+    traits: list[str] = []
+    impls: list[str] = []
     constants: list[str] = []
+    statics: list[str] = []
     file_names: list[str] = []
 
     for fpath in files:
         file_names.append(fpath.stem)
 
         try:
-            lines = read_text(fpath).splitlines()
+            source = _strip_rust_comments(read_text(fpath))
         except Exception:
             continue
 
-        constants.extend(_extract_go_constants(lines, const_re))
+        for m in func_re.finditer(source):
+            functions.append(m.group(1))
 
-        for line in lines:
-            m = func_re.match(line)
+        for m in struct_re.finditer(source):
+            structs.append(m.group(1))
 
-            if m:
-                functions.append(m.group(1))
+        for m in enum_re.finditer(source):
+            enums.append(m.group(1))
 
-            m = type_re.match(line)
+        for m in trait_re.finditer(source):
+            traits.append(m.group(1))
 
-            if m:
-                classes.append(m.group(1))
+        for m in impl_re.finditer(source):
+            impls.append(m.group(1))
 
-            m = var_re.match(line)
+        for m in const_re.finditer(source):
+            constants.append(m.group(1))
 
-            if m and m.group(1)[0].isupper():
-                constants.append(m.group(1))
+        for m in static_re.finditer(source):
+            statics.append(m.group(1))
 
-    return {
+    result: dict = {
         "functions": _pattern_summary(functions),
-        "types": _pattern_summary(classes),
+        "structs": _pattern_summary(structs),
+        "enums": _pattern_summary(enums),
         "constants": _pattern_summary(constants),
         "files": _pattern_summary(file_names),
     }
+
+    if traits:
+        result["traits"] = _pattern_summary(traits)
+
+    if impls:
+        result["impls"] = _pattern_summary(impls)
+
+    if statics:
+        result["statics"] = _pattern_summary(statics)
+
+    return result
 
 
 def extract_symbols(repo_path: str, lang_filter: str | None = None) -> dict:
@@ -461,6 +569,9 @@ def extract_symbols(repo_path: str, lang_filter: str | None = None) -> dict:
 
     if not lang_filter or lang_filter == "go":
         _run("go", [".go"], _extract_go)
+
+    if not lang_filter or lang_filter == "rust":
+        _run("rust", [".rs"], _extract_rust)
 
     return result
 
