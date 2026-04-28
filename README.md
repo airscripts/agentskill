@@ -100,9 +100,62 @@ python cli.py tests <repo> --pretty
 # Write output to file
 python cli.py analyze <repo> --out report.json
 
+# Update or create AGENTS.md in place
+python cli.py update <repo>
+python cli.py update <repo> --section testing
+python cli.py update <repo> --exclude-section git
+python cli.py update <repo> --force
+python cli.py update <repo> --out updated-AGENTS.md
+
 # Run a script directly
 python scripts/scan.py <repo> --pretty
 ```
+
+### Update Workflow
+
+`python cli.py update <repo>` analyzes the repository, regenerates AGENTS sections,
+merges them with any existing `AGENTS.md`, and writes the result back to
+`<repo>/AGENTS.md` by default. Use `--section` to limit regeneration to one or
+more named sections, `--exclude-section` to keep specific generated sections
+untouched, and `--force` for a clean-slate rebuild that drops old custom
+sections instead of preserving them.
+
+### Repo-Local Feedback
+
+Incremental updates can read an optional repo-local sidecar file named
+`.agentskill-feedback.json`. This file is explicit, version-controllable, and
+affects only the current repository. It is not hidden memory and it is not
+global learning.
+
+```json
+{
+  "sections": {
+    "overview": {
+      "prepend_notes": [
+        "Mention that deployments go through GitHub Actions."
+      ]
+    },
+    "testing": {
+      "pinned_facts": [
+        "Use pytest as the canonical test runner."
+      ]
+    }
+  },
+  "preserve_sections": [
+    "red lines"
+  ]
+}
+```
+
+Supported feedback keys are intentionally narrow in `0.7.0`:
+
+- `sections.<name>.prepend_notes`
+- `sections.<name>.pinned_facts`
+- `preserve_sections`
+
+In normal update mode, `preserve_sections` acts like an implicit exclusion list.
+In `--force` mode, those preservation hints are ignored so the command can
+produce a true clean-slate rebuild.
 
 ---
 

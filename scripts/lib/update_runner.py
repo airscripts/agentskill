@@ -8,6 +8,7 @@ from lib.agents_document import AgentsSection, build_section, normalize_section_
 from lib.logging_utils import get_logger
 from lib.output import validate_out_path
 from lib.runner import run_all
+from lib.update_feedback import SectionFeedback, UpdateFeedback, load_feedback
 from lib.update_merge import merge_agents_document
 
 AGENTS_FILENAME = "AGENTS.md"
@@ -414,7 +415,29 @@ def _render_red_lines(analysis: dict) -> str:
     )
 
 
-def render_agents_sections(repo: Path, analysis: dict) -> dict[str, AgentsSection]:
+def _apply_section_feedback(body: str, feedback: SectionFeedback | None) -> str:
+    if feedback is None:
+        return body
+
+    parts: list[str] = []
+
+    if feedback.prepend_notes:
+        notes = "\n".join(f"- {note}" for note in feedback.prepend_notes)
+        parts.append("Maintainer notes from `.agentskill-feedback.json`:\n" + notes)
+
+    if feedback.pinned_facts:
+        facts = "\n".join(f"- {fact}" for fact in feedback.pinned_facts)
+        parts.append("Pinned facts from `.agentskill-feedback.json`:\n" + facts)
+
+    parts.append(body.rstrip("\n"))
+    return "\n\n".join(parts) + "\n"
+
+
+def render_agents_sections(
+    repo: Path,
+    analysis: dict,
+    feedback: UpdateFeedback | None = None,
+) -> dict[str, AgentsSection]:
     rendered: dict[str, str | None] = {
         "overview": _render_overview(repo, analysis),
         "repository structure": _render_repository_structure(analysis),
@@ -441,9 +464,10 @@ def render_agents_sections(repo: Path, analysis: dict) -> dict[str, AgentsSectio
         if body is None:
             continue
 
+        section_feedback = None if feedback is None else feedback.sections.get(name)
         sections[name] = build_section(
             SECTION_HEADINGS[name],
-            body,
+            _apply_section_feedback(body, section_feedback),
             heading_level=2,
         )
 
@@ -487,8 +511,11 @@ def update_agents(
     try:
         repo_path = validate_repo(repo)
         analysis = run_all(str(repo_path))
-        sections = render_agents_sections(repo_path, analysis)
-        _validate_requested_sections(include_sections, exclude_sections, sections)
+        feedback = load_feedback(repo_path)
+        sections = render_agents_sections(repo_path, analysis, feedback)
+        preserve_sections = [] if force else feedback.preserve_sections
+        effective_excludes = [*(exclude_sections or []), *preserve_sections]
+        _validate_requested_sections(include_sections, effective_excludes, sections)
         target_path = _resolve_update_path(repo_path, out)
         existing_path = repo_path / AGENTS_FILENAME
 
@@ -500,7 +527,7 @@ def update_agents(
             existing_text,
             sections,
             include_sections=include_sections,
-            exclude_sections=exclude_sections,
+            exclude_sections=effective_excludes,
             force=force,
             document_preamble=DOCUMENT_TITLE,
             preferred_order=SECTION_ORDER,
