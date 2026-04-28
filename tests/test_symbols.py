@@ -61,7 +61,8 @@ def test_symbols_extracts_typescript_and_go(tmp_path):
     )
 
     assert result["go"]["functions"]["total"] >= 1
-    assert result["go"]["constants"]["total"] >= 2
+    assert result["go"]["constants"]["total"] >= 1
+    assert result["go"]["variables"]["total"] >= 1
 
 
 def test_symbols_reports_invalid_repo_paths(tmp_path):

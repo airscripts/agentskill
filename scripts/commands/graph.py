@@ -33,6 +33,7 @@ def _collect_files(repo: Path, lang: str) -> list[Path]:
         "typescript": [".ts", ".tsx"],
         "javascript": [".js", ".jsx", ".mjs", ".cjs"],
         "go": [".go"],
+        "rust": [".rs"],
     }
 
     exts = set(ext_map.get(lang, []))
@@ -247,36 +248,63 @@ def _build_ts_graph(files: list[Path], repo: Path) -> dict:
     return _graph_result(sorted(adjacency.keys()), edges, adjacency, parse_errors)
 
 
-def _extract_go_imports(source: str) -> list[str]:
-    """Return all import paths found in a Go source file."""
+def _strip_go_comments(source: str) -> str:
+    source = re.sub(r"//.*", "", source)
+    source = re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
+    return source
+
+
+def _extract_go_imports(source: str) -> list[tuple[str, int]]:
+    source = _strip_go_comments(source)
+    results: list[tuple[str, int]] = []
+
     import_block_re = re.compile(r"import\s*\(([^)]+)\)", re.DOTALL)
-    single_import_re = re.compile(r'^import\s+"([^"]+)"')
+    single_import_re = re.compile(r'^\s*import\s+"([^"]+)"')
     quoted_re = re.compile(r'"([^"]+)"')
 
-    imports: list[str] = []
+    for lineno, line in enumerate(source.splitlines(), 1):
+        single_match = single_import_re.match(line)
+        if single_match:
+            results.append((single_match.group(1), lineno))
 
     for m in import_block_re.finditer(source):
+        block_start = source[:m.start()].count("\n") + 1
         for im in quoted_re.findall(m.group(1)):
-            imports.append(im)
+            results.append((im, block_start))
 
-    for line in source.splitlines():
-        single_match = single_import_re.match(line.strip())
+    return results
 
-        if single_match:
-            imports.append(single_match.group(1))
 
-    return imports
+def _detect_go_module(repo: Path) -> str:
+    gomod = repo / "go.mod"
+    if not gomod.exists():
+        return ""
+    for line in read_text(gomod).splitlines():
+        if line.startswith("module "):
+            return line.split()[1]
+    return ""
+
+
+def _detect_go_packages(files: list[Path], repo: Path) -> dict[str, str]:
+    pkg_map: dict[str, str] = {}
+    for fpath in files:
+        pkg_dir = str(fpath.parent.relative_to(repo))
+        if pkg_dir in pkg_map:
+            continue
+        try:
+            source = read_text(fpath)
+        except Exception:
+            continue
+        for line in source.splitlines():
+            m = re.match(r"^package\s+(\w+)", line)
+            if m:
+                pkg_map[pkg_dir] = m.group(1)
+                break
+    return pkg_map
 
 
 def _build_go_graph(files: list[Path], repo: Path) -> dict:
-    module_prefix = ""
-    gomod = repo / "go.mod"
-
-    if gomod.exists():
-        for line in read_text(gomod).splitlines():
-            if line.startswith("module "):
-                module_prefix = line.split()[1]
-                break
+    module_prefix = _detect_go_module(repo)
 
     edges: list[dict] = []
     adjacency: dict[str, list[str]] = {}
@@ -293,11 +321,124 @@ def _build_go_graph(files: list[Path], repo: Path) -> dict:
             parse_errors.append(rel)
             continue
 
-        for imp in _extract_go_imports(source):
+        for imp, lineno in _extract_go_imports(source):
             if module_prefix and imp.startswith(module_prefix):
-                internal_path = imp[len(module_prefix) :].lstrip("/")
-                edges.append({"from": pkg, "to": internal_path, "line": 0})
+                internal_path = imp[len(module_prefix):].lstrip("/")
+                edges.append({"from": pkg, "to": internal_path, "line": lineno})
                 adjacency[pkg].append(internal_path)
+
+    return _graph_result(sorted(adjacency.keys()), edges, adjacency, parse_errors)
+
+
+def _strip_rust_comments(source: str) -> str:
+    source = re.sub(r"//.*", "", source)
+    source = re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
+    return source
+
+
+def _extract_rust_mods_and_uses(source: str) -> list[tuple[str, int]]:
+    source = _strip_rust_comments(source)
+    results: list[tuple[str, int]] = []
+
+    mod_re = re.compile(r"^\s*(?:pub\s+)?mod\s+(\w+)", re.MULTILINE)
+    use_re = re.compile(
+        r"^\s*(?:pub\s+)?use\s+(crate::[\w:]+|super::[\w:]+|self::[\w:]+)",
+        re.MULTILINE,
+    )
+
+    for m in mod_re.finditer(source):
+        results.append(("mod:" + m.group(1), source[:m.start()].count("\n") + 1))
+
+    for m in use_re.finditer(source):
+        results.append(("use:" + m.group(1), source[:m.start()].count("\n") + 1))
+
+    return results
+
+
+def _resolve_rust_mod(
+    mod_name: str, current_file: Path, repo: Path, all_files: set[str]
+) -> str | None:
+    parent = current_file.parent
+
+    candidates = [
+        parent / f"{mod_name}.rs",
+        parent / mod_name / "mod.rs",
+        parent / "src" / f"{mod_name}.rs",
+        parent / "src" / mod_name / "mod.rs",
+    ]
+
+    if current_file.name in ("mod.rs", "lib.rs", "main.rs"):
+        candidates = [
+            parent / f"{mod_name}.rs",
+            parent / mod_name / "mod.rs",
+        ]
+
+    for c in candidates:
+        try:
+            rel = str(c.relative_to(repo))
+        except ValueError:
+            continue
+        if rel in all_files:
+            return rel
+
+    return None
+
+
+def _resolve_rust_use_path(
+    use_path: str, current_file: Path, repo: Path, all_files: set[str]
+) -> str | None:
+    path_part = use_path.split("::")[0] if "::" in use_path else use_path
+
+    if path_part in ("crate", "super", "self"):
+        return None
+
+    parent = current_file.parent
+    candidates = [
+        parent / f"{path_part}.rs",
+        parent / path_part / "mod.rs",
+    ]
+    for c in candidates:
+        try:
+            rel = str(c.relative_to(repo))
+        except ValueError:
+            continue
+        if rel in all_files:
+            return rel
+
+    return None
+
+
+def _build_rust_graph(files: list[Path], repo: Path) -> dict:
+    file_set = {str(f.relative_to(repo)): f for f in files}
+    file_rel_set = set(file_set.keys())
+
+    edges: list[dict] = []
+    adjacency: dict[str, list[str]] = {}
+    parse_errors: list[str] = []
+
+    for fpath in files:
+        rel = str(fpath.relative_to(repo))
+        adjacency.setdefault(rel, [])
+
+        try:
+            source = read_text(fpath)
+        except Exception:
+            parse_errors.append(rel)
+            continue
+
+        for kind_path, lineno in _extract_rust_mods_and_uses(source):
+            if kind_path.startswith("mod:"):
+                mod_name = kind_path[4:]
+                resolved = _resolve_rust_mod(mod_name, fpath, repo, file_rel_set)
+                if resolved and resolved != rel:
+                    edges.append({"from": rel, "to": resolved, "line": lineno})
+                    adjacency[rel].append(resolved)
+            elif kind_path.startswith("use:"):
+                use_path = kind_path[4:]
+                resolved = _resolve_rust_use_path(use_path, fpath, repo, file_rel_set)
+                if resolved and resolved != rel:
+                    edges.append({"from": rel, "to": resolved, "line": lineno})
+                    adjacency[rel].append(resolved)
 
     return _graph_result(sorted(adjacency.keys()), edges, adjacency, parse_errors)
 
@@ -399,7 +540,7 @@ def build_graph(repo_path: str, lang_filter: str | None = None) -> dict:
     result: dict = {}
 
     langs = (
-        [lang_filter] if lang_filter else ["python", "typescript", "javascript", "go"]
+        [lang_filter] if lang_filter else ["python", "typescript", "javascript", "go", "rust"]
     )
 
     for lang in langs:
@@ -415,6 +556,8 @@ def build_graph(repo_path: str, lang_filter: str | None = None) -> dict:
                 result[lang] = _build_ts_graph(files, repo)
             elif lang == "go":
                 result[lang] = _build_go_graph(files, repo)
+            elif lang == "rust":
+                result[lang] = _build_rust_graph(files, repo)
         except Exception as exc:
             result[lang] = {"error": str(exc)}
 

@@ -477,6 +477,193 @@ def _analyze_typescript(repo: Path) -> dict | None:
     }
 
 
+def _collect_go_files(repo: Path) -> tuple[list[Path], list[Path]]:
+    test_files: list[Path] = []
+    source_files: list[Path] = []
+
+    for dirpath, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if not should_skip_dir(d)]
+
+        for fn in files:
+            if not fn.endswith(".go"):
+                continue
+
+            fpath = Path(dirpath) / fn
+
+            if fn.endswith("_test.go"):
+                test_files.append(fpath)
+            else:
+                source_files.append(fpath)
+
+    return test_files, source_files
+
+
+def _collect_rust_files(repo: Path) -> tuple[list[Path], list[Path]]:
+    test_files: list[Path] = []
+    source_files: list[Path] = []
+
+    for dirpath, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if not should_skip_dir(d)]
+
+        for fn in files:
+            if not fn.endswith(".rs"):
+                continue
+
+            fpath = Path(dirpath) / fn
+            rel = str(fpath.relative_to(repo))
+
+            if rel.startswith("tests/") or fn.endswith("_test.rs"):
+                test_files.append(fpath)
+            else:
+                source_files.append(fpath)
+
+    return test_files, source_files
+
+
+def _detect_go_framework(repo: Path) -> str:
+    return "go test"
+
+
+def _detect_rust_framework(repo: Path) -> str:
+    return "cargo test"
+
+
+def _map_go_tests(source_files: list[Path], test_files: list[Path], repo: Path) -> dict:
+    mapped: list[dict] = []
+    untested: list[str] = []
+    unmatched_tests: list[str] = []
+
+    source_by_stem: dict[str, Path] = {}
+    for sf in source_files:
+        stem = sf.stem
+        source_by_stem[stem] = sf
+
+    matched_tests: set[str] = set()
+
+    for tf in test_files:
+        stem = tf.stem
+        candidate = stem[:-5] if stem.endswith("_test") else stem
+
+        match = source_by_stem.get(candidate)
+
+        if match:
+            matched_tests.add(str(match.relative_to(repo)))
+            mapped.append(
+                {
+                    "source": str(match.relative_to(repo)),
+                    "test": str(tf.relative_to(repo)),
+                }
+            )
+        else:
+            unmatched_tests.append(str(tf.relative_to(repo)))
+
+    for sf in source_files:
+        rel = str(sf.relative_to(repo))
+        if rel not in matched_tests:
+            untested.append(rel)
+
+    return {
+        "mapped": mapped,
+        "untested_source_files": untested,
+        "test_files_without_source_match": unmatched_tests,
+    }
+
+
+def _map_rust_tests(source_files: list[Path], test_files: list[Path], repo: Path) -> dict:
+    mapped: list[dict] = []
+    untested: list[str] = []
+    unmatched_tests: list[str] = []
+
+    source_by_stem: dict[str, Path] = {}
+    for sf in source_files:
+        stem = sf.stem
+        source_by_stem[stem] = sf
+
+    matched_tests: set[str] = set()
+
+    for tf in test_files:
+        stem = tf.stem
+        candidate = stem[:-5] if stem.endswith("_test") else stem
+
+        match = source_by_stem.get(candidate)
+
+        if match:
+            matched_tests.add(str(match.relative_to(repo)))
+            mapped.append(
+                {
+                    "source": str(match.relative_to(repo)),
+                    "test": str(tf.relative_to(repo)),
+                }
+            )
+        else:
+            unmatched_tests.append(str(tf.relative_to(repo)))
+
+    for sf in source_files:
+        rel = str(sf.relative_to(repo))
+        if rel not in matched_tests:
+            untested.append(rel)
+
+    return {
+        "mapped": mapped,
+        "untested_source_files": untested,
+        "test_files_without_source_match": unmatched_tests,
+    }
+
+
+def _analyze_go(repo: Path) -> dict | None:
+    test_files, source_files = _collect_go_files(repo)
+
+    if not test_files and not source_files:
+        return None
+
+    framework = _detect_go_framework(repo)
+    run_cmd = _extract_run_command(repo, framework) or framework
+    coverage = _map_go_tests(source_files, test_files, repo)
+    structure = _detect_test_structure(repo, test_files)
+    naming = _detect_naming_patterns(test_files)
+    rep_test = _pick_representative(test_files)
+
+    return {
+        "framework": framework,
+        "run_command": run_cmd,
+        "test_files": len(test_files),
+        "source_files": len(source_files),
+        "coverage_shape": coverage,
+        "structure": structure,
+        "naming": naming,
+        "representative_test": str(Path(rep_test).relative_to(repo))
+        if rep_test
+        else None,
+    }
+
+
+def _analyze_rust(repo: Path) -> dict | None:
+    test_files, source_files = _collect_rust_files(repo)
+
+    if not test_files and not source_files:
+        return None
+
+    framework = _detect_rust_framework(repo)
+    run_cmd = _extract_run_command(repo, framework) or framework
+    coverage = _map_rust_tests(source_files, test_files, repo)
+    structure = _detect_test_structure(repo, test_files)
+    naming = _detect_naming_patterns(test_files)
+    rep_test = _pick_representative(test_files)
+
+    return {
+        "framework": framework,
+        "run_command": run_cmd,
+        "test_files": len(test_files),
+        "source_files": len(source_files),
+        "coverage_shape": coverage,
+        "structure": structure,
+        "naming": naming,
+        "representative_test": str(Path(rep_test).relative_to(repo))
+        if rep_test
+        else None,
+    }
+
+
 def analyze_tests(repo_path: str) -> dict:
     try:
         repo = validate_repo(repo_path)
@@ -500,6 +687,22 @@ def analyze_tests(repo_path: str) -> dict:
             result["typescript"] = ts
     except Exception as exc:
         result["typescript"] = {"error": str(exc)}
+
+    try:
+        go = _analyze_go(repo)
+
+        if go:
+            result["go"] = go
+    except Exception as exc:
+        result["go"] = {"error": str(exc)}
+
+    try:
+        rs = _analyze_rust(repo)
+
+        if rs:
+            result["rust"] = rs
+    except Exception as exc:
+        result["rust"] = {"error": str(exc)}
 
     return result
 
