@@ -287,19 +287,25 @@ def _detect_go_module(repo: Path) -> str:
 
 def _detect_go_packages(files: list[Path], repo: Path) -> dict[str, str]:
     pkg_map: dict[str, str] = {}
+
     for fpath in files:
         pkg_dir = str(fpath.parent.relative_to(repo))
+
         if pkg_dir in pkg_map:
             continue
+
         try:
             source = read_text(fpath)
         except Exception:
             continue
+
         for line in source.splitlines():
             m = re.match(r"^package\s+(\w+)", line)
+
             if m:
                 pkg_map[pkg_dir] = m.group(1)
                 break
+
     return pkg_map
 
 
@@ -378,6 +384,7 @@ def _resolve_rust_mod(
             rel = str(c.relative_to(repo))
         except ValueError:
             continue
+
         if rel in all_files:
             return rel
 
@@ -397,11 +404,13 @@ def _resolve_rust_use_path(
         parent / f"{path_part}.rs",
         parent / path_part / "mod.rs",
     ]
+
     for c in candidates:
         try:
             rel = str(c.relative_to(repo))
         except ValueError:
             continue
+
         if rel in all_files:
             return rel
 
@@ -430,12 +439,15 @@ def _build_rust_graph(files: list[Path], repo: Path) -> dict:
             if kind_path.startswith("mod:"):
                 mod_name = kind_path[4:]
                 resolved = _resolve_rust_mod(mod_name, fpath, repo, file_rel_set)
+
                 if resolved and resolved != rel:
                     edges.append({"from": rel, "to": resolved, "line": lineno})
                     adjacency[rel].append(resolved)
+
             elif kind_path.startswith("use:"):
                 use_path = kind_path[4:]
                 resolved = _resolve_rust_use_path(use_path, fpath, repo, file_rel_set)
+
                 if resolved and resolved != rel:
                     edges.append({"from": rel, "to": resolved, "line": lineno})
                     adjacency[rel].append(resolved)

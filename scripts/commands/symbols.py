@@ -498,16 +498,22 @@ def _extract_rust(files: list[Path]) -> dict:
 
         for m in func_re.finditer(source):
             functions.append(m.group(1))
+
         for m in struct_re.finditer(source):
             structs.append(m.group(1))
+
         for m in enum_re.finditer(source):
             enums.append(m.group(1))
+
         for m in trait_re.finditer(source):
             traits.append(m.group(1))
+
         for m in impl_re.finditer(source):
             impls.append(m.group(1))
+
         for m in const_re.finditer(source):
             constants.append(m.group(1))
+
         for m in static_re.finditer(source):
             statics.append(m.group(1))
 
