@@ -70,6 +70,15 @@ SHELL_TEST_FRAMEWORKS = {
     ".bats": "bats",
 }
 
+SWIFT_TEST_FRAMEWORKS = {
+    "import XCTest": "xctest",
+}
+
+OBJC_TEST_FRAMEWORKS = {
+    "<XCTest/XCTest.h>": "xctest",
+    "XCTestCase": "xctest",
+}
+
 CSHARP_TEST_FRAMEWORKS = {
     "using Xunit;": "xunit",
     "using NUnit.Framework;": "nunit",
@@ -746,6 +755,66 @@ def _collect_bash_files(repo: Path) -> tuple[list[Path], list[Path]]:
     return test_files, source_files
 
 
+def _is_objectivec_header(path: Path) -> bool:
+    if path.suffix.lower() != ".h":
+        return False
+
+    content = read_text(path)
+
+    return any(
+        marker in content
+        for marker in ("@interface", "@protocol", "@implementation", "#import")
+    )
+
+
+def _collect_swift_files(repo: Path) -> tuple[list[Path], list[Path]]:
+    test_files: list[Path] = []
+    source_files: list[Path] = []
+
+    for dirpath, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if not should_skip_dir(d)]
+
+        for fn in files:
+            if not fn.endswith(".swift"):
+                continue
+
+            fpath = Path(dirpath) / fn
+            rel = str(fpath.relative_to(repo))
+
+            if is_test_path(rel, language_id="swift") or rel.startswith("Tests/"):
+                test_files.append(fpath)
+            else:
+                source_files.append(fpath)
+
+    return test_files, source_files
+
+
+def _collect_objectivec_files(repo: Path) -> tuple[list[Path], list[Path]]:
+    test_files: list[Path] = []
+    source_files: list[Path] = []
+
+    for dirpath, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if not should_skip_dir(d)]
+
+        for fn in files:
+            fpath = Path(dirpath) / fn
+            suffix = fpath.suffix.lower()
+
+            if suffix not in {".m", ".mm"} and not (
+                suffix == ".h" and _is_objectivec_header(fpath)
+            ):
+                continue
+
+            rel = str(fpath.relative_to(repo))
+
+            if rel.startswith("Tests/") or fn.endswith(("Tests.m", "Tests.mm")):
+                test_files.append(fpath)
+            else:
+                source_files.append(fpath)
+
+    return test_files, source_files
+
+
 def _detect_go_framework(repo: Path) -> str:
     return "go test"
 
@@ -866,6 +935,34 @@ def _detect_bash_framework(test_files: list[Path]) -> str:
                 return framework
 
     return "bash"
+
+
+def _detect_swift_framework(test_files: list[Path]) -> str:
+    for fpath in test_files[:FRAMEWORK_DETECTION_SAMPLE]:
+        try:
+            content = read_text(fpath)
+        except Exception:
+            continue
+
+        for marker, framework in SWIFT_TEST_FRAMEWORKS.items():
+            if marker in content:
+                return framework
+
+    return "xctest"
+
+
+def _detect_objectivec_framework(test_files: list[Path]) -> str:
+    for fpath in test_files[:FRAMEWORK_DETECTION_SAMPLE]:
+        try:
+            content = read_text(fpath)
+        except Exception:
+            continue
+
+        for marker, framework in OBJC_TEST_FRAMEWORKS.items():
+            if marker in content:
+                return framework
+
+    return "xctest"
 
 
 def _map_go_tests(source_files: list[Path], test_files: list[Path], repo: Path) -> dict:
@@ -1337,6 +1434,66 @@ def _analyze_bash(repo: Path) -> dict | None:
     }
 
 
+def _analyze_swift(repo: Path) -> dict | None:
+    test_files, source_files = _collect_swift_files(repo)
+
+    if not test_files and not source_files:
+        return None
+
+    framework = _detect_swift_framework(test_files)
+    run_cmd = _extract_run_command(repo, framework) or framework
+    coverage = _map_stem_tests(source_files, test_files, repo)
+    structure = _detect_test_structure(repo, test_files)
+    naming = _detect_naming_patterns(test_files)
+    rep_test = _pick_representative(test_files)
+
+    return {
+        "framework": framework,
+        "run_command": run_cmd,
+        "test_files": len(test_files),
+        "source_files": len(source_files),
+        "coverage_shape": coverage,
+        "structure": structure,
+        "naming": naming,
+        "representative_test": str(Path(rep_test).relative_to(repo))
+        if rep_test
+        else None,
+    }
+
+
+def _analyze_objectivec(repo: Path) -> dict | None:
+    test_files, source_files = _collect_objectivec_files(repo)
+
+    if not test_files and not source_files:
+        return None
+
+    framework = _detect_objectivec_framework(test_files)
+    run_cmd = _extract_run_command(repo, framework) or framework
+
+    coverage = _map_stem_tests(
+        [f for f in source_files if f.suffix.lower() in {".m", ".mm"}],
+        [f for f in test_files if f.suffix.lower() in {".m", ".mm"}],
+        repo,
+    )
+
+    structure = _detect_test_structure(repo, test_files)
+    naming = _detect_naming_patterns(test_files)
+    rep_test = _pick_representative(test_files)
+
+    return {
+        "framework": framework,
+        "run_command": run_cmd,
+        "test_files": len(test_files),
+        "source_files": len(source_files),
+        "coverage_shape": coverage,
+        "structure": structure,
+        "naming": naming,
+        "representative_test": str(Path(rep_test).relative_to(repo))
+        if rep_test
+        else None,
+    }
+
+
 def analyze_tests(repo_path: str) -> dict:
     try:
         repo = validate_repo(repo_path)
@@ -1440,6 +1597,22 @@ def analyze_tests(repo_path: str) -> dict:
             result["bash"] = bash
     except Exception as exc:
         result["bash"] = {"error": str(exc)}
+
+    try:
+        swift = _analyze_swift(repo)
+
+        if swift:
+            result["swift"] = swift
+    except Exception as exc:
+        result["swift"] = {"error": str(exc)}
+
+    try:
+        objectivec = _analyze_objectivec(repo)
+
+        if objectivec:
+            result["objectivec"] = objectivec
+    except Exception as exc:
+        result["objectivec"] = {"error": str(exc)}
 
     return result
 

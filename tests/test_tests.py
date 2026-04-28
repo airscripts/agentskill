@@ -265,6 +265,44 @@ def test_tests_detect_ruby_php_and_bash_mappings(tmp_path):
     ]["coverage_shape"]["mapped"]
 
 
+def test_tests_detect_swift_and_objectivec_mappings(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "Sources/MyApp/UserService.swift": "final class UserService {}\n",
+            "Tests/MyAppTests/UserServiceTests.swift": (
+                "import XCTest\n\n"
+                "final class UserServiceTests: XCTestCase {\n"
+                "    func testStart() {}\n"
+                "}\n"
+            ),
+            "Sources/UserService.m": "@implementation UserService\n@end\n",
+            "Tests/UserServiceTests.m": (
+                "#import <XCTest/XCTest.h>\n\n"
+                "@interface UserServiceTests : XCTestCase\n@end\n\n"
+                "@implementation UserServiceTests\n"
+                "- (void)testStart {}\n"
+                "@end\n"
+            ),
+        },
+    )
+
+    result = analyze_tests(str(repo))
+
+    assert result["swift"]["framework"] == "xctest"
+    assert result["swift"]["coverage_shape"]["mapped"] == [
+        {
+            "source": "Sources/MyApp/UserService.swift",
+            "test": "Tests/MyAppTests/UserServiceTests.swift",
+        }
+    ]
+
+    assert result["objectivec"]["framework"] == "xctest"
+    assert result["objectivec"]["coverage_shape"]["mapped"] == [
+        {"source": "Sources/UserService.m", "test": "Tests/UserServiceTests.m"}
+    ]
+
+
 def test_tests_reports_invalid_repo_paths(tmp_path):
     missing = tmp_path / "missing"
 

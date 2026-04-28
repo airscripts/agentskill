@@ -193,6 +193,48 @@ def test_graph_detects_ruby_php_and_bash_internal_edges(tmp_path):
     } in result["bash"]["edges"]
 
 
+def test_graph_detects_swift_and_objectivec_internal_edges(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "Sources/MyApp/App.swift": (
+                "import Foundation\n"
+                "import MyAppCore\n"
+                "@testable import MyApp\n\n"
+                "public struct App {}\n"
+            ),
+            "Sources/MyAppCore/Service.swift": "public struct Service {}\n",
+            "Sources/UserService.m": (
+                '#import "UserService.h"\n'
+                '#import "Config.h"\n'
+                "#import <Foundation/Foundation.h>\n"
+            ),
+            "Sources/UserService.h": "@interface UserService : NSObject\n@end\n",
+            "Sources/Config.h": '#define APP_NAME @"demo"\n',
+        },
+    )
+
+    result = build_graph(str(repo))
+
+    assert {
+        "from": "Sources/MyApp/App.swift",
+        "to": "Sources/MyAppCore/Service.swift",
+        "line": 2,
+    } in result["swift"]["edges"]
+
+    assert {
+        "from": "Sources/UserService.m",
+        "to": "Sources/UserService.h",
+        "line": 1,
+    } in result["objectivec"]["edges"]
+
+    assert {
+        "from": "Sources/UserService.m",
+        "to": "Sources/Config.h",
+        "line": 2,
+    } in result["objectivec"]["edges"]
+
+
 def test_graph_reports_invalid_repo_paths(tmp_path):
     missing = tmp_path / "missing"
 

@@ -218,6 +218,46 @@ def test_symbols_extracts_ruby_php_and_bash(tmp_path):
     assert result["bash"]["functions"]["total"] >= 2
 
 
+def test_symbols_extracts_swift_and_objectivec(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "Sources/MyApp/User.swift": (
+                "public struct User {}\n"
+                "final class UserService {}\n"
+                "public enum Status {}\n"
+                "protocol Store {}\n\n"
+                "public func makeUser() {}\n"
+                "private func helper() {}\n\n"
+                "extension UserService {}\n"
+            ),
+            "Sources/UserService.h": "@interface UserService : NSObject\n@end\n",
+            "Sources/UserService.m": (
+                "@implementation UserService\n"
+                "- (void)start {}\n"
+                "+ (instancetype)shared {}\n"
+                "@end\n\n"
+                "@protocol UserStore\n@end\n"
+            ),
+        },
+    )
+
+    result = extract_symbols(str(repo))
+
+    assert result["swift"]["structs"]["total"] >= 1
+    assert result["swift"]["classes"]["total"] >= 1
+    assert result["swift"]["enums"]["total"] >= 1
+    assert result["swift"]["protocols"]["total"] >= 1
+    assert result["swift"]["functions"]["total"] >= 2
+    assert result["swift"]["extensions"]["total"] >= 1
+
+    assert result["objectivec"]["interfaces"]["total"] >= 1
+    assert result["objectivec"]["implementations"]["total"] >= 1
+    assert result["objectivec"]["methods"]["total"] >= 1
+    assert result["objectivec"]["class_methods"]["total"] >= 1
+    assert result["objectivec"]["protocols"]["total"] >= 1
+
+
 def test_symbols_reports_invalid_repo_paths(tmp_path):
     missing = tmp_path / "missing"
 

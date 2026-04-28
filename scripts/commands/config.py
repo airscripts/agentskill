@@ -153,6 +153,8 @@ def _parse_editorconfig_for_lang(sections: dict, lang: str) -> dict:
         "ruby": ["*.rb"],
         "php": ["*.php"],
         "bash": ["*.sh", "*.bash"],
+        "swift": ["*.swift"],
+        "objectivec": ["*.m", "*.mm", "*.h"],
     }
 
     exts = lang_ext_map.get(lang, [])
@@ -559,6 +561,43 @@ def _detect_php_markers(repo: Path) -> dict:
     return result
 
 
+def _detect_apple_markers(repo: Path, language: str) -> dict:
+    markers: list[str] = []
+
+    if language == "swift":
+        static_markers = ["Package.swift", "Package.resolved"]
+    else:
+        static_markers = ["Podfile", "Podfile.lock"]
+
+    for marker in static_markers:
+        if (repo / marker).exists():
+            markers.append(marker)
+
+    markers.extend(sorted(path.name for path in repo.rglob("*.xcodeproj")))
+    markers.extend(sorted(path.name for path in repo.rglob("*.xcworkspace")))
+
+    if not markers:
+        return {}
+
+    build_tool = None
+
+    if language == "swift":
+        if "Package.swift" in markers:
+            build_tool = "swiftpm"
+        elif any(marker.endswith((".xcodeproj", ".xcworkspace")) for marker in markers):
+            build_tool = "xcode"
+    else:
+        if "Podfile" in markers or "Podfile.lock" in markers:
+            build_tool = "cocoapods"
+        elif any(marker.endswith((".xcodeproj", ".xcworkspace")) for marker in markers):
+            build_tool = "xcode"
+
+    return {
+        "project_markers": sorted(set(markers)),
+        "build_tool": build_tool,
+    }
+
+
 def _attach_editorconfig(lang_result: dict, ec_sections: dict, lang: str) -> None:
     """Mutate lang_result in place: attach editorconfig entry if one exists."""
     ec = _parse_editorconfig_for_lang(ec_sections, lang)
@@ -656,6 +695,18 @@ def detect(repo_path: str) -> dict:
     if php or list(repo.rglob("*.php")):
         _attach_editorconfig(php, ec_sections, "php")
         result["php"] = php
+
+    swift = _detect_apple_markers(repo, "swift")
+
+    if swift or list(repo.rglob("*.swift")):
+        _attach_editorconfig(swift, ec_sections, "swift")
+        result["swift"] = swift
+
+    objectivec = _detect_apple_markers(repo, "objectivec")
+
+    if objectivec or list(repo.rglob("*.m")) or list(repo.rglob("*.mm")):
+        _attach_editorconfig(objectivec, ec_sections, "objectivec")
+        result["objectivec"] = objectivec
 
     if ec_sections:
         result["editorconfig"] = ec_sections

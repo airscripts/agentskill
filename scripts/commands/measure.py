@@ -55,6 +55,12 @@ TOP_LEVEL_DEF_RE: dict[str, re.Pattern] = {
         r"^\s*(?:class|interface|trait|enum)\s+\w+|^\s*function\s+\w+|^\s*(?:public|protected|private)\s+function\s+\w+"
     ),
     "bash": re.compile(r"^\s*(?:function\s+)?[A-Za-z_]\w*\s*\(\)\s*\{"),
+    "swift": re.compile(
+        r"^\s*(?:public|open|internal|private|fileprivate)?\s*(?:final\s+)?(?:struct|class|enum|protocol)\s+\w+|^\s*(?:public|open|internal|private|fileprivate)?\s*func\s+\w+|^\s*extension\s+\w+"
+    ),
+    "objectivec": re.compile(
+        r"^\s*@(?:interface|implementation|protocol)\s+\w+|^\s*[-+]\s*\([^)]+\)\s*\w+"
+    ),
 }
 
 METHOD_DEF_RE: dict[str, re.Pattern] = {
@@ -76,6 +82,10 @@ METHOD_DEF_RE: dict[str, re.Pattern] = {
     "cpp": re.compile(r"^\s*[A-Za-z_][\w:\s<>\*&]+\s+\w+\s*\([^;]*\)\s*\{"),
     "php": re.compile(r"^\s*(?:public|protected|private)\s+function\s+\w+\s*\("),
     "bash": re.compile(r"^\s*(?:function\s+)?[A-Za-z_]\w*\s*\(\)\s*\{"),
+    "swift": re.compile(
+        r"^\s*(?:public|open|internal|private|fileprivate)?\s*func\s+\w+\s*\("
+    ),
+    "objectivec": re.compile(r"^\s*[-+]\s*\([^)]+\)\s*\w+"),
 }
 
 

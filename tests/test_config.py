@@ -158,6 +158,36 @@ def test_config_detects_ruby_and_php_project_markers(tmp_path):
     assert result["php"]["test_framework"] == "phpunit"
 
 
+def test_config_detects_swift_and_objectivec_project_markers(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "Package.swift": "// swift-tools-version: 5.9\n",
+            "Package.resolved": "{}\n",
+            "MyApp.xcodeproj": "",
+            "MyApp.xcworkspace": "",
+            "Podfile": "platform :ios, '17.0'\n",
+            "Podfile.lock": "PODS:\n",
+            "Sources/MyApp/App.swift": "public struct App {}\n",
+            "Sources/UserService.m": "@implementation UserService\n@end\n",
+        },
+    )
+
+    result = detect(str(repo))
+
+    assert result["swift"]["build_tool"] == "swiftpm"
+    assert "Package.swift" in result["swift"]["project_markers"]
+    assert "Package.resolved" in result["swift"]["project_markers"]
+    assert "MyApp.xcodeproj" in result["swift"]["project_markers"]
+    assert "MyApp.xcworkspace" in result["swift"]["project_markers"]
+
+    assert result["objectivec"]["build_tool"] == "cocoapods"
+    assert "Podfile" in result["objectivec"]["project_markers"]
+    assert "Podfile.lock" in result["objectivec"]["project_markers"]
+    assert "MyApp.xcodeproj" in result["objectivec"]["project_markers"]
+    assert "MyApp.xcworkspace" in result["objectivec"]["project_markers"]
+
+
 def test_config_reports_invalid_repo_paths(tmp_path):
     missing = tmp_path / "missing"
 

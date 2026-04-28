@@ -480,6 +480,12 @@ def _strip_shell_comments(source: str) -> str:
     return "\n".join(stripped)
 
 
+def _strip_swift_comments(source: str) -> str:
+    source = re.sub(r"//.*", "", source)
+    source = re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
+    return source
+
+
 def _extract_jvm_package(content: str) -> str | None:
     stripped = _strip_jvm_comments(content)
 
@@ -1010,6 +1016,177 @@ def _build_shell_graph(files: list[Path], repo: Path) -> dict:
     return _graph_result(sorted(adjacency.keys()), edges, adjacency, parse_errors)
 
 
+def _extract_swift_imports(content: str) -> list[tuple[str, int]]:
+    stripped = _strip_swift_comments(content)
+    results: list[tuple[str, int]] = []
+
+    pattern = re.compile(
+        r"^[ \t]*(?:@testable\s+)?import\s+([A-Za-z_]\w*)",
+        re.MULTILINE,
+    )
+
+    for match in pattern.finditer(stripped):
+        results.append((match.group(1), stripped[: match.start()].count("\n") + 1))
+
+    return results
+
+
+def _swift_module_name(path: Path, repo: Path) -> str | None:
+    rel = path.relative_to(repo)
+    parts = rel.parts
+
+    if len(parts) >= 2 and parts[0] == "Sources":
+        return parts[1]
+
+    if len(parts) >= 2 and parts[0] == "Tests":
+        return parts[1].removesuffix("Tests")
+
+    return None
+
+
+def _build_swift_module_index(files: list[Path], repo: Path) -> dict[str, str]:
+    index: dict[str, str] = {}
+
+    for fpath in files:
+        module_name = _swift_module_name(fpath, repo)
+
+        if not module_name:
+            continue
+
+        index.setdefault(module_name, str(fpath.relative_to(repo)))
+
+    return index
+
+
+def _build_swift_graph(files: list[Path], repo: Path) -> dict:
+    edges: list[dict] = []
+    adjacency: dict[str, list[str]] = {}
+    parse_errors: list[str] = []
+    module_index = _build_swift_module_index(files, repo)
+
+    for fpath in files:
+        rel = str(fpath.relative_to(repo))
+        adjacency.setdefault(rel, [])
+
+        try:
+            source = read_text(fpath)
+        except Exception:
+            parse_errors.append(rel)
+            continue
+
+        for module_name, lineno in _extract_swift_imports(source):
+            resolved = module_index.get(module_name)
+
+            if resolved and resolved != rel:
+                edges.append({"from": rel, "to": resolved, "line": lineno})
+                adjacency[rel].append(resolved)
+
+    return _graph_result(sorted(adjacency.keys()), edges, adjacency, parse_errors)
+
+
+def _is_objectivec_header(path: Path) -> bool:
+    if path.suffix.lower() != ".h":
+        return False
+
+    content = read_text(path)
+
+    return any(
+        marker in content
+        for marker in ("@interface", "@protocol", "@implementation", "#import")
+    )
+
+
+def _collect_objectivec_files(repo: Path) -> list[Path]:
+    found: list[Path] = []
+
+    for dirpath, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if not should_skip_dir(d)]
+
+        for fn in files:
+            fpath = Path(dirpath) / fn
+            suffix = fpath.suffix.lower()
+
+            if suffix in {".m", ".mm"} or (
+                suffix == ".h" and _is_objectivec_header(fpath)
+            ):
+                found.append(fpath)
+
+    return found
+
+
+def _extract_objc_imports(content: str) -> list[tuple[str, int]]:
+    stripped = _strip_c_family_comments(content)
+    results: list[tuple[str, int]] = []
+    pattern = re.compile(r'^[ \t]*#(?:import|include)\s*[<"]([^>"]+)[>"]', re.MULTILINE)
+
+    for match in pattern.finditer(stripped):
+        results.append(
+            (match.group(1).strip(), stripped[: match.start()].count("\n") + 1)
+        )
+
+    return results
+
+
+def _resolve_objc_import(
+    importer: Path, import_name: str, repo: Path, include_lookup: dict[str, str]
+) -> str | None:
+    normalized = Path(import_name).as_posix().lower()
+
+    path_candidates = [
+        importer.parent / import_name,
+        repo / import_name,
+        repo / "include" / import_name,
+        repo / "Headers" / import_name,
+        repo / "Sources" / import_name,
+    ]
+
+    for candidate_path in path_candidates:
+        if candidate_path.exists():
+            try:
+                return str(candidate_path.resolve().relative_to(repo.resolve()))
+            except ValueError:
+                continue
+
+    candidates = [
+        normalized,
+        f"include/{normalized}",
+        f"headers/{normalized}",
+        f"sources/{normalized}",
+    ]
+
+    for candidate in candidates:
+        if candidate in include_lookup:
+            return include_lookup[candidate]
+
+    return None
+
+
+def _build_objectivec_graph(files: list[Path], repo: Path) -> dict:
+    edges: list[dict] = []
+    adjacency: dict[str, list[str]] = {}
+    parse_errors: list[str] = []
+    include_lookup = _build_include_lookup(repo)
+
+    for fpath in files:
+        rel = str(fpath.relative_to(repo))
+        adjacency.setdefault(rel, [])
+
+        try:
+            source = read_text(fpath)
+        except Exception:
+            parse_errors.append(rel)
+            continue
+
+        for import_name, lineno in _extract_objc_imports(source):
+            resolved = _resolve_objc_import(fpath, import_name, repo, include_lookup)
+
+            if resolved and resolved != rel:
+                edges.append({"from": rel, "to": resolved, "line": lineno})
+                adjacency[rel].append(resolved)
+
+    return _graph_result(sorted(adjacency.keys()), edges, adjacency, parse_errors)
+
+
 def _compute_most_depended(
     adjacency: dict[str, list[str]],
 ) -> list[dict[str, str | int]]:
@@ -1123,11 +1300,17 @@ def build_graph(repo_path: str, lang_filter: str | None = None) -> dict:
             "ruby",
             "php",
             "bash",
+            "swift",
+            "objectivec",
         ]
     )
 
     for lang in langs:
-        files = _collect_files(repo, lang)
+        files = (
+            _collect_objectivec_files(repo)
+            if lang == "objectivec"
+            else _collect_files(repo, lang)
+        )
 
         if not files:
             continue
@@ -1153,6 +1336,10 @@ def build_graph(repo_path: str, lang_filter: str | None = None) -> dict:
                 result[lang] = _build_php_graph(files, repo)
             elif lang == "bash":
                 result[lang] = _build_shell_graph(files, repo)
+            elif lang == "swift":
+                result[lang] = _build_swift_graph(files, repo)
+            elif lang == "objectivec":
+                result[lang] = _build_objectivec_graph(files, repo)
         except Exception as exc:
             result[lang] = {"error": str(exc)}
 

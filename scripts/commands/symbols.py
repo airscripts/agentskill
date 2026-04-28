@@ -491,6 +491,12 @@ def _strip_c_family_comments(source: str) -> str:
     return source
 
 
+def _strip_swift_comments(source: str) -> str:
+    source = re.sub(r"//.*", "", source)
+    source = re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
+    return source
+
+
 def _extract_java(files: list[Path]) -> dict:
     decl_re = re.compile(
         r"^\s*(?P<mods>(?:public|private|protected|static|final|abstract)\s+)*"
@@ -999,6 +1005,166 @@ def _extract_bash(files: list[Path]) -> dict:
     }
 
 
+def _extract_swift(files: list[Path]) -> dict:
+    type_re = re.compile(
+        r"^\s*(?:public|open|internal|private|fileprivate)?\s*(?:final\s+)?(struct|class|enum|protocol)\s+([A-Za-z_]\w*)",
+        re.MULTILINE,
+    )
+
+    function_re = re.compile(
+        r"^\s*(?:public|open|internal|private|fileprivate)?\s*func\s+([A-Za-z_]\w*)\s*\(",
+        re.MULTILINE,
+    )
+
+    extension_re = re.compile(r"^\s*extension\s+([A-Za-z_]\w*)", re.MULTILINE)
+
+    structs: list[str] = []
+    classes: list[str] = []
+    enums: list[str] = []
+    protocols: list[str] = []
+    functions: list[str] = []
+    extensions: list[str] = []
+    file_names: list[str] = []
+
+    for fpath in files:
+        file_names.append(fpath.stem)
+
+        try:
+            source = _strip_swift_comments(read_text(fpath))
+        except Exception:
+            continue
+
+        for kind, name in type_re.findall(source):
+            if kind == "struct":
+                structs.append(name)
+            elif kind == "class":
+                classes.append(name)
+            elif kind == "enum":
+                enums.append(name)
+            elif kind == "protocol":
+                protocols.append(name)
+
+        functions.extend(function_re.findall(source))
+        extensions.extend(extension_re.findall(source))
+
+    result: dict = {
+        "functions": _pattern_summary(functions),
+        "files": _pattern_summary(file_names),
+    }
+
+    if structs:
+        result["structs"] = _pattern_summary(structs)
+
+    if classes:
+        result["classes"] = _pattern_summary(classes)
+
+    if enums:
+        result["enums"] = _pattern_summary(enums)
+
+    if protocols:
+        result["protocols"] = _pattern_summary(protocols)
+
+    if extensions:
+        result["extensions"] = _pattern_summary(extensions)
+
+    return result
+
+
+def _is_objectivec_header(path: Path) -> bool:
+    if path.suffix.lower() != ".h":
+        return False
+
+    content = read_text(path)
+
+    return any(
+        marker in content
+        for marker in ("@interface", "@protocol", "@implementation", "#import")
+    )
+
+
+def _collect_objectivec_files(repo: Path) -> list[Path]:
+    found: list[Path] = []
+
+    for dirpath, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if not should_skip_dir(d)]
+
+        for fn in files:
+            fpath = Path(dirpath) / fn
+            suffix = fpath.suffix.lower()
+
+            if suffix in {".m", ".mm"} or (
+                suffix == ".h" and _is_objectivec_header(fpath)
+            ):
+                found.append(fpath)
+
+    return found
+
+
+def _extract_objectivec(files: list[Path]) -> dict:
+    interface_re = re.compile(r"^\s*@interface\s+([A-Za-z_]\w*)", re.MULTILINE)
+
+    implementation_re = re.compile(
+        r"^\s*@implementation\s+([A-Za-z_]\w*)", re.MULTILINE
+    )
+
+    protocol_re = re.compile(r"^\s*@protocol\s+([A-Za-z_]\w*)", re.MULTILINE)
+    method_re = re.compile(r"^\s*-\s*\([^)]+\)\s*([A-Za-z_]\w*)", re.MULTILINE)
+    class_method_re = re.compile(r"^\s*\+\s*\([^)]+\)\s*([A-Za-z_]\w*)", re.MULTILINE)
+
+    enum_re = re.compile(
+        r"NS_ENUM\s*\([^)]+,\s*([A-Za-z_]\w*)\)|^\s*typedef\s+enum\s+[A-Za-z_]*\s*\{",
+        re.MULTILINE,
+    )
+
+    interfaces: list[str] = []
+    implementations: list[str] = []
+    protocols: list[str] = []
+    methods: list[str] = []
+    class_methods: list[str] = []
+    enums: list[str] = []
+    file_names: list[str] = []
+
+    for fpath in files:
+        file_names.append(fpath.stem)
+
+        try:
+            source = _strip_c_family_comments(read_text(fpath))
+        except Exception:
+            continue
+
+        interfaces.extend(interface_re.findall(source))
+        implementations.extend(implementation_re.findall(source))
+        protocols.extend(protocol_re.findall(source))
+        methods.extend(method_re.findall(source))
+        class_methods.extend(class_method_re.findall(source))
+
+        for match in enum_re.findall(source):
+            if match:
+                enums.append(match)
+
+    result: dict = {
+        "files": _pattern_summary(file_names),
+        "methods": _pattern_summary(methods),
+    }
+
+    if interfaces:
+        result["interfaces"] = _pattern_summary(interfaces)
+
+    if implementations:
+        result["implementations"] = _pattern_summary(implementations)
+
+    if protocols:
+        result["protocols"] = _pattern_summary(protocols)
+
+    if class_methods:
+        result["class_methods"] = _pattern_summary(class_methods)
+
+    if enums:
+        result["enums"] = _pattern_summary(enums)
+
+    return result
+
+
 def _extract_rust(files: list[Path]) -> dict:
     func_re = re.compile(r"^\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)", re.MULTILINE)
     struct_re = re.compile(r"^\s*(?:pub\s+)?struct\s+(\w+)", re.MULTILINE)
@@ -1125,6 +1291,18 @@ def extract_symbols(repo_path: str, lang_filter: str | None = None) -> dict:
 
     if not lang_filter or lang_filter == "bash":
         _run("bash", [".sh", ".bash"], _extract_bash)
+
+    if not lang_filter or lang_filter == "swift":
+        _run("swift", [".swift"], _extract_swift)
+
+    if not lang_filter or lang_filter == "objectivec":
+        files = _collect_objectivec_files(repo)
+
+        if files:
+            try:
+                result["objectivec"] = _extract_objectivec(files)
+            except Exception as exc:
+                result["objectivec"] = {"error": str(exc)}
 
     return result
 
