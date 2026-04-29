@@ -17,6 +17,7 @@ Usage:
     python cli.py symbols <repo> [--lang python]
     python cli.py tests <repo>
     python cli.py generate <repo> [--reference ../reference-repo]
+    python cli.py generate <repo> --interactive
 """
 
 import argparse
@@ -94,6 +95,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         args.repo,
         out=getattr(args, "out", None),
         references=getattr(args, "reference", None),
+        interactive=getattr(args, "interactive", False),
     )
 
 
@@ -191,6 +193,12 @@ def main(argv: list[str] | None = None) -> int:
         "--reference",
         action="append",
         help="Reference repository path or URL; may be repeated",
+    )
+
+    p_generate.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Prompt for missing or ambiguous generation inputs",
     )
 
     p_generate.add_argument("--out", metavar="FILE", help="Write markdown to file")

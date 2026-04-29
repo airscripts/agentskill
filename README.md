@@ -105,6 +105,7 @@ python cli.py analyze <repo> --reference ../reference-repo --pretty
 python cli.py generate <repo>
 python cli.py generate <repo> --out AGENTS.md
 python cli.py generate <repo> --reference ../ref-a --reference ../ref-b
+python cli.py generate <repo> --interactive
 
 # Update or create AGENTS.md in place
 python cli.py update <repo>
@@ -138,6 +139,12 @@ Both `analyze` and `generate` also accept repeatable `--reference` flags. Local
 reference repositories must contain a readable `AGENTS.md`; when provided,
 `generate` embeds reference metadata in the rendered markdown and `analyze`
 validates the references without changing its JSON output shape.
+
+`generate --interactive` is opt-in guided gap filling. It asks a small number
+of targeted questions only when important signals are missing or ambiguous, then
+injects those answers into the generated markdown as explicit interactive notes.
+When references already provide those conventions, the prompt count drops
+accordingly.
 
 ### Repo-Local Feedback
 

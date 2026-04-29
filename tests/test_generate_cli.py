@@ -1,6 +1,13 @@
+import builtins
 from pathlib import Path
 
-from test_support import create_repo, create_sample_repo, write
+from test_support import (
+    commit_all,
+    create_repo,
+    create_sample_repo,
+    init_git_repo,
+    write,
+)
 
 import cli
 
@@ -86,6 +93,102 @@ def test_generate_multiple_references_preserve_cli_order(tmp_path, capsys):
     index_a = generated.index(f'"value": "{reference_a}"')
     index_b = generated.index(f'"value": "{reference_b}"')
     assert index_a < index_b
+
+
+def test_generate_interactive_adds_answered_gap_notes(tmp_path, capsys, monkeypatch):
+    repo = create_repo(tmp_path)
+    prompts: list[str] = []
+    answers = iter(["pytest -q", "feat:, fix:", "rebase"])
+
+    def fake_input(prompt: str) -> str:
+        prompts.append(prompt)
+        return next(answers)
+
+    monkeypatch.setattr(builtins, "input", fake_input)
+
+    exit_code = cli.main(["generate", str(repo), "--interactive"])
+
+    assert exit_code == 0
+    generated = capsys.readouterr().out
+    assert len(prompts) == 3
+    assert "Use `pytest -q` as the canonical test command." in generated
+    assert "Preferred commit prefixes: `feat:, fix:`." in generated
+    assert "Preferred merge strategy: `rebase`." in generated
+
+
+def test_generate_interactive_skip_answers_keeps_default_sections(
+    tmp_path, capsys, monkeypatch
+):
+    repo = create_repo(tmp_path)
+    prompts: list[str] = []
+
+    def fake_input(prompt: str) -> str:
+        prompts.append(prompt)
+        return ""
+
+    monkeypatch.setattr(builtins, "input", fake_input)
+    exit_code = cli.main(["generate", str(repo), "--interactive"])
+
+    assert exit_code == 0
+    generated = capsys.readouterr().out
+    assert len(prompts) == 3
+    assert "Interactive answers:\n" not in generated
+
+
+def test_generate_interactive_no_gaps_does_not_prompt(tmp_path, capsys, monkeypatch):
+    repo = create_sample_repo(tmp_path)
+    init_git_repo(repo)
+    commit_all(repo, "feat: initial")
+
+    def fail_input(prompt: str) -> str:
+        raise AssertionError(f"unexpected prompt: {prompt}")
+
+    monkeypatch.setattr(builtins, "input", fail_input)
+    exit_code = cli.main(["generate", str(repo), "--interactive"])
+
+    assert exit_code == 0
+    generated = capsys.readouterr().out
+    assert "Interactive answers:\n" not in generated
+
+
+def test_generate_interactive_references_reduce_prompt_count(
+    tmp_path, capsys, monkeypatch
+):
+    repo = create_repo(tmp_path / "target")
+    reference = create_repo(tmp_path, name="reference")
+
+    write(
+        reference,
+        "AGENTS.md",
+        (
+            "# AGENTS\n\n"
+            "## 12. Testing\n"
+            "- Run command: `pytest`\n\n"
+            "## 13. Git\n"
+            "- Commit prefixes observed: `feat:, fix:`.\n"
+        ),
+    )
+
+    prompts: list[str] = []
+    answers = iter(["rebase"])
+
+    def fake_input(prompt: str) -> str:
+        prompts.append(prompt)
+        return next(answers)
+
+    monkeypatch.setattr(builtins, "input", fake_input)
+
+    exit_code = cli.main(
+        ["generate", str(repo), "--interactive", "--reference", str(reference)]
+    )
+
+    assert exit_code == 0
+    generated = capsys.readouterr().out
+    assert len(prompts) == 1
+    assert "canonical test command" not in prompts[0].lower()
+    assert "Use `pytest` as the canonical test command." in generated
+    assert "Preferred commit prefixes: `feat:, fix:`." in generated
+    assert "Preferred merge strategy: `rebase`." in generated
 
 
 def test_generate_reports_invalid_repo_path(tmp_path, capsys):

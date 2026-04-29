@@ -3,6 +3,14 @@
 from pathlib import Path
 
 from common.fs import validate_repo
+from lib.interactive_runner import (
+    PromptIO,
+    StdinPromptIO,
+    apply_interactive_notes,
+    ask_generation_questions,
+    detect_generation_gaps,
+    interactive_section_notes,
+)
 from lib.logging_utils import get_logger
 from lib.output import validate_out_path
 from lib.reference_flow import load_reference_documents
@@ -28,11 +36,22 @@ def _inject_reference_metadata(markdown: str, metadata_block: str) -> str:
     return metadata_block + "\n\n" + markdown
 
 
-def render_agents_markdown(repo: Path, *, references: list[str] | None = None) -> str:
+def render_agents_markdown(
+    repo: Path,
+    *,
+    references: list[str] | None = None,
+    interactive: bool = False,
+    prompt_io: PromptIO | None = None,
+) -> str:
     documents = load_reference_documents(references)
     analysis = run_all(str(repo))
     feedback = load_feedback(repo)
     sections = render_agents_sections(repo, analysis, feedback)
+
+    if interactive:
+        gaps = detect_generation_gaps(analysis, documents)
+        answers = ask_generation_questions(gaps, prompt_io or StdinPromptIO())
+        sections = apply_interactive_notes(sections, interactive_section_notes(answers))
 
     result = merge_agents_document(
         None,
@@ -58,12 +77,19 @@ def generate_agents(
     *,
     out: str | None = None,
     references: list[str] | None = None,
+    interactive: bool = False,
+    prompt_io: PromptIO | None = None,
 ) -> int:
     logger = get_logger()
 
     try:
         repo_path = validate_repo(repo)
-        markdown = render_agents_markdown(repo_path, references=references)
+        markdown = render_agents_markdown(
+            repo_path,
+            references=references,
+            interactive=interactive,
+            prompt_io=prompt_io,
+        )
 
         if out is not None:
             output_path = validate_out_path(out)
