@@ -26,16 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/test_output_schema.py` — output schema validation tests
 - `tests/test_output_contracts.py` — output contract tests
 - `tests/test_output.py` — expanded output validation tests
+- `AGENTS.md` and `SKILL.md` updated to clarify usage of examples from ClawHub
 
 ### Changed
 
 - `cli.py` now exposes `generate` command alongside `analyze` and `update`
 - `scripts/lib/runner.py` updated to support generate command dispatch
 - `scripts/lib/output.py` enhanced with schema-based validation
-
-### Added (docs)
-
-- `AGENTS.md` and `SKILL.md` updated to clarify usage of examples from ClawHub
 
 ## [0.8.0] - 2026-04-29
 
@@ -49,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/test_measure.py` — measurement tests for indentation, line length, and blank lines
 - `tests/test_scan.py` — expanded scan tests including symlink and skip-directory handling
 - `tests/test_symbols.py` — expanded symbol extraction tests for Python, JS/TS, Go, Rust
+- `ROADMAP.md` — 0.10.0 milestone for CLI and skill split
 
 ### Changed
 
@@ -56,10 +54,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scan` and `walk` skip symlinked files and directories
 - `constants.py` and `walk.py` updated for improved test discovery
 - Import resolution and symbol extraction improved with better edge cases
-
-### Added (docs)
-
-- `ROADMAP.md` — 0.10.0 milestone for CLI and skill split
 
 ## [0.7.0] - 2026-04-28
 
