@@ -7,6 +7,7 @@ Usage:
     python cli.py analyze <repo> [<repo2> ...]
     python cli.py analyze <repo> --pretty
     python cli.py analyze <repo> --out report.json
+    python cli.py analyze <repo> --reference ../reference-repo
 
     python cli.py scan <repo>
     python cli.py measure <repo> [--lang python]
@@ -15,6 +16,7 @@ Usage:
     python cli.py graph <repo> [--lang python]
     python cli.py symbols <repo> [--lang python]
     python cli.py tests <repo>
+    python cli.py generate <repo> [--reference ../reference-repo]
 """
 
 import argparse
@@ -32,7 +34,15 @@ from lib.update_runner import update_agents
 
 
 def cmd_analyze(args: argparse.Namespace) -> int:
-    result = run_many(args.repos, getattr(args, "lang", None))
+    try:
+        result = run_many(
+            args.repos,
+            getattr(args, "lang", None),
+            getattr(args, "reference", None),
+        )
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
 
     write_output(
         result,
@@ -83,12 +93,12 @@ def cmd_generate(args: argparse.Namespace) -> int:
     return generate_agents(
         args.repo,
         out=getattr(args, "out", None),
+        references=getattr(args, "reference", None),
     )
 
 
 def main(argv: list[str] | None = None) -> int:
     configure_logging()
-
     parser = argparse.ArgumentParser(
         prog="agentskill",
         description=__doc__,
@@ -106,13 +116,18 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_analyze = sub.add_parser("analyze", help="Run all scripts and merge output")
-
     p_analyze.add_argument(
         "repos", nargs="+", metavar="repo", help="Path(s) to repository"
     )
 
     p_analyze.add_argument(
         "--lang", help="Filter to a single language where applicable"
+    )
+
+    p_analyze.add_argument(
+        "--reference",
+        action="append",
+        help="Reference repository path or URL; may be repeated",
     )
 
     p_scan = sub.add_parser("scan", help="Directory tree + file inventory")
@@ -145,7 +160,6 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     p_tests.add_argument("repo", help="Path to repository")
-
     p_update = sub.add_parser("update", help="Update or create AGENTS.md")
     p_update.add_argument("repo", help="Path to repository")
 
@@ -168,12 +182,17 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     p_update.add_argument("--out", metavar="FILE", help="Write markdown to file")
-
     p_generate = sub.add_parser(
         "generate", help="Generate AGENTS.md markdown from repository analysis"
     )
 
     p_generate.add_argument("repo", help="Path to repository")
+    p_generate.add_argument(
+        "--reference",
+        action="append",
+        help="Reference repository path or URL; may be repeated",
+    )
+
     p_generate.add_argument("--out", metavar="FILE", help="Write markdown to file")
 
     for p in [

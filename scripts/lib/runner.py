@@ -11,6 +11,7 @@ from commands import scan as scan_command
 from commands import symbols as symbols_command
 from commands import tests as tests_command
 from lib.logging_utils import get_logger
+from lib.reference_flow import load_reference_documents
 
 COMMANDS: dict[str, dict] = {
     "scan": {
@@ -55,7 +56,14 @@ def _command_kwargs(command_name: str, lang_filter: str | None) -> dict:
     return {}
 
 
-def run_all(repo: str, lang_filter: str | None = None) -> dict:
+def run_all(
+    repo: str,
+    lang_filter: str | None = None,
+    references: list[str] | None = None,
+) -> dict:
+    if references:
+        load_reference_documents(references)
+
     tasks = {
         name: (metadata["fn"], _command_kwargs(name, lang_filter))
         for name, metadata in COMMANDS.items()
@@ -119,8 +127,16 @@ def run_all(repo: str, lang_filter: str | None = None) -> dict:
         executor.shutdown(wait=False, cancel_futures=True)
 
 
-def run_many(repos: list[str], lang_filter: str | None = None) -> dict:
-    if len(repos) == 1:
-        return run_all(repos[0], lang_filter)
+def run_many(
+    repos: list[str],
+    lang_filter: str | None = None,
+    references: list[str] | None = None,
+) -> dict:
+    if references:
+        load_reference_documents(references)
+        references = None
 
-    return {repo: run_all(repo, lang_filter) for repo in repos}
+    if len(repos) == 1:
+        return run_all(repos[0], lang_filter, references)
+
+    return {repo: run_all(repo, lang_filter, references) for repo in repos}

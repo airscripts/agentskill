@@ -7,7 +7,7 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
-from test_support import create_sample_repo
+from test_support import create_repo, create_sample_repo, write
 
 import cli
 
@@ -39,6 +39,38 @@ def test_cli_analyze_runs_all_commands(tmp_path, capsys):
         "symbols",
         "tests",
     }
+
+
+def test_cli_analyze_accepts_reference_without_changing_output_shape(tmp_path, capsys):
+    repo = create_sample_repo(tmp_path / "target")
+    reference = create_repo(tmp_path, name="reference")
+    write(reference, "AGENTS.md", "# AGENTS\n\n## 12. Testing\nUse pytest.\n")
+
+    exit_code = cli.main(
+        ["analyze", str(repo), "--reference", str(reference), "--pretty"]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+
+    assert set(output) == {
+        "scan",
+        "measure",
+        "config",
+        "git",
+        "graph",
+        "symbols",
+        "tests",
+    }
+
+
+def test_cli_analyze_reports_invalid_reference_path(tmp_path, capsys):
+    repo = create_sample_repo(tmp_path / "target")
+    missing = tmp_path / "missing-reference"
+    exit_code = cli.main(["analyze", str(repo), "--reference", str(missing)])
+
+    assert exit_code == 1
+    assert capsys.readouterr().err == f"reference path does not exist: {missing}\n"
 
 
 def test_cli_writes_out_file_and_multi_repo_results(tmp_path, monkeypatch):

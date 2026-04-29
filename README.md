@@ -99,10 +99,12 @@ python cli.py tests <repo> --pretty
 
 # Write output to file
 python cli.py analyze <repo> --out report.json
+python cli.py analyze <repo> --reference ../reference-repo --pretty
 
 # Generate AGENTS.md markdown directly
 python cli.py generate <repo>
 python cli.py generate <repo> --out AGENTS.md
+python cli.py generate <repo> --reference ../ref-a --reference ../ref-b
 
 # Update or create AGENTS.md in place
 python cli.py update <repo>
@@ -131,6 +133,11 @@ generated `AGENTS.md` document to stdout. Use `--out` to write that markdown to
 an explicit file path. Unlike `update`, `generate` does not merge with an
 existing `AGENTS.md` and does not write back to `<repo>/AGENTS.md` unless you
 explicitly choose an output path.
+
+Both `analyze` and `generate` also accept repeatable `--reference` flags. Local
+reference repositories must contain a readable `AGENTS.md`; when provided,
+`generate` embeds reference metadata in the rendered markdown and `analyze`
+validates the references without changing its JSON output shape.
 
 ### Repo-Local Feedback
 
