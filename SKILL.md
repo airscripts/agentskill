@@ -42,6 +42,7 @@ Do **not** invoke this skill for general code review, refactoring, or style advi
 | `examples/`              | Reference `AGENTS.md` files; consult when handling an unfamiliar repo shape            |
 
 > **Maintenance rule:** If SYSTEM.md and SKILL.md ever contradict each other, SYSTEM.md wins. Fix SKILL.md to match.
+> **Availability rule:** If this skill was downloaded from ClawHub, or if `examples/` is unavailable locally, do not consult `examples/`; skip it to avoid execution errors.
 
 ---
 
@@ -148,6 +149,8 @@ This file contains extraction and synthesis errors discovered from previous agen
 ### Step 8 — Consult Examples
 
 Read the relevant file in [`examples/`](./examples/) if you are handling an unfamiliar repo shape.
+
+If this skill was downloaded from ClawHub, or if `examples/` is unavailable locally, skip this step to avoid execution errors.
 
 | Scenario                        | File to consult                  |
 | ------------------------------- | -------------------------------- |

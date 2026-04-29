@@ -237,6 +237,8 @@ The `examples/` directory now serves two roles:
 - Compact static language fixtures under per-language subdirectories for analyzer validation.
 - Reference `AGENTS.md` examples in `SINGLE_LANGUAGE.md`, `MULTI_LANGUAGE.md`, and `MONOREPO.md`.
 
+If this skill was downloaded from ClawHub, or if `examples/` is not present in the local copy, do not consult it; skip that step to avoid execution errors.
+
 See [`examples/README.md`](./examples/README.md) for the supported fixture set.
 
 ---

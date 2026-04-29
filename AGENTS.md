@@ -53,6 +53,7 @@ agentskill/
 - Files under `scripts/*.py` stay as thin wrappers around `commands.<name>.main`.
 - New tests go in `tests/` as `test_<subject>.py`; this repo does not colocate tests beside source files.
 - New examples for unfamiliar repo shapes belong in `examples/`, not mixed into `references/`.
+  If this skill was downloaded from ClawHub, or if `examples/` is unavailable locally, do not consult `examples/`; skip it to avoid execution errors.
 - Keep the repo root small: entrypoint, metadata, docs/spec files, and no business logic outside `cli.py`.
 
 ## 5. Commands and Workflows
