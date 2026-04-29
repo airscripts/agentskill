@@ -84,3 +84,75 @@ def test_measure_reports_file_paths_as_invalid_repos(tmp_path):
         "error": f"not a directory: {file_path}",
         "script": "measure",
     }
+
+
+def test_measure_handles_empty_file_metrics_and_empty_repo(tmp_path):
+    empty_file = tmp_path / "empty.py"
+    empty_file.write_text("")
+
+    metrics = _file_metrics(empty_file)
+
+    assert metrics["indent"] == {"unit": "unknown", "size": 0}
+    assert metrics["line_lengths"] == []
+    assert metrics["trailing_newline"] is False
+    assert metrics["has_trailing_ws"] is False
+
+    repo = create_repo(tmp_path / "empty_repo", name="empty_repo")
+
+    assert measure(str(repo)) == {}
+
+
+def test_measure_repo_with_only_empty_files_has_stable_aggregate(tmp_path):
+    repo = create_repo(tmp_path)
+    write(repo, "pkg/a.py", "")
+    write(repo, "pkg/b.py", "")
+
+    result = measure(str(repo))
+
+    assert result["python"]["indentation"] == {
+        "unit": "spaces",
+        "size": 4,
+        "tab_files": [],
+        "mixed_files": [],
+    }
+
+    assert result["python"]["line_length"] == {}
+    assert result["python"]["trailing_newline"] == {"present": 0, "absent": 2}
+    assert result["python"]["trailing_whitespace"] == {"files_with_trailing_ws": 0}
+
+
+def test_measure_reports_mixed_tabs_spaces_and_trailing_newlines(tmp_path):
+    repo = create_repo(tmp_path)
+    write(repo, "pkg/tabs.py", "\tdef one():\n\t\treturn 1\n")
+    write(repo, "pkg/spaces.py", "    def two():\n        return 2\n")
+    write(repo, "pkg/mixed.py", "\tdef three():\n    return 3")
+
+    result = measure(str(repo))
+    indentation = result["python"]["indentation"]
+
+    assert indentation["unit"] == "spaces"
+    assert indentation["size"] == 4
+    assert any(path.endswith("pkg/tabs.py") for path in indentation["tab_files"])
+    assert any(path.endswith("pkg/mixed.py") for path in indentation["mixed_files"])
+    assert result["python"]["trailing_newline"] == {"present": 2, "absent": 1}
+
+
+def test_measure_handles_non_python_repo_and_blank_only_line_lengths(tmp_path):
+    repo = create_repo(tmp_path)
+    write(
+        repo,
+        "web/app.ts",
+        "export function one() {\n  return 1\n}\n\n\nexport function two() {\n  return 2\n}\n",
+    )
+
+    write(repo, "web/blank.ts", "\n \n\t\n")
+    result = measure(str(repo))
+
+    assert set(result) == {"typescript"}
+    assert result["typescript"]["line_length"]["max"] >= 1
+    assert result["typescript"]["blank_lines"]["between_top_level_defs"]["mode"] == 2
+
+
+def test_measure_line_lengths_stay_empty_for_blank_only_content():
+    assert _measure_line_lengths([]) == {}
+    assert _measure_line_lengths([0, 0, 0, 0]) == {}

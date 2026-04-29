@@ -28,8 +28,11 @@ def walk_repo(
         nonlocal files_seen, oversize_files
 
         entries = sorted(directory.iterdir(), key=lambda entry: entry.name)
-        dirs = [entry for entry in entries if entry.is_dir()]
-        files = [entry for entry in entries if entry.is_file()]
+        dirs = [entry for entry in entries if entry.is_dir() and not entry.is_symlink()]
+
+        files = [
+            entry for entry in entries if entry.is_file() and not entry.is_symlink()
+        ]
 
         for subdir in dirs:
             if should_skip_dir(subdir.name):

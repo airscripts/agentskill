@@ -1,9 +1,15 @@
 from pathlib import Path
 
 from commands.config import (
+    MAX_CONFIG_READ_BYTES,
+    _detect_python_linter,
+    _detect_python_type_checker,
+    _detect_typescript,
+    _parse_by_extension,
     _parse_editorconfig,
     _parse_editorconfig_for_lang,
     _parse_ini_section,
+    _read,
     detect,
 )
 from lib.parsers import load_toml_safe, load_yaml_safe
@@ -39,6 +45,111 @@ def test_config_parsers_cover_toml_yaml_ini_and_editorconfig(tmp_path):
     assert _parse_editorconfig_for_lang(sections, "python") == {
         "indent_style": "space",
         "indent_size": "4",
+    }
+
+
+def test_config_temp_file_parsers_handle_empty_and_extension_cases(tmp_path):
+    assert _parse_by_extension("", ".prettierrc") == {}
+    assert _parse_by_extension("", ".prettierrc.yaml") == {}
+    assert _parse_by_extension("", "pyproject.toml") == {}
+    assert _parse_by_extension('{"semi": false}', ".prettierrc") == {"semi": False}
+    assert _parse_by_extension('{"strict": true}', "tsconfig.json") == {"strict": True}
+    assert _parse_by_extension("semi: false\n", ".prettierrc.yaml") == {"semi": False}
+    assert _parse_by_extension("answer = 42\n", "demo.toml") == {"answer": 42}
+
+    editorconfig = tmp_path / ".editorconfig"
+    editorconfig.write_text("")
+
+    assert _parse_editorconfig(editorconfig) == {}
+
+
+def test_config_read_truncates_large_temp_files(tmp_path):
+    path = tmp_path / "huge.toml"
+    path.write_text("x" * (MAX_CONFIG_READ_BYTES + 100))
+
+    content = _read(path)
+
+    assert isinstance(content, str)
+    assert len(content) == MAX_CONFIG_READ_BYTES
+
+
+def test_config_editorconfig_language_section_overrides_global(tmp_path):
+    path = tmp_path / ".editorconfig"
+    path.write_text(
+        "[*]\nindent_style = tab\nindent_size = 8\n"
+        "[*.py]\nindent_style = space\n"
+        "[*.ts]\nindent_size = 2\n"
+    )
+
+    sections = _parse_editorconfig(path)
+
+    assert _parse_editorconfig_for_lang(sections, "python") == {
+        "indent_style": "space",
+        "indent_size": "8",
+    }
+    assert _parse_editorconfig_for_lang(sections, "typescript") == {
+        "indent_style": "tab",
+        "indent_size": "2",
+    }
+
+
+def test_config_temp_file_detectors_cover_package_and_python_ini_sources(tmp_path):
+    repo = create_repo(
+        tmp_path / "pkg_prettier",
+        {
+            "package.json": '{"prettier":{"semi":false,"tabWidth":2}}\n',
+        },
+        name="pkg_prettier",
+    )
+
+    ts = _detect_typescript(repo)
+
+    assert ts["formatter"] == {
+        "name": "prettier",
+        "config_file": "package.json",
+        "settings": {"semi": False, "tabWidth": 2},
+    }
+
+    setup_repo = create_repo(
+        tmp_path / "setup_cfg",
+        {
+            "setup.cfg": "[flake8]\nmax-line-length = 99\nextend-ignore = E203\n",
+        },
+        name="setup_cfg",
+    )
+
+    assert _detect_python_linter(setup_repo, {}) == {
+        "name": "flake8",
+        "config_file": "setup.cfg",
+        "settings": {"max-line-length": "99", "extend-ignore": "E203"},
+    }
+
+    mypy_repo = create_repo(
+        tmp_path / "mypy_ini",
+        {
+            "mypy.ini": "[mypy]\npython_version = 3.11\n",
+        },
+        name="mypy_ini",
+    )
+
+    assert _detect_python_type_checker(mypy_repo, {}) == {
+        "name": "mypy",
+        "config_file": "mypy.ini",
+        "settings": {"python_version": "3.11"},
+    }
+
+    hidden_mypy_repo = create_repo(
+        tmp_path / "dot_mypy_ini",
+        {
+            ".mypy.ini": "[mypy]\nwarn_unused_ignores = True\n",
+        },
+        name="dot_mypy_ini",
+    )
+
+    assert _detect_python_type_checker(hidden_mypy_repo, {}) == {
+        "name": "mypy",
+        "config_file": ".mypy.ini",
+        "settings": {"warn_unused_ignores": "True"},
     }
 
 
