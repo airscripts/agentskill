@@ -10,6 +10,30 @@ def test_symbols_extracts_python_patterns(tmp_path):
     assert result["python"]["classes"]["patterns"]["PascalCase"]["count"] >= 1
 
 
+def test_symbols_handles_empty_and_malformed_python_files_without_errors(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "pkg/empty.py": "",
+            "pkg/bad.py": "def broken(:\n",
+        },
+    )
+
+    result = extract_symbols(str(repo), "python")
+
+    assert result["python"]["functions"]["total"] == 0
+    assert result["python"]["classes"]["total"] == 0
+    assert result["python"]["constants"]["total"] == 0
+
+    assert result["python"]["private_members"] == {
+        "single_underscore": 0,
+        "double_underscore": 0,
+        "examples": [],
+    }
+
+    assert result["python"]["files"]["total"] == 2
+
+
 def test_symbols_classification_and_affixes():
     assert _classify("__init__") == "dunder"
     assert _classify("_hidden") == "private"
@@ -63,6 +87,60 @@ def test_symbols_extracts_typescript_and_go(tmp_path):
     assert result["go"]["functions"]["total"] >= 1
     assert result["go"]["constants"]["total"] >= 1
     assert result["go"]["variables"]["total"] >= 1
+
+
+def test_symbols_extracts_typescript_arrow_and_const_forms_precisely(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "src/app.ts": (
+                "export const buildThing = () => {}\n"
+                "const localThing = () => {}\n"
+                "export const VALUE_NAME = 1\n"
+                "const localValue = 2\n"
+            ),
+        },
+    )
+
+    result = extract_symbols(str(repo), "typescript")
+
+    assert result["typescript"]["functions"]["total"] == 2
+    assert result["typescript"]["constants"]["total"] == 1
+
+    assert result["typescript"]["constants"]["patterns"] == {
+        "SCREAMING_SNAKE_CASE": {"count": 1, "pct": 100.0}
+    }
+
+
+def test_symbols_extracts_go_grouped_constants_and_methods_precisely(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "pkg/main.go": (
+                "package main\n"
+                "type Worker struct{}\n"
+                "type Reader interface{}\n"
+                "type Alias string\n"
+                "const (\n"
+                "    FirstValue = 1\n"
+                "    SecondValue = 2\n"
+                ")\n"
+                "var ExportedValue string\n"
+                "func RunThing() {}\n"
+                "func (w *Worker) StartThing() {}\n"
+            ),
+        },
+    )
+
+    result = extract_symbols(str(repo), "go")
+
+    assert result["go"]["functions"]["total"] == 2
+    assert result["go"]["methods"]["total"] == 1
+    assert result["go"]["types"]["total"] == 1
+    assert result["go"]["interfaces"]["total"] == 1
+    assert result["go"]["type_aliases"]["total"] == 1
+    assert result["go"]["constants"]["total"] == 2
+    assert result["go"]["variables"]["total"] == 1
 
 
 def test_symbols_extracts_java_and_kotlin(tmp_path):
@@ -218,6 +296,35 @@ def test_symbols_extracts_ruby_php_and_bash(tmp_path):
     assert result["bash"]["functions"]["total"] >= 2
 
 
+def test_symbols_ignores_commented_bash_and_php_declarations(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "scripts/deploy": (
+                "#!/usr/bin/env bash\n# fake() {\n# }\nreal() {\n  echo deploy\n}\n"
+            ),
+            "src/Service/UserService.php": (
+                "<?php\n"
+                "// function fake() {}\n"
+                "/* class Fake {}\n"
+                "function nope() {}\n"
+                "*/\n"
+                "class UserService {\n"
+                "    public function start() {}\n"
+                "}\n"
+                "function utility() {}\n"
+            ),
+        },
+    )
+
+    result = extract_symbols(str(repo))
+
+    assert result["bash"]["functions"]["total"] == 1
+    assert result["php"]["classes"]["total"] == 1
+    assert result["php"]["methods"]["total"] == 1
+    assert result["php"]["functions"]["total"] == 1
+
+
 def test_symbols_extracts_swift_and_objectivec(tmp_path):
     repo = create_repo(
         tmp_path,
@@ -256,6 +363,43 @@ def test_symbols_extracts_swift_and_objectivec(tmp_path):
     assert result["objectivec"]["methods"]["total"] >= 1
     assert result["objectivec"]["class_methods"]["total"] >= 1
     assert result["objectivec"]["protocols"]["total"] >= 1
+
+
+def test_symbols_extracts_swift_extensions_without_extra_types(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "Sources/MyApp/Extensions.swift": (
+                "extension UserService {}\nextension AppStore {}\n"
+            ),
+        },
+    )
+
+    result = extract_symbols(str(repo), "swift")
+
+    assert result["swift"]["extensions"]["total"] == 2
+    assert result["swift"]["functions"]["total"] == 0
+    assert "classes" not in result["swift"]
+
+
+def test_symbols_distinguishes_objectivec_instance_and_class_methods(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "Sources/UserService.h": "@interface UserService : NSObject\n@end\n",
+            "Sources/UserService.m": (
+                "@implementation UserService\n"
+                "- (void)start {}\n"
+                "+ (instancetype)shared {}\n"
+                "@end\n"
+            ),
+        },
+    )
+
+    result = extract_symbols(str(repo), "objectivec")
+
+    assert result["objectivec"]["methods"]["total"] == 1
+    assert result["objectivec"]["class_methods"]["total"] == 1
 
 
 def test_symbols_reports_invalid_repo_paths(tmp_path):

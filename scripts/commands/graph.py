@@ -175,7 +175,7 @@ def _resolve_js_ts_import(
 
     for c in candidates:
         try:
-            rel = str(c.relative_to(repo))
+            rel = str(c.resolve(strict=False).relative_to(repo.resolve()))
         except ValueError:
             continue
 

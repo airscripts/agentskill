@@ -53,6 +53,92 @@ def test_graph_detects_ts_go_and_monorepo_boundaries(tmp_path):
     assert result["monorepo_boundaries"]["detected"] is True
 
 
+def test_graph_resolves_typescript_relative_require_and_ignores_external_imports(
+    tmp_path,
+):
+    repo = create_repo(
+        tmp_path,
+        {
+            "src/util.ts": "export function util() { return 1 }\n",
+            "src/app.ts": (
+                'import React from "react"\n'
+                "import './util'\n"
+                "const util = require('./util')\n"
+            ),
+        },
+    )
+
+    result = build_graph(str(repo), "typescript")
+
+    assert result["typescript"]["edges"] == [
+        {"from": "src/app.ts", "to": "src/util.ts", "line": 2},
+        {"from": "src/app.ts", "to": "src/util.ts", "line": 3},
+    ]
+
+
+def test_graph_resolves_typescript_index_and_nested_relative_imports(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "src/features/app.ts": ("import '../lib'\nimport '../shared/util'\n"),
+            "src/lib/index.ts": "export const value = 1\n",
+            "src/shared/util.ts": "export const util = 1\n",
+        },
+    )
+
+    result = build_graph(str(repo), "typescript")
+
+    assert result["typescript"]["edges"] == [
+        {"from": "src/features/app.ts", "to": "src/lib/index.ts", "line": 1},
+        {"from": "src/features/app.ts", "to": "src/shared/util.ts", "line": 2},
+    ]
+
+
+def test_graph_resolves_go_internal_imports_and_ignores_external_packages(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "go.mod": "module example.com/demo\n",
+            "pkg/helper/helper.go": "package helper\n",
+            "internal/deep/deep.go": "package deep\n",
+            "pkg/main.go": (
+                "package main\n"
+                "import (\n"
+                '    "fmt"\n'
+                '    "example.com/demo/pkg/helper"\n'
+                '    "example.com/demo/internal/deep"\n'
+                ")\n"
+            ),
+        },
+    )
+
+    result = build_graph(str(repo), "go")
+
+    assert result["go"]["edges"] == [
+        {"from": "pkg", "to": "pkg/helper", "line": 2},
+        {"from": "pkg", "to": "internal/deep", "line": 2},
+    ]
+
+
+def test_graph_resolves_go_single_import_to_nested_package(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "go.mod": "module example.com/demo\n",
+            "pkg/service/http/client.go": "package http\n",
+            "pkg/app/app.go": (
+                'package app\n\nimport "example.com/demo/pkg/service/http"\n'
+            ),
+        },
+    )
+
+    result = build_graph(str(repo), "go")
+
+    assert result["go"]["edges"] == [
+        {"from": "pkg/app", "to": "pkg/service/http", "line": 3}
+    ]
+
+
 def test_graph_detects_java_and_kotlin_internal_imports(tmp_path):
     repo = create_repo(
         tmp_path,
