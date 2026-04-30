@@ -1,7 +1,8 @@
 """Tests for JavaScript and TypeScript symbol extraction."""
 
-from commands.symbols import extract_symbols
 from test_support import create_repo
+
+from agentskill.commands.symbols import extract_symbols
 
 
 class TestJsTsSymbolIntegration:

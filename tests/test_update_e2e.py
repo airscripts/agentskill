@@ -1,11 +1,11 @@
 from test_support import create_sample_repo, write
 
-import cli
+from agentskill.main import main
 
 
 def test_update_succeeds_without_feedback_file(tmp_path):
     repo = create_sample_repo(tmp_path)
-    exit_code = cli.main(["update", str(repo)])
+    exit_code = main(["update", str(repo)])
 
     assert exit_code == 0
     assert (repo / "AGENTS.md").exists()
@@ -28,7 +28,7 @@ def test_feedback_biases_targeted_regeneration(tmp_path):
         ),
     )
 
-    exit_code = cli.main(["update", str(repo), "--section", "overview"])
+    exit_code = main(["update", str(repo), "--section", "overview"])
     assert exit_code == 0
 
     agents_text = (repo / "AGENTS.md").read_text()
@@ -56,7 +56,7 @@ def test_feedback_preserve_sections_prevents_normal_regeneration(tmp_path):
         ),
     )
 
-    exit_code = cli.main(["update", str(repo)])
+    exit_code = main(["update", str(repo)])
     assert exit_code == 0
 
     agents_text = (repo / "AGENTS.md").read_text()
@@ -78,7 +78,7 @@ def test_feedback_preserve_sections_are_ignored_in_force_mode(tmp_path):
         ("# AGENTS\n\n## 12. Testing\nKeep this testing guidance exactly.\n"),
     )
 
-    exit_code = cli.main(["update", str(repo), "--force"])
+    exit_code = main(["update", str(repo), "--force"])
     assert exit_code == 0
 
     agents_text = (repo / "AGENTS.md").read_text()
@@ -94,7 +94,7 @@ def test_malformed_feedback_fails_clearly(tmp_path, capsys):
         '{\n  "sections": {\n    "overview": {"unknown": ["bad"]}\n  }\n}\n',
     )
 
-    exit_code = cli.main(["update", str(repo)])
+    exit_code = main(["update", str(repo)])
 
     assert exit_code == 1
     assert "unsupported feedback keys for section overview: unknown" in (

@@ -1,6 +1,6 @@
-"""Tests for scripts/lib/parsers.py — TOML/YAML loader availability and fallback."""
+"""Tests for agentskill/lib/parsers.py — TOML/YAML loader availability and fallback."""
 
-from lib.parsers import (
+from agentskill.lib.parsers import (
     ParserUnavailableError,
     has_toml_support,
     has_yaml_support,
@@ -37,7 +37,7 @@ def test_toml_reports_support_available():
 def test_toml_raises_when_unavailable(monkeypatch):
     import builtins
 
-    import lib.parsers as parsers_mod
+    import agentskill.lib.parsers as parsers_mod
 
     monkeypatch.setattr(parsers_mod, "_toml_module", None)
     monkeypatch.setattr(parsers_mod, "_toml_checked", False)
@@ -62,7 +62,7 @@ def test_toml_raises_when_unavailable(monkeypatch):
 def test_toml_reports_support_unavailable_when_missing(monkeypatch):
     import builtins
 
-    import lib.parsers as parsers_mod
+    import agentskill.lib.parsers as parsers_mod
 
     monkeypatch.setattr(parsers_mod, "_toml_module", None)
     monkeypatch.setattr(parsers_mod, "_toml_checked", False)
@@ -114,7 +114,7 @@ def test_yaml_reports_support_available():
 def test_yaml_raises_when_unavailable(monkeypatch):
     import builtins
 
-    import lib.parsers as parsers_mod
+    import agentskill.lib.parsers as parsers_mod
 
     monkeypatch.setattr(parsers_mod, "_yaml_module", None)
     monkeypatch.setattr(parsers_mod, "_yaml_checked", False)
@@ -139,7 +139,7 @@ def test_yaml_raises_when_unavailable(monkeypatch):
 def test_yaml_reports_support_unavailable_when_missing(monkeypatch):
     import builtins
 
-    import lib.parsers as parsers_mod
+    import agentskill.lib.parsers as parsers_mod
 
     monkeypatch.setattr(parsers_mod, "_yaml_module", None)
     monkeypatch.setattr(parsers_mod, "_yaml_checked", False)

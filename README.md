@@ -52,7 +52,7 @@ pre-commit install
 
 ## Development Checks
 
-Run the baseline quality checks locally:
+Run the canonical local checks:
 
 ```bash
 ruff format .
@@ -61,7 +61,7 @@ mypy
 pytest
 ```
 
-To verify without changing files:
+To verify formatting without rewriting files:
 
 ```bash
 ruff format --check .
@@ -70,57 +70,64 @@ mypy
 pytest
 ```
 
-To run the commit-time hooks across the full repository:
+`mypy` is the repo's configured type-check command. Its configuration in
+`pyproject.toml` covers `agentskill/`, `scripts/`, and `tests/`.
+
+Optional commit-time hooks are available if you want them locally:
 
 ```bash
+pre-commit install
 pre-commit run --all-files
 ```
 
-The pre-commit setup runs Ruff formatting, Ruff linting, and mypy before each
-commit. Full `pytest` runs remain part of normal local verification and CI,
-rather than a default commit-time hook.
+The pre-commit setup mirrors the lightweight formatting, lint, and type-check
+passes. Full `pytest` runs remain part of normal local verification and CI.
 
 ---
 
 ## Usage
 
 ```bash
-# Run all scripts and synthesize a report
-python cli.py analyze <repo> --pretty
-
-# Run individual scripts
-python cli.py scan <repo> --pretty
-python cli.py measure <repo> --lang python --pretty
-python cli.py config <repo> --pretty
-python cli.py git <repo> --pretty
-python cli.py graph <repo> --pretty
-python cli.py symbols <repo> --pretty
-python cli.py tests <repo> --pretty
+# Canonical installed CLI
+agentskill analyze <repo> --pretty
+agentskill scan <repo> --pretty
+agentskill measure <repo> --lang python --pretty
+agentskill config <repo> --pretty
+agentskill git <repo> --pretty
+agentskill graph <repo> --pretty
+agentskill symbols <repo> --pretty
+agentskill tests <repo> --pretty
 
 # Write output to file
-python cli.py analyze <repo> --out report.json
-python cli.py analyze <repo> --reference ../reference-repo --pretty
+agentskill analyze <repo> --out report.json
+agentskill analyze <repo> --reference ../reference-repo --pretty
 
 # Generate AGENTS.md markdown directly
-python cli.py generate <repo>
-python cli.py generate <repo> --out AGENTS.md
-python cli.py generate <repo> --reference ../ref-a --reference ../ref-b
-python cli.py generate <repo> --interactive
+agentskill generate <repo>
+agentskill generate <repo> --out AGENTS.md
+agentskill generate <repo> --reference ../ref-a --reference ../ref-b
+agentskill generate <repo> --interactive
 
 # Update or create AGENTS.md in place
-python cli.py update <repo>
-python cli.py update <repo> --section testing
-python cli.py update <repo> --exclude-section git
-python cli.py update <repo> --force
-python cli.py update <repo> --out updated-AGENTS.md
+agentskill update <repo>
+agentskill update <repo> --section testing
+agentskill update <repo> --exclude-section git
+agentskill update <repo> --force
+agentskill update <repo> --out updated-AGENTS.md
 
-# Run a script directly
+# Retained wrapper entrypoints for operator/skill workflows
 python scripts/scan.py <repo> --pretty
+python scripts/measure.py <repo> --lang python --pretty
 ```
+
+The installed `agentskill` command is the steady-state CLI surface, including
+local development after an editable install. The retained `scripts/*.py`
+wrappers exist for direct analyzer execution and skill/operator workflows; they
+are not the primary runtime surface.
 
 ### Update Workflow
 
-`python cli.py update <repo>` analyzes the repository, regenerates AGENTS sections,
+`agentskill update <repo>` analyzes the repository, regenerates AGENTS sections,
 merges them with any existing `AGENTS.md`, and writes the result back to
 `<repo>/AGENTS.md` by default. Use `--section` to limit regeneration to one or
 more named sections, `--exclude-section` to keep specific generated sections
@@ -129,7 +136,7 @@ sections instead of preserving them.
 
 ### Generate Workflow
 
-`python cli.py generate <repo>` analyzes the repository and prints a fresh
+`agentskill generate <repo>` analyzes the repository and prints a fresh
 generated `AGENTS.md` document to stdout. Use `--out` to write that markdown to
 an explicit file path. Unlike `update`, `generate` does not merge with an
 existing `AGENTS.md` and does not write back to `<repo>/AGENTS.md` unless you
@@ -188,33 +195,20 @@ produce a true clean-slate rebuild.
 ## Repository Structure
 
 ```
-cli.py              # unified entry point — subcommand dispatch only
-pyproject.toml      # build metadata and entry point declaration
-SYSTEM.md           # behavioral spec for AGENTS.md generation — never modify
-SKILL.md            # operational workflow — never modify
-AGENTS.md           # conventions for this repo itself
+README.md           # user-facing overview and contributor workflow
+AGENTS.md           # conventions for this repository itself
+SYSTEM.md           # synthesis spec for generated AGENTS.md files
+SKILL.md            # operational workflow used by the skill
+pyproject.toml      # packaging, CLI entrypoint, tool configuration
+LICENSE
+agentskill/
+  main.py           # packaged CLI entry point — subcommand dispatch only
+  commands/         # analyzer implementations
+  lib/              # orchestration, output, update, generation helpers
+  common/           # shared low-level helpers and registries
 scripts/
-  commands/
-    scan.py         # directory tree walk, file inventory, read order
-    measure.py      # indentation, line lengths, blank lines, trailing whitespace
-    config.py       # formatter/linter/type-checker detection from config files
-    git.py          # commit log parsing, branch analysis, merge strategy
-    graph.py        # internal import graph, cycle detection, monorepo detection
-    symbols.py      # symbol name extraction and naming pattern clustering
-    tests.py        # test-to-source mapping, framework detection, fixture extraction
-  lib/
-    runner.py       # aggregate analyzer orchestration for `analyze`
-    output.py       # shared JSON output helpers for CLI and scripts
-  common/
-    constants.py    # shared repository-walk constants
-    fs.py           # shared low-level filesystem helpers
-  scan.py           # thin wrapper for direct script execution
-  measure.py        # thin wrapper for direct script execution
-  config.py         # thin wrapper for direct script execution
-  git.py            # thin wrapper for direct script execution
-  graph.py          # thin wrapper for direct script execution
-  symbols.py        # thin wrapper for direct script execution
-  tests.py          # thin wrapper for direct script execution
+  *.py              # thin wrappers that import packaged analyzer entrypoints
+tests/              # pytest suite for package code and wrapper behavior
 references/
   GOTCHAS.md        # extraction and synthesis errors to avoid
 examples/
@@ -242,6 +236,53 @@ examples/
 
 ---
 
+## Where Code Goes
+
+- Put packaged CLI and runtime code in `agentskill/`.
+- Put analyzer implementations in `agentskill/commands/`.
+- Put shared orchestration, generation, update, and output helpers in `agentskill/lib/`.
+- Put reusable low-level helpers and registries in `agentskill/common/`.
+- Keep `scripts/` limited to thin wrappers and operator-facing workflow entrypoints.
+- Do not add analyzer or business logic to `scripts/`.
+- Add tests in `tests/` as `test_<subject>.py`; do not colocate tests under `scripts/`.
+- Keep root-level files focused on metadata, docs, and project-wide specs.
+
+There is no separate steady-state runtime under `scripts/`, and there is no
+root `cli.py` compatibility entrypoint to extend. New runtime behavior should
+land in the package tree and then be exposed through `agentskill.main` if
+it belongs on the public CLI.
+
+---
+
+## Developer Workflow
+
+For normal use and contributor verification:
+
+```bash
+python -m pip install -e '.[dev]'
+agentskill analyze <repo> --pretty
+ruff format .
+ruff check .
+mypy
+pytest
+```
+
+When you add or extend functionality:
+
+- Add analyzer logic in `agentskill/commands/` when it maps to a command.
+- Add shared helpers in `agentskill/lib/` or `agentskill/common/`, based on whether they are orchestration-level or low-level utilities.
+- Wire new CLI behavior through [`agentskill/main.py`](./agentskill/main.py).
+- Add a `scripts/*.py` wrapper only when direct operator or skill invocation is still useful, and keep it as a thin import-and-dispatch shim.
+- Cover both packaged behavior and any retained wrapper behavior in `tests/`.
+
+For retained wrappers:
+
+- Use `agentskill <command> ...` as the canonical interface in docs and examples.
+- Use `python scripts/<name>.py ...` only for direct analyzer wrappers that still exist.
+- Do not add `generate` or `update` logic to `scripts/`; those belong to the packaged CLI.
+
+---
+
 ## File Ecosystem
 
 Three files govern behavior. Read all three before modifying anything.
@@ -252,7 +293,9 @@ Three files govern behavior. Read all three before modifying anything.
 | `SKILL.md`      | The operational workflow: when to invoke, what scripts to run, in what order       |
 | `GOTCHAS.md`    | Extraction and synthesis errors from previous runs — read before writing           |
 
-The public commands stay the same after refactors. Internal code is organized by technical role: analyzers in `scripts/commands/`, shared CLI infrastructure in `scripts/lib/`, and low-level helpers in `scripts/common/`.
+The public commands stay the same after refactors. The packaged runtime lives
+under `agentskill/`, while `scripts/` stays intentionally small as a
+wrapper and operator layer for direct analyzer entrypoints.
 
 ---
 

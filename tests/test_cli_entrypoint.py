@@ -1,8 +1,9 @@
 import subprocess
 import sys
 
-from lib import cli_entrypoint
 from test_support import ROOT, create_sample_repo
+
+from agentskill.lib import cli_entrypoint
 
 
 def test_run_command_main_passes_lang_filter_and_pretty(monkeypatch):

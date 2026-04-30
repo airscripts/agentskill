@@ -2,7 +2,7 @@
 
 import argparse
 
-from lib.output import run_and_output
+from agentskill.lib.output import run_and_output
 
 
 def run_command_main(

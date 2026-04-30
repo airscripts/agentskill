@@ -3,13 +3,21 @@
 from collections import Counter
 from pathlib import Path
 
-from common.fs import read_text, validate_repo
-from lib.agents_document import AgentsSection, build_section, normalize_section_name
-from lib.logging_utils import get_logger
-from lib.output import validate_out_path
-from lib.runner import run_all
-from lib.update_feedback import SectionFeedback, UpdateFeedback, load_feedback
-from lib.update_merge import merge_agents_document
+from agentskill.common.fs import read_text, validate_repo
+from agentskill.lib.agents_document import (
+    AgentsSection,
+    build_section,
+    normalize_section_name,
+)
+from agentskill.lib.logging_utils import get_logger
+from agentskill.lib.output import validate_out_path
+from agentskill.lib.runner import run_all
+from agentskill.lib.update_feedback import (
+    SectionFeedback,
+    UpdateFeedback,
+    load_feedback,
+)
+from agentskill.lib.update_merge import merge_agents_document
 
 AGENTS_FILENAME = "AGENTS.md"
 DOCUMENT_TITLE = "# AGENTS\n\n"

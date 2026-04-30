@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from common.constants import MAX_FILE_BYTES
+from agentskill.common.constants import MAX_FILE_BYTES
 
 
 def validate_repo(path: str) -> Path:

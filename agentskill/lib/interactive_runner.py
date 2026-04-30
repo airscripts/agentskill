@@ -3,8 +3,8 @@
 from dataclasses import dataclass
 from typing import Protocol
 
-from lib.agents_document import AgentsSection, build_section
-from lib.references import ReferenceDocument
+from agentskill.lib.agents_document import AgentsSection, build_section
+from agentskill.lib.references import ReferenceDocument
 
 _REFERENCE_TEST_COMMAND_PATTERNS = [
     r"Run command:\s*`([^`]+)`",

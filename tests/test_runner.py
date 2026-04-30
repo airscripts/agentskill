@@ -1,8 +1,10 @@
 import time
 
-from lib import runner
-from lib.logging_utils import get_logger
-from lib.runner import (
+from test_support import create_sample_repo
+
+from agentskill.lib import runner
+from agentskill.lib.logging_utils import get_logger
+from agentskill.lib.runner import (
     ANALYZER_TIMEOUT_SECONDS,
     COMMANDS,
     POLL_INTERVAL_SECONDS,
@@ -10,7 +12,6 @@ from lib.runner import (
     run_all,
     run_many,
 )
-from test_support import create_sample_repo
 
 
 def test_runner_registry_matches_expected_commands():

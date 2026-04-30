@@ -2,7 +2,9 @@
 
 from pathlib import Path
 
-from common.languages import (
+from test_support import create_repo
+
+from agentskill.common.languages import (
     all_language_specs,
     is_supported_language,
     is_test_path,
@@ -10,7 +12,6 @@ from common.languages import (
     language_for_extension,
     language_for_path,
 )
-from test_support import create_repo
 
 REQUIRED_LANGUAGE_IDS = {
     "python",
@@ -233,7 +234,7 @@ class TestScanRegression:
             },
         )
 
-        from commands.scan import scan
+        from agentskill.commands.scan import scan
 
         result = scan(str(repo))
 
@@ -253,7 +254,7 @@ class TestScanRegression:
             },
         )
 
-        from commands.scan import scan
+        from agentskill.commands.scan import scan
 
         result = scan(str(repo))
 

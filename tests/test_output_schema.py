@@ -1,7 +1,7 @@
 import json
 
-from lib.output import write_output
-from lib.output_schema import (
+from agentskill.lib.output import write_output
+from agentskill.lib.output_schema import (
     OutputSchemaError,
     validate_analyze_output,
     validate_analyzer_output,

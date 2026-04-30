@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from lib.agents_document import normalize_section_name
+from agentskill.lib.agents_document import normalize_section_name
 
 FEEDBACK_FILENAME = ".agentskill-feedback.json"
 SUPPORTED_SECTION_FEEDBACK_KEYS = {"prepend_notes", "pinned_facts"}

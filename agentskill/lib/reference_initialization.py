@@ -3,9 +3,19 @@
 import json
 from dataclasses import dataclass, field
 
-from lib.reference_adaptation import ReferenceAdaptationResult, adapt_references
-from lib.reference_questions import ReferenceQuestion, generate_reference_questions
-from lib.references import ReferenceDocument, ReferenceLoadResult, ReferenceMetadata
+from agentskill.lib.reference_adaptation import (
+    ReferenceAdaptationResult,
+    adapt_references,
+)
+from agentskill.lib.reference_questions import (
+    ReferenceQuestion,
+    generate_reference_questions,
+)
+from agentskill.lib.references import (
+    ReferenceDocument,
+    ReferenceLoadResult,
+    ReferenceMetadata,
+)
 
 AGENTSKILL_VERSION = "0.5.0"
 

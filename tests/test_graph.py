@@ -1,5 +1,6 @@
-from commands.graph import build_graph
 from test_support import create_repo, create_sample_repo
+
+from agentskill.commands.graph import build_graph
 
 
 def test_graph_detects_python_import_edge(tmp_path):

@@ -12,9 +12,9 @@ import re
 import subprocess
 import sys
 
-from common.fs import validate_repo
-from lib.cli_entrypoint import run_command_main
-from lib.logging_utils import get_logger
+from agentskill.common.fs import validate_repo
+from agentskill.lib.cli_entrypoint import run_command_main
+from agentskill.lib.logging_utils import get_logger
 
 GIT_TIMEOUT = 30
 GIT_HASH_LENGTH = 40

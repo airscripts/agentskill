@@ -1,12 +1,13 @@
 """Tests for JavaScript and TypeScript graph extraction."""
 
-from commands.graph import (
+from test_support import create_repo
+
+from agentskill.commands.graph import (
     _extract_js_ts_imports,
     _resolve_js_ts_import,
     _strip_js_ts_comments,
     build_graph,
 )
-from test_support import create_repo
 
 
 class TestJsTsCommentStripping:

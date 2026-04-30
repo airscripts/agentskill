@@ -1,13 +1,14 @@
-from lib.interactive_runner import (
+from test_support import create_repo
+
+from agentskill.lib.interactive_runner import (
     GenerationGap,
     apply_interactive_notes,
     ask_generation_questions,
     detect_generation_gaps,
     interactive_section_notes,
 )
-from lib.references import ReferenceDocument, ReferenceSource
-from lib.update_runner import render_agents_sections
-from test_support import create_repo
+from agentskill.lib.references import ReferenceDocument, ReferenceSource
+from agentskill.lib.update_runner import render_agents_sections
 
 
 class FakePromptIO:

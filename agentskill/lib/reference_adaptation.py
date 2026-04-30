@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from lib.references import ReferenceDocument, ReferenceSource
+from agentskill.lib.references import ReferenceDocument, ReferenceSource
 
 
 @dataclass(frozen=True)

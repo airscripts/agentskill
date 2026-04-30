@@ -1,4 +1,6 @@
-from commands.tests import (
+from test_support import create_repo, create_sample_repo, write
+
+from agentskill.commands.tests import (
     _detect_python_framework,
     _detect_ts_framework,
     _extract_run_command,
@@ -8,7 +10,6 @@ from commands.tests import (
     _map_stem_tests,
     analyze_tests,
 )
-from test_support import create_repo, create_sample_repo, write
 
 
 def test_tests_detects_pytest_and_mappings(tmp_path):

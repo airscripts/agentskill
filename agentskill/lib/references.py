@@ -5,7 +5,7 @@ from pathlib import Path
 from subprocess import run
 from tempfile import TemporaryDirectory
 
-from common.fs import read_text
+from agentskill.common.fs import read_text
 
 REFERENCE_KIND_LOCAL = "local"
 REFERENCE_KIND_REMOTE = "remote"

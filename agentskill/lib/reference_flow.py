@@ -1,7 +1,7 @@
 """Shared reference normalization and loading helpers for CLI flows."""
 
-from lib.reference_initialization import successful_reference_documents
-from lib.references import (
+from agentskill.lib.reference_initialization import successful_reference_documents
+from agentskill.lib.references import (
     REFERENCE_KIND_LOCAL,
     REFERENCE_KIND_REMOTE,
     ReferenceDocument,

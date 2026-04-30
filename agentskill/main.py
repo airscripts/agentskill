@@ -1,37 +1,13 @@
-#!/usr/bin/env python3
-"""agentskill — analyze repositories and synthesize AGENTS.md.
-
-Runs all analysis scripts and merges output into a single JSON report.
-
-Usage:
-    python cli.py analyze <repo> [<repo2> ...]
-    python cli.py analyze <repo> --pretty
-    python cli.py analyze <repo> --out report.json
-    python cli.py analyze <repo> --reference ../reference-repo
-
-    python cli.py scan <repo>
-    python cli.py measure <repo> [--lang python]
-    python cli.py config <repo>
-    python cli.py git <repo>
-    python cli.py graph <repo> [--lang python]
-    python cli.py symbols <repo> [--lang python]
-    python cli.py tests <repo>
-    python cli.py generate <repo> [--reference ../reference-repo]
-    python cli.py generate <repo> --interactive
-"""
+"""Packaged CLI entrypoint for agentskill."""
 
 import argparse
 import sys
-from pathlib import Path
 
-_HERE = Path(__file__).parent
-sys.path.insert(0, str(_HERE / "scripts"))
-
-from lib.generate_runner import generate_agents
-from lib.logging_utils import configure_logging
-from lib.output import run_and_output, write_output
-from lib.runner import COMMANDS, run_many
-from lib.update_runner import update_agents
+from agentskill.lib.generate_runner import generate_agents
+from agentskill.lib.logging_utils import configure_logging
+from agentskill.lib.output import run_and_output, write_output
+from agentskill.lib.runner import COMMANDS, run_many
+from agentskill.lib.update_runner import update_agents
 
 
 def cmd_analyze(args: argparse.Namespace) -> int:
@@ -103,8 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     configure_logging()
     parser = argparse.ArgumentParser(
         prog="agentskill",
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="agentskill CLI",
     )
 
     parser.add_argument(
@@ -121,11 +96,9 @@ def main(argv: list[str] | None = None) -> int:
     p_analyze.add_argument(
         "repos", nargs="+", metavar="repo", help="Path(s) to repository"
     )
-
     p_analyze.add_argument(
         "--lang", help="Filter to a single language where applicable"
     )
-
     p_analyze.add_argument(
         "--reference",
         action="append",
@@ -153,54 +126,47 @@ def main(argv: list[str] | None = None) -> int:
     p_symbols = sub.add_parser(
         "symbols", help="Symbol name extraction and pattern clustering"
     )
-
     p_symbols.add_argument("repo", help="Path to repository")
     p_symbols.add_argument("--lang", help="Filter to a single language")
 
     p_tests = sub.add_parser(
         "tests", help="Test-to-source mapping and framework detection"
     )
-
     p_tests.add_argument("repo", help="Path to repository")
+
     p_update = sub.add_parser("update", help="Update or create AGENTS.md")
     p_update.add_argument("repo", help="Path to repository")
-
     p_update.add_argument(
         "--section",
         action="append",
         help="Regenerate only the named section; may be repeated",
     )
-
     p_update.add_argument(
         "--exclude-section",
         action="append",
         help="Skip regenerating the named section; may be repeated",
     )
-
     p_update.add_argument(
         "--force",
         action="store_true",
         help="Rebuild AGENTS.md from regenerated sections only",
     )
-
     p_update.add_argument("--out", metavar="FILE", help="Write markdown to file")
+
     p_generate = sub.add_parser(
         "generate", help="Generate AGENTS.md markdown from repository analysis"
     )
-
     p_generate.add_argument("repo", help="Path to repository")
     p_generate.add_argument(
         "--reference",
         action="append",
         help="Reference repository path or URL; may be repeated",
     )
-
     p_generate.add_argument(
         "--interactive",
         action="store_true",
         help="Prompt for missing or ambiguous generation inputs",
     )
-
     p_generate.add_argument("--out", metavar="FILE", help="Write markdown to file")
 
     for p in [
@@ -238,7 +204,3 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     return handler(args)
-
-
-if __name__ == "__main__":
-    sys.exit(main())

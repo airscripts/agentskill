@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from lib.output_schema import ANALYZER_NAMES
+from agentskill.lib.output_schema import ANALYZER_NAMES
 
 CONTRACTS_DIR = Path(__file__).resolve().parent / "contracts"
 

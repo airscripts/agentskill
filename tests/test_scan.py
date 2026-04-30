@@ -3,10 +3,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from commands import scan as scan_command
-from commands.scan import scan
-from common.walk import walk_repo as shared_walk_repo
 from test_support import ROOT, create_repo, create_sample_repo
+
+from agentskill.commands import scan as scan_command
+from agentskill.commands.scan import scan
+from agentskill.common.walk import walk_repo as shared_walk_repo
 
 
 def test_scan_collects_language_summary(tmp_path):

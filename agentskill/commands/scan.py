@@ -15,10 +15,10 @@ Usage:
 import sys
 from pathlib import Path
 
-from common.fs import count_lines, validate_repo
-from common.languages import language_for_path
-from common.walk import walk_repo
-from lib.cli_entrypoint import run_command_main
+from agentskill.common.fs import count_lines, validate_repo
+from agentskill.common.languages import language_for_path
+from agentskill.common.walk import walk_repo
+from agentskill.lib.cli_entrypoint import run_command_main
 
 SKIP_EXTENSIONS: set[str] = {
     ".pyc",

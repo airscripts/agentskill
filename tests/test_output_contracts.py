@@ -1,19 +1,19 @@
 import json
 
-from commands.config import detect
-from commands.graph import build_graph
-from commands.scan import scan
-from commands.symbols import extract_symbols
 from contract_utils import assert_matches_contract
-from lib.runner import run_all
 from test_support import EXAMPLES_DIR
 
-import cli
+from agentskill.commands.config import detect
+from agentskill.commands.graph import build_graph
+from agentskill.commands.scan import scan
+from agentskill.commands.symbols import extract_symbols
+from agentskill.lib.runner import run_all
+from agentskill.main import main
 
 
 def test_analyze_python_example_matches_cli_contract(capsys):
     repo = EXAMPLES_DIR / "python"
-    exit_code = cli.main(["analyze", str(repo), "--pretty"])
+    exit_code = main(["analyze", str(repo), "--pretty"])
 
     assert exit_code == 0
     actual = json.loads(capsys.readouterr().out)

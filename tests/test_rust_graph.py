@@ -1,12 +1,13 @@
 """Tests for Rust module graph extraction."""
 
-from commands.graph import (
+from test_support import create_repo
+
+from agentskill.commands.graph import (
     _extract_rust_mods_and_uses,
     _resolve_rust_mod,
     _strip_rust_comments,
     build_graph,
 )
-from test_support import create_repo
 
 
 class TestRustCommentStripping:

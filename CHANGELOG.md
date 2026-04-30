@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `scripts/lib/cli_entrypoint.py` — shared CLI entrypoint helper for command modules
+- `agentskill/lib/cli_entrypoint.py` — shared CLI entrypoint helper for command modules
 - `tests/test_cli_entrypoint.py` — tests for CLI entrypoint argument parsing and dispatch
 - `tests/test_error_contracts.py` — error contract tests across command modules
 - `tests/test_config.py` — expanded config detection tests with multi-language fixtures
@@ -59,28 +59,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `scripts/lib/agents_document.py` — parsing and serialization for sectioned AGENTS.md documents
+- `agentskill/lib/agents_document.py` — parsing and serialization for sectioned AGENTS.md documents
 - `AgentsSection` / `AgentsDocument` — frozen dataclasses representing headings, body text, and raw lines
 - `parse_agents_document()` — ATX heading-based section extraction preserving blank lines and structure
 - `build_section()` / `serialize_document()` — deterministic round-trip serialization
 - `add_or_replace_section()` / `remove_section()` / `get_section()` — mutation helpers with normalized name lookup
 - `normalize_section_name()` — case-insensitive, whitespace-normalized section name matching
-- `scripts/lib/update_merge.py` — merge helpers for incremental AGENTS.md updates
+- `agentskill/lib/update_merge.py` — merge helpers for incremental AGENTS.md updates
 - `MergePlan` — declarative merge plan with per-section actions (add, replace, preserve, append, prepend)
 - `plan_merge()` — diff existing document sections against new analyzer output, producing a merge plan
 - `apply_merge()` — execute a merge plan against an `AgentsDocument`, returning the updated document
 - Section-level prepend/append with feedback-sourced content
-- `scripts/lib/update_feedback.py` — repo-local feedback loading for AGENTS.md update workflows
+- `agentskill/lib/update_feedback.py` — repo-local feedback loading for AGENTS.md update workflows
 - `FeedbackEntry` / `FeedbackFile` — structured models for `.agentskill-feedback.json`
 - `load_feedback()` — load and validate feedback file from a repository root
 - `apply_feedback()` — merge feedback entries into a merge plan as prepend notes and pinned facts
 - `SUPPORTED_SECTION_FEEDBACK_KEYS` — supported feedback instruction types
-- `scripts/lib/update_runner.py` — internal workflow for updating AGENTS.md from current analyzer output
+- `agentskill/lib/update_runner.py` — internal workflow for updating AGENTS.md from current analyzer output
 - `update_agents()` — end-to-end update flow: validate repo, run analyzers, diff sections, apply feedback, serialize
 - Section filtering with `--only` flag (run specific analyzers)
 - Custom output path with `--out` flag
 - Configurable `--mode` (overwrite, merge-new, merge-all)
-- `cli.py` — `update` subcommand for updating or creating AGENTS.md
+- `agentskill.main` — `update` subcommand for updating or creating AGENTS.md
 - `PLANNER.md` — release planner system prompt for generating implementation-ready PR briefs
 
 ### Changed
@@ -92,7 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Shared language registry — `scripts/common/languages.py` with `LanguageSpec`, 15 languages, 6 helper functions
+- Shared language registry — `agentskill/common/languages.py` with `LanguageSpec`, 15 languages, 6 helper functions
 - `language_for_path()`, `language_for_extension()`, `language_by_id()`, `is_test_path()`, `is_supported_language()`, `all_language_specs()`
 - TypeScript and JavaScript parity across graph, symbols, and tests analyzers
 - Comment stripping for JS/TS sources
@@ -131,24 +131,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `scripts/lib/references.py` — reference source, document, load result, and metadata models
+- `agentskill/lib/references.py` — reference source, document, load result, and metadata models
 - `load_local_reference()` / `load_local_references()` — load AGENTS.md from local directories
 - `load_remote_reference()` / `load_remote_references()` — load AGENTS.md from remote repos via shallow clone
 - `_run_git()` — subprocess helper with 60s timeout and error capture
-- `scripts/lib/reference_adaptation.py` — reference adaptation engine with heuristic classification
+- `agentskill/lib/reference_adaptation.py` — reference adaptation engine with heuristic classification
 - `ReferenceSection`, `AdaptedConvention`, `ReferenceAdaptationResult` — frozen dataclasses for section splitting and convention classification
 - `split_markdown_sections()` — heading-based Markdown section extraction
 - `adapt_reference()` / `adapt_references()` — classify conventions as applicable, mismatched, uncertain, or ignored
 - Category detection with priority ordering: directory_structure, testing, formatter, linter, type_checker, git
 - Language/tool extraction and target analysis comparison
 - Directory path matching against scan tree
-- `scripts/lib/reference_questions.py` — gap detection and targeted question generation
+- `agentskill/lib/reference_questions.py` — gap detection and targeted question generation
 - `ReferenceQuestion` model with section, question, reason, category, source, blocking, options
 - `generate_reference_questions()` — produce targeted questions from uncertain and mismatched conventions
 - Selective question generation: irrelevant mismatches filtered, ecosystem-aware relevance checks
 - Conflict detection across multiple references proposing different conventions
 - Question deduplication and deterministic ordering
-- `scripts/lib/reference_initialization.py` — empty-project initialization from references
+- `agentskill/lib/reference_initialization.py` — empty-project initialization from references
 - `is_empty_target()` — detect empty or near-empty target repositories
 - `build_reference_metadata()` — build deterministic metadata from loaded documents
 - `render_reference_metadata_block()` — render metadata as Markdown HTML comment with JSON
@@ -161,7 +161,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `scripts/lib/parsers.py` — shared TOML and YAML parser loading with optional dependency fallback
+- `agentskill/lib/parsers.py` — shared TOML and YAML parser loading with optional dependency fallback
 - `load_toml` / `load_yaml` — strict parsers that raise `ParserUnavailableError` when deps are missing
 - `load_toml_safe` / `load_yaml_safe` — graceful parsers returning `{}` on any error
 - Comprehensive config parsing tests with real-world fixtures for Python, JS, Go, and Rust
@@ -181,7 +181,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Logging infrastructure — `scripts/lib/logging_utils.py` with configurable log level and exception capture
+- Logging infrastructure — `agentskill/lib/logging_utils.py` with configurable log level and exception capture
 - Output path validation — `--out` paths are validated; parent directories are created automatically
 - Per-analyzer timeout logging — runner logs when an analyzer exceeds its deadline
 - `write_output` exception handling — captures and logs JSON serialization errors

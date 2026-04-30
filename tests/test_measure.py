@@ -1,4 +1,6 @@
-from commands.measure import (
+from test_support import create_repo, write
+
+from agentskill.commands.measure import (
     _file_metrics,
     _measure_blank_lines_generic,
     _measure_blank_lines_python,
@@ -6,7 +8,6 @@ from commands.measure import (
     _measure_line_lengths,
     measure,
 )
-from test_support import create_repo, write
 
 
 def test_measure_indentation_variants():

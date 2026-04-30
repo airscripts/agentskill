@@ -16,20 +16,20 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from common.constants import (
+from agentskill.common.constants import (
     MAKEFILE_NAMES,
     TEST_STRUCTURE_SOURCE_ROOTS,
     TOP_LEVEL_TEST_DIRS,
     should_skip_dir,
 )
-from common.fs import count_lines, read_text, validate_repo
-from common.languages import (
+from agentskill.common.fs import count_lines, read_text, validate_repo
+from agentskill.common.languages import (
     is_test_path,
     language_by_id,
     language_for_extension,
     language_for_path,
 )
-from lib.cli_entrypoint import run_command_main
+from agentskill.lib.cli_entrypoint import run_command_main
 
 FRAMEWORK_DETECTION_SAMPLE = 5
 NAMING_DETECTION_SAMPLE = 10

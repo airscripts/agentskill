@@ -9,12 +9,12 @@ from test_support import (
     write,
 )
 
-import cli
+from agentskill.main import main
 
 
 def test_generate_prints_markdown_to_stdout_without_writing_repo_file(tmp_path, capsys):
     repo = create_sample_repo(tmp_path)
-    exit_code = cli.main(["generate", str(repo)])
+    exit_code = main(["generate", str(repo)])
 
     assert exit_code == 0
     captured = capsys.readouterr()
@@ -31,7 +31,7 @@ def test_generate_writes_markdown_to_explicit_output_path(
     monkeypatch.chdir(tmp_path)
     out_path = Path("generated/AGENTS.md")
 
-    exit_code = cli.main(["generate", str(repo), "--out", str(out_path)])
+    exit_code = main(["generate", str(repo), "--out", str(out_path)])
 
     assert exit_code == 0
     assert out_path.exists()
@@ -48,7 +48,7 @@ def test_generate_ignores_existing_agents_file_and_does_not_merge(tmp_path, caps
         "# AGENTS\n\n## Team Notes\nKeep this manual section.\n",
     )
 
-    exit_code = cli.main(["generate", str(repo)])
+    exit_code = main(["generate", str(repo)])
 
     assert exit_code == 0
     generated = capsys.readouterr().out
@@ -61,7 +61,7 @@ def test_generate_includes_reference_metadata_block(tmp_path, capsys):
     reference = create_repo(tmp_path, name="reference")
     write(reference, "AGENTS.md", "# AGENTS\n\n## 12. Testing\nUse pytest.\n")
 
-    exit_code = cli.main(["generate", str(repo), "--reference", str(reference)])
+    exit_code = main(["generate", str(repo), "--reference", str(reference)])
 
     assert exit_code == 0
     generated = capsys.readouterr().out
@@ -77,7 +77,7 @@ def test_generate_multiple_references_preserve_cli_order(tmp_path, capsys):
     write(reference_a, "AGENTS.md", "# AGENTS\n\n## 12. Testing\nUse pytest.\n")
     write(reference_b, "AGENTS.md", "# AGENTS\n\n## 6. Code Formatting\nUse ruff.\n")
 
-    exit_code = cli.main(
+    exit_code = main(
         [
             "generate",
             str(repo),
@@ -106,7 +106,7 @@ def test_generate_interactive_adds_answered_gap_notes(tmp_path, capsys, monkeypa
 
     monkeypatch.setattr(builtins, "input", fake_input)
 
-    exit_code = cli.main(["generate", str(repo), "--interactive"])
+    exit_code = main(["generate", str(repo), "--interactive"])
 
     assert exit_code == 0
     generated = capsys.readouterr().out
@@ -127,7 +127,7 @@ def test_generate_interactive_skip_answers_keeps_default_sections(
         return ""
 
     monkeypatch.setattr(builtins, "input", fake_input)
-    exit_code = cli.main(["generate", str(repo), "--interactive"])
+    exit_code = main(["generate", str(repo), "--interactive"])
 
     assert exit_code == 0
     generated = capsys.readouterr().out
@@ -144,7 +144,7 @@ def test_generate_interactive_no_gaps_does_not_prompt(tmp_path, capsys, monkeypa
         raise AssertionError(f"unexpected prompt: {prompt}")
 
     monkeypatch.setattr(builtins, "input", fail_input)
-    exit_code = cli.main(["generate", str(repo), "--interactive"])
+    exit_code = main(["generate", str(repo), "--interactive"])
 
     assert exit_code == 0
     generated = capsys.readouterr().out
@@ -178,7 +178,7 @@ def test_generate_interactive_references_reduce_prompt_count(
 
     monkeypatch.setattr(builtins, "input", fake_input)
 
-    exit_code = cli.main(
+    exit_code = main(
         ["generate", str(repo), "--interactive", "--reference", str(reference)]
     )
 
@@ -193,7 +193,7 @@ def test_generate_interactive_references_reduce_prompt_count(
 
 def test_generate_reports_invalid_repo_path(tmp_path, capsys):
     missing = tmp_path / "missing"
-    exit_code = cli.main(["generate", str(missing)])
+    exit_code = main(["generate", str(missing)])
 
     assert exit_code == 1
     assert f"Generate failed for repo {missing}: path does not exist: {missing}" in (
@@ -205,7 +205,7 @@ def test_generate_reports_invalid_reference_path(tmp_path, capsys):
     repo = create_sample_repo(tmp_path / "target")
     missing = tmp_path / "missing-reference"
 
-    exit_code = cli.main(["generate", str(repo), "--reference", str(missing)])
+    exit_code = main(["generate", str(repo), "--reference", str(missing)])
 
     assert exit_code == 1
     assert (
@@ -215,7 +215,7 @@ def test_generate_reports_invalid_reference_path(tmp_path, capsys):
 
 def test_generate_rejects_pretty_flag(tmp_path, capsys):
     repo = create_sample_repo(tmp_path)
-    exit_code = cli.main(["--pretty", "generate", str(repo)])
+    exit_code = main(["--pretty", "generate", str(repo)])
 
     assert exit_code == 1
     assert capsys.readouterr().err == "generate does not support --pretty\n"

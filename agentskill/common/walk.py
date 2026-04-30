@@ -3,7 +3,11 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from common.constants import MAX_FILE_BYTES, MAX_FILES_TO_PARSE, should_skip_dir
+from agentskill.common.constants import (
+    MAX_FILE_BYTES,
+    MAX_FILES_TO_PARSE,
+    should_skip_dir,
+)
 
 
 @dataclass

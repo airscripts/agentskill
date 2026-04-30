@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from lib.references import (
+from agentskill.lib.references import (
     ReferenceDocument,
     ReferenceLoadResult,
     ReferenceMetadata,
@@ -295,8 +295,8 @@ def test_load_remote_reference_success(tmp_path):
         return 1, "", "unknown command"
 
     with (
-        patch("lib.references._run_git", side_effect=fake_run_git),
-        patch("lib.references.TemporaryDirectory") as mock_tmp,
+        patch("agentskill.lib.references._run_git", side_effect=fake_run_git),
+        patch("agentskill.lib.references.TemporaryDirectory") as mock_tmp,
     ):
         mock_tmp.return_value.__enter__ = lambda s: str(tmp_path)
         mock_tmp.return_value.__exit__ = lambda s, *a: None
@@ -318,8 +318,8 @@ def test_load_remote_reference_clone_failure(tmp_path):
         return 1, "", ""
 
     with (
-        patch("lib.references._run_git", side_effect=fake_run_git),
-        patch("lib.references.TemporaryDirectory") as mock_tmp,
+        patch("agentskill.lib.references._run_git", side_effect=fake_run_git),
+        patch("agentskill.lib.references.TemporaryDirectory") as mock_tmp,
     ):
         mock_tmp.return_value.__enter__ = lambda s: str(tmp_path)
         mock_tmp.return_value.__exit__ = lambda s, *a: None
@@ -337,8 +337,8 @@ def test_load_remote_reference_clone_timeout(tmp_path):
         return 1, "", "git command timed out after 60s"
 
     with (
-        patch("lib.references._run_git", side_effect=fake_run_git),
-        patch("lib.references.TemporaryDirectory") as mock_tmp,
+        patch("agentskill.lib.references._run_git", side_effect=fake_run_git),
+        patch("agentskill.lib.references.TemporaryDirectory") as mock_tmp,
     ):
         mock_tmp.return_value.__enter__ = lambda s: str(tmp_path)
         mock_tmp.return_value.__exit__ = lambda s, *a: None
@@ -362,8 +362,8 @@ def test_load_remote_reference_missing_agents_md(tmp_path):
         return 1, "", ""
 
     with (
-        patch("lib.references._run_git", side_effect=fake_run_git),
-        patch("lib.references.TemporaryDirectory") as mock_tmp,
+        patch("agentskill.lib.references._run_git", side_effect=fake_run_git),
+        patch("agentskill.lib.references.TemporaryDirectory") as mock_tmp,
     ):
         mock_tmp.return_value.__enter__ = lambda s: str(tmp_path)
         mock_tmp.return_value.__exit__ = lambda s, *a: None
@@ -386,8 +386,8 @@ def test_load_remote_reference_empty_agents_md(tmp_path):
         return 1, "", ""
 
     with (
-        patch("lib.references._run_git", side_effect=fake_run_git),
-        patch("lib.references.TemporaryDirectory") as mock_tmp,
+        patch("agentskill.lib.references._run_git", side_effect=fake_run_git),
+        patch("agentskill.lib.references.TemporaryDirectory") as mock_tmp,
     ):
         mock_tmp.return_value.__enter__ = lambda s: str(tmp_path)
         mock_tmp.return_value.__exit__ = lambda s, *a: None
@@ -410,8 +410,8 @@ def test_load_remote_reference_commit_sha_unavailable(tmp_path):
         return 1, "", ""
 
     with (
-        patch("lib.references._run_git", side_effect=fake_run_git),
-        patch("lib.references.TemporaryDirectory") as mock_tmp,
+        patch("agentskill.lib.references._run_git", side_effect=fake_run_git),
+        patch("agentskill.lib.references.TemporaryDirectory") as mock_tmp,
     ):
         mock_tmp.return_value.__enter__ = lambda s: str(tmp_path)
         mock_tmp.return_value.__exit__ = lambda s, *a: None
@@ -460,8 +460,8 @@ def test_load_remote_references_batch_preserves_order(tmp_path):
         return 1, "", ""
 
     with (
-        patch("lib.references._run_git", side_effect=fake_run_git),
-        patch("lib.references.TemporaryDirectory") as mock_tmp,
+        patch("agentskill.lib.references._run_git", side_effect=fake_run_git),
+        patch("agentskill.lib.references.TemporaryDirectory") as mock_tmp,
     ):
         mock_tmp.return_value.__enter__ = lambda s: str(tmp_path)
         mock_tmp.return_value.__exit__ = lambda s, *a: None

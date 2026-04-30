@@ -2,13 +2,17 @@
 
 ## 1. Overview
 
-agentskill is a single-repo Python CLI that analyzes another repository and emits JSON signals used to synthesize an `AGENTS.md`. The codebase is organized around a thin root CLI in `cli.py`, concrete analyzers in `scripts/commands/`, shared output and orchestration helpers in `scripts/lib/`, low-level filesystem helpers in `scripts/common/`, reference docs and examples at the repo root, and a separate `tests/` tree that exercises both analyzer internals and CLI entrypoints.
+agentskill is a single-repo Python CLI that analyzes another repository and emits JSON signals used to synthesize an `AGENTS.md`. The codebase is organized around packaged runtime modules under `agentskill/`, a small direct-wrapper layer under `scripts/`, reference docs and examples at the repo root, and a separate `tests/` tree that exercises both analyzer internals and CLI entrypoints.
 
 ## 2. Repository Structure
 
 ```text
 agentskill/
-  cli.py                    # root entry point; argument parsing and dispatch only
+  agentskill/
+    main.py                 # packaged CLI entry point; argument parsing and dispatch only
+    commands/               # analyzer implementations
+    lib/                    # orchestration, output, update, generation helpers
+    common/                 # shared low-level helpers and registries
   pyproject.toml            # packaging, pytest, ruff, coverage config
   README.md                 # user-facing overview and command reference
   SYSTEM.md                 # synthesis spec for generated AGENTS.md files
@@ -22,20 +26,6 @@ agentskill/
     MULTI_LANGUAGE.md       # reference output for a multi-language single repo
     MONOREPO.md             # reference output for a monorepo
   scripts/
-    commands/               # analyzer implementations
-      config.py             # formatter/linter/type-checker detection
-      git.py                # commit and branch analysis
-      graph.py              # import graph and boundary detection
-      measure.py            # formatting measurements
-      scan.py               # tree and file inventory
-      symbols.py            # naming-pattern extraction
-      tests.py              # test-structure analysis
-    lib/
-      output.py             # shared JSON output helpers
-      runner.py             # aggregate analyzer orchestration
-    common/
-      constants.py          # shared repo-walk constants
-      fs.py                 # small filesystem helpers
     scan.py                 # thin direct-execution wrapper
     measure.py              # thin direct-execution wrapper
     config.py               # thin direct-execution wrapper
@@ -48,13 +38,13 @@ agentskill/
     test_support.py         # shared repo/setup helpers for tests
 ```
 
-- New analyzer logic goes in `scripts/commands/`, not in `cli.py`.
-- Shared CLI plumbing belongs in `scripts/lib/`; low-level reusable helpers belong in `scripts/common/`.
-- Files under `scripts/*.py` stay as thin wrappers around `commands.<name>.main`.
+- New analyzer logic goes in `agentskill/commands/`, not in entrypoint wrappers.
+- Shared CLI plumbing belongs in `agentskill/lib/`; low-level reusable helpers belong in `agentskill/common/`.
+- Files under `scripts/*.py` stay as thin wrappers around `agentskill.commands.<name>.main`.
 - New tests go in `tests/` as `test_<subject>.py`; this repo does not colocate tests beside source files.
 - New examples for unfamiliar repo shapes belong in `examples/`, not mixed into `references/`.
   If this skill was downloaded from ClawHub, or if `examples/` is unavailable locally, do not consult `examples/`; skip it to avoid execution errors.
-- Keep the repo root small: entrypoint, metadata, docs/spec files, and no business logic outside `cli.py`.
+- Keep the repo root small: metadata, docs/spec files, and no business logic outside `agentskill/`.
 
 ## 5. Commands and Workflows
 
@@ -72,16 +62,16 @@ PY
 )
 
 # Run all analyzers
-python cli.py analyze <repo> --pretty
+agentskill analyze <repo> --pretty
 
-# Run individual analyzers through the root CLI
-python cli.py scan <repo> --pretty
-python cli.py measure <repo> --lang python --pretty
-python cli.py config <repo> --pretty
-python cli.py git <repo> --pretty
-python cli.py graph <repo> --pretty
-python cli.py symbols <repo> --pretty
-python cli.py tests <repo> --pretty
+# Run individual analyzers through the installed CLI
+agentskill scan <repo> --pretty
+agentskill measure <repo> --lang python --pretty
+agentskill config <repo> --pretty
+agentskill git <repo> --pretty
+agentskill graph <repo> --pretty
+agentskill symbols <repo> --pretty
+agentskill tests <repo> --pretty
 
 # Direct wrapper execution
 python scripts/scan.py <repo> --pretty
@@ -92,8 +82,8 @@ ruff check .
 pytest
 ```
 
-- `python cli.py analyze <repo> --pretty` is the canonical aggregate workflow.
-- `python cli.py <command> <repo> --pretty` is the main single-analyzer interface; `python scripts/<name>.py <repo> --pretty` remains supported as a thin direct wrapper.
+- `agentskill analyze <repo> --pretty` is the canonical aggregate workflow.
+- `agentskill <command> <repo> --pretty` is the main single-analyzer interface; `python scripts/<name>.py <repo> --pretty` remains supported as a thin direct wrapper.
 - Use `pytest` as the canonical test command; that is what the repo advertises in `README.md` and what the analyzer detects from `pyproject.toml`.
 - Use `ruff format .` and `ruff check .` for local formatting and lint passes; Ruff is the only configured code-quality tool in project metadata.
 
@@ -123,8 +113,8 @@ CONVENTIONAL_PREFIX_RE = re.compile(r"^([a-z][a-z0-9_-]*)(\([^)]+\))?(!)?\s*:\s*
 **Blank lines — top-level:** 2 blank lines between top-level functions and constants-to-functions transitions.
 
 ```python
-from lib.output import run_and_output, write_output
-from lib.runner import COMMANDS, run_many
+from agentskill.lib.output import run_and_output, write_output
+from agentskill.lib.runner import COMMANDS, run_many
 
 
 def cmd_analyze(args: argparse.Namespace) -> int:
@@ -138,7 +128,7 @@ def cmd_analyze(args: argparse.Namespace) -> int:
 **Blank lines — after imports:** usually 1 blank line before module constants; 2 blank lines before the first function when a file goes straight from imports into functions.
 
 ```python
-from lib.output import run_and_output
+from agentskill.lib.output import run_and_output
 
 GIT_TIMEOUT = 30
 GIT_HASH_LENGTH = 40
@@ -147,7 +137,7 @@ GIT_HASH_LENGTH = 40
 ```python
 from test_support import create_sample_repo
 
-import cli
+from agentskill.main import main
 
 
 def test_cli_scan_outputs_json(tmp_path, capsys):
@@ -218,20 +208,20 @@ def repo_fixture(tmp_path):
     return create_sample_repo(tmp_path)
 ```
 
-**Import block formatting:** one import per line; groups are separated by a blank line. In source files, stdlib imports come first and local package imports follow. Tests often place local test-support imports before a direct `import cli`.
+**Import block formatting:** one import per line; groups are separated by a blank line. In source files, stdlib imports come first and local package imports follow. Tests usually import local helpers before packaged runtime modules.
 
 ```python
 import json
 
 from test_support import create_sample_repo
 
-import cli
+from agentskill.main import main
 ```
 
 **Trailing commas:** used in multiline calls, dicts, lists, and imports.
 
 ```python
-exit_code = cli.main(
+exit_code = main(
     ["analyze", str(repo_one), str(repo_two), "--out", str(out_file)]
 )
 ```
@@ -278,13 +268,13 @@ def _command_kwargs(command_name: str, lang_filter: str | None) -> dict:
 **File names:** source and helper files use lowercase snake_case; test files use `test_<subject>.py`; package markers use `__init__.py`.
 
 ```text
-scripts/lib/output.py
-scripts/common/constants.py
+agentskill/lib/output.py
+agentskill/common/constants.py
 tests/test_measure.py
 tests/test_support.py
 ```
 
-**Directory names:** lowercase simple nouns: `scripts`, `commands`, `common`, `lib`, `tests`, `references`, `examples`.
+**Directory names:** lowercase simple nouns: `agentskill`, `scripts`, `tests`, `references`, `examples`.
 
 **Test function names:** `test_<behavior>` with long descriptive tails is the dominant pattern.
 
@@ -308,7 +298,7 @@ def repo_fixture(tmp_path):
 - Internal helpers are also usually annotated; this repo does not reserve annotations only for public APIs.
 - Use built-in generics like `list[str]`, `dict[str, int]`, and union syntax like `str | None` instead of `List`, `Dict`, or `Optional`.
 - Container-rich return types are accepted directly in signatures instead of being hidden behind aliases.
-- No dedicated type-checker is configured; `pyproject.toml` declares Ruff lint settings only.
+- `mypy` is configured in `pyproject.toml`; this repo does not rely on type annotations for linting alone.
 
 ```python
 def main(argv: list[str] | None = None) -> int:
@@ -326,7 +316,7 @@ def _analyze_branches(cwd: str) -> tuple[dict[str, int], int, list[str]]:
 
 - Import order is not strict stdlib/third-party/local in the test suite; document and mimic the local file pattern instead of forcing generic ordering.
 - In source files, stdlib imports come first, then local package imports separated by one blank line.
-- In tests, plain `import cli` may intentionally sit after `from test_support import ...`.
+- In tests, import the packaged entrypoint from `agentskill.main` unless a compatibility path is being exercised explicitly.
 - No wildcard imports.
 - No `__future__` imports appear.
 
@@ -338,7 +328,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from lib.output import run_and_output
+from agentskill.lib.output import run_and_output
 ```
 
 Canonical test import block:
@@ -348,7 +338,7 @@ import json
 
 from test_support import create_sample_repo
 
-import cli
+from agentskill.main import main
 ```
 
 ## 10. Error Handling
@@ -412,14 +402,14 @@ j = last_import  # 1-indexed -> 0-indexed
 - Framework: `pytest`.
 - Tests live in `tests/`, not beside source files.
 - Test files are named `test_<subject>.py`.
-- `tests/conftest.py` is used for shared import-path bootstrap; helper setup code is centralized in `tests/test_support.py`.
+- `tests/conftest.py` adds the repo root to `sys.path`; helper setup code is centralized in `tests/test_support.py`.
 - Tests use plain `assert` statements and `tmp_path`, `capsys`, and `monkeypatch` fixtures heavily.
 - The suite tests both pure functions and command-line entrypoints.
 
 ```python
 def test_cli_scan_outputs_json(tmp_path, capsys):
     repo = create_sample_repo(tmp_path)
-    exit_code = cli.main(["scan", str(repo), "--pretty"])
+    exit_code = main(["scan", str(repo), "--pretty"])
 
     assert exit_code == 0
 
@@ -465,26 +455,26 @@ chore/strip-comments
 
 ## 14. Dependencies and Tooling
 
-- Packaging uses `setuptools.backends.legacy:build` with `setuptools>=68` in `build-system.requires`.
-- The published console script is `agentskill = "cli:main"`.
+- Packaging uses `setuptools.build_meta` with `setuptools>=68` in `build-system.requires`.
+- The published console script is `agentskill = "agentskill.main:main"`.
 - Runtime requirement is Python `>=3.10`.
-- Dev dependencies are `pytest`, `pytest-cov`, and `ruff`.
-- Ruff targets `py39`, excludes cache and virtualenv directories, and lint rules are configured in `pyproject.toml` with `select = ["E4", "E7", "E9", "F", "I"]` and `ignore = ["E402"]`.
+- Dev dependencies include `mypy`, `pre-commit`, `pytest`, `pytest-cov`, `ruff`, and typing/config support packages.
+- Ruff targets `py39`, excludes cache and virtualenv directories, and lint rules are configured in `pyproject.toml` with `select = ["B", "C4", "E4", "E7", "E9", "F", "I", "N", "SIM", "UP", "W"]` and `ignore = ["E402"]`.
 - Coverage omits `tests/*`.
 - License is MIT.
 
 ```toml
 [build-system]
 requires = ["setuptools>=68"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentskill"
-version = "0.1.0"
+version = "0.8.0"
 requires-python = ">=3.10"
 
 [project.scripts]
-agentskill = "cli:main"
+agentskill = "agentskill.main:main"
 ```
 
 ```toml
@@ -492,13 +482,13 @@ agentskill = "cli:main"
 target-version = "py39"
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I"]
+select = ["B", "C4", "E4", "E7", "E9", "F", "I", "N", "SIM", "UP", "W"]
 ignore = ["E402"]
 ```
 
 ## 15. Red Lines
 
-- Do not put analyzer implementation logic into `cli.py`; keep it as dispatch and orchestration only.
+- Do not put analyzer implementation logic into `agentskill/main.py`; keep it as dispatch and orchestration only.
 - Do not add colocated tests under `scripts/`; tests belong under `tests/`.
 - Do not introduce `Optional[...]`, `List[...]`, or `Dict[...]` annotation style; the repo uses built-in generics and `| None`.
 - Do not switch quote style to single quotes in ordinary Python code.

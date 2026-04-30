@@ -1,11 +1,11 @@
 """Tests for reference question generation."""
 
-from lib.reference_adaptation import (
+from agentskill.lib.reference_adaptation import (
     AdaptedConvention,
     ReferenceAdaptationResult,
     ReferenceSection,
 )
-from lib.reference_questions import (
+from agentskill.lib.reference_questions import (
     QUESTION_CATEGORY_CONFLICT,
     QUESTION_CATEGORY_DIRECTORY_STRUCTURE,
     QUESTION_CATEGORY_FORMATTER,
@@ -15,7 +15,7 @@ from lib.reference_questions import (
     ReferenceQuestion,
     generate_reference_questions,
 )
-from lib.references import ReferenceSource
+from agentskill.lib.references import ReferenceSource
 
 
 def _src(kind: str = "local", value: str = "../ref") -> ReferenceSource:

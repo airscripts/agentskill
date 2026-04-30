@@ -2,8 +2,11 @@
 
 from dataclasses import dataclass
 
-from lib.reference_adaptation import AdaptedConvention, ReferenceAdaptationResult
-from lib.references import ReferenceSource
+from agentskill.lib.reference_adaptation import (
+    AdaptedConvention,
+    ReferenceAdaptationResult,
+)
+from agentskill.lib.references import ReferenceSource
 
 QUESTION_CATEGORY_LANGUAGE = "language"
 QUESTION_CATEGORY_FORMATTER = "formatter"

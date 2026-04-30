@@ -3,15 +3,15 @@
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from time import monotonic
 
-from commands import config as config_command
-from commands import git as git_command
-from commands import graph as graph_command
-from commands import measure as measure_command
-from commands import scan as scan_command
-from commands import symbols as symbols_command
-from commands import tests as tests_command
-from lib.logging_utils import get_logger
-from lib.reference_flow import load_reference_documents
+from agentskill.commands import config as config_command
+from agentskill.commands import git as git_command
+from agentskill.commands import graph as graph_command
+from agentskill.commands import measure as measure_command
+from agentskill.commands import scan as scan_command
+from agentskill.commands import symbols as symbols_command
+from agentskill.commands import tests as tests_command
+from agentskill.lib.logging_utils import get_logger
+from agentskill.lib.reference_flow import load_reference_documents
 
 COMMANDS: dict[str, dict] = {
     "scan": {

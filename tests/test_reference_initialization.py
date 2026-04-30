@@ -2,7 +2,7 @@
 
 import json
 
-from lib.reference_initialization import (
+from agentskill.lib.reference_initialization import (
     AGENTSKILL_VERSION,
     build_reference_metadata,
     initialize_from_references,
@@ -10,7 +10,11 @@ from lib.reference_initialization import (
     render_reference_metadata_block,
     successful_reference_documents,
 )
-from lib.references import ReferenceDocument, ReferenceLoadResult, ReferenceSource
+from agentskill.lib.references import (
+    ReferenceDocument,
+    ReferenceLoadResult,
+    ReferenceSource,
+)
 
 
 def _src(kind: str = "local", value: str = "../ref") -> ReferenceSource:

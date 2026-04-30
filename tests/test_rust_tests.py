@@ -1,7 +1,8 @@
 """Tests for Rust test detection and mapping."""
 
-from commands.tests import analyze_tests
 from test_support import create_repo
+
+from agentskill.commands.tests import analyze_tests
 
 
 class TestRustTestDetection:

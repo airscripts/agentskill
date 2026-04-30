@@ -17,10 +17,10 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from common.constants import should_skip_dir
-from common.fs import read_text, validate_repo
-from common.languages import language_for_extension
-from lib.cli_entrypoint import run_command_main
+from agentskill.common.constants import should_skip_dir
+from agentskill.common.fs import read_text, validate_repo
+from agentskill.common.languages import language_for_extension
+from agentskill.lib.cli_entrypoint import run_command_main
 
 MAX_SMALL_INDENT = 8
 MIN_FILES_FOR_LINE_LENGTH = 5

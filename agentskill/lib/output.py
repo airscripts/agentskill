@@ -3,8 +3,8 @@
 import json
 from pathlib import Path
 
-from lib.logging_utils import configure_logging
-from lib.output_schema import validate_public_output
+from agentskill.lib.logging_utils import configure_logging
+from agentskill.lib.output_schema import validate_public_output
 
 
 def validate_out_path(out: str) -> Path:

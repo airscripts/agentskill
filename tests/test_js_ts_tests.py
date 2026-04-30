@@ -1,7 +1,8 @@
 """Tests for JavaScript and TypeScript test mapping."""
 
-from commands.tests import analyze_tests
 from test_support import create_repo
+
+from agentskill.commands.tests import analyze_tests
 
 
 class TestJsTsTestDetection:

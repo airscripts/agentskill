@@ -1,4 +1,4 @@
-from lib.agents_document import (
+from agentskill.lib.agents_document import (
     AgentsSection,
     add_or_replace_section,
     get_section,
@@ -114,7 +114,7 @@ def test_round_trip_preserves_representative_document():
         "Summary paragraph.\n\n"
         "## Commands\n"
         "```bash\n"
-        "python cli.py analyze repo --pretty\n"
+        "agentskill analyze repo --pretty\n"
         "```\n\n"
         "### Local Notes\n"
         "Do not remove this section.\n"

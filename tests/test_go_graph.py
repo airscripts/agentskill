@@ -1,13 +1,14 @@
 """Tests for Go graph extraction."""
 
-from commands.graph import (
+from test_support import create_repo
+
+from agentskill.commands.graph import (
     _detect_go_module,
     _detect_go_packages,
     _extract_go_imports,
     _strip_go_comments,
     build_graph,
 )
-from test_support import create_repo
 
 
 class TestGoCommentStripping:

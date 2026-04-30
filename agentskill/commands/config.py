@@ -16,9 +16,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from common.fs import validate_repo
-from lib.cli_entrypoint import run_command_main
-from lib.parsers import load_toml_safe, load_yaml_safe
+from agentskill.common.fs import validate_repo
+from agentskill.lib.cli_entrypoint import run_command_main
+from agentskill.lib.parsers import load_toml_safe, load_yaml_safe
 
 MAX_CONFIG_READ_BYTES = 32_000
 

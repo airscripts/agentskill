@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from common.constants import MAX_FILE_BYTES, should_skip_dir
-from common.fs import count_lines, read_text, validate_repo
-from common.walk import walk_repo
+from agentskill.common.constants import MAX_FILE_BYTES, should_skip_dir
+from agentskill.common.fs import count_lines, read_text, validate_repo
+from agentskill.common.walk import walk_repo
 
 
 def test_fs_helpers_handle_existing_and_missing_files(tmp_path):

@@ -100,7 +100,7 @@ Walk the **full** directory tree. Produce an annotated layout showing every sign
 
 ```
 src/
-  cli.py          # entry point — no business logic here
+  main.py         # entry point — no business logic here
   engine.py       # core analysis logic
   exceptions.py   # all custom exceptions live here
 scripts/          # dev and run scripts, not part of the package

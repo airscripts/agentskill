@@ -1,11 +1,12 @@
-from lib.update_feedback import (
+from test_support import create_sample_repo, write
+
+from agentskill.lib.update_feedback import (
     FEEDBACK_FILENAME,
     SectionFeedback,
     UpdateFeedback,
     load_feedback,
     validate_feedback,
 )
-from test_support import create_sample_repo, write
 
 
 def test_load_feedback_returns_empty_when_file_is_missing(tmp_path):

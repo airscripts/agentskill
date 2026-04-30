@@ -1,5 +1,6 @@
-from commands.symbols import _classify, _find_affixes, extract_symbols
 from test_support import create_repo, create_sample_repo
+
+from agentskill.commands.symbols import _classify, _find_affixes, extract_symbols
 
 
 def test_symbols_extracts_python_patterns(tmp_path):

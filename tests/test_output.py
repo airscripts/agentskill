@@ -2,9 +2,9 @@ import json
 import logging
 from pathlib import Path
 
-from lib.logging_utils import LOGGER_NAME, configure_logging, get_logger
-from lib.output import run_and_output, validate_out_path, write_output
-from lib.output_schema import OutputSchemaError
+from agentskill.lib.logging_utils import LOGGER_NAME, configure_logging, get_logger
+from agentskill.lib.output import run_and_output, validate_out_path, write_output
+from agentskill.lib.output_schema import OutputSchemaError
 
 
 def test_write_output_prints_and_writes_file(tmp_path, capsys, monkeypatch):

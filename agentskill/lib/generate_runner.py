@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from common.fs import validate_repo
-from lib.interactive_runner import (
+from agentskill.common.fs import validate_repo
+from agentskill.lib.interactive_runner import (
     PromptIO,
     StdinPromptIO,
     apply_interactive_notes,
@@ -11,17 +11,21 @@ from lib.interactive_runner import (
     detect_generation_gaps,
     interactive_section_notes,
 )
-from lib.logging_utils import get_logger
-from lib.output import validate_out_path
-from lib.reference_flow import load_reference_documents
-from lib.reference_initialization import (
+from agentskill.lib.logging_utils import get_logger
+from agentskill.lib.output import validate_out_path
+from agentskill.lib.reference_flow import load_reference_documents
+from agentskill.lib.reference_initialization import (
     initialize_from_references,
     render_reference_metadata_block,
 )
-from lib.runner import run_all
-from lib.update_feedback import load_feedback
-from lib.update_merge import merge_agents_document
-from lib.update_runner import DOCUMENT_TITLE, SECTION_ORDER, render_agents_sections
+from agentskill.lib.runner import run_all
+from agentskill.lib.update_feedback import load_feedback
+from agentskill.lib.update_merge import merge_agents_document
+from agentskill.lib.update_runner import (
+    DOCUMENT_TITLE,
+    SECTION_ORDER,
+    render_agents_sections,
+)
 
 
 def _inject_reference_metadata(markdown: str, metadata_block: str) -> str:

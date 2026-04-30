@@ -1,5 +1,5 @@
-from lib.agents_document import build_section
-from lib.update_merge import MergeResult, merge_agents_document
+from agentskill.lib.agents_document import build_section
+from agentskill.lib.update_merge import MergeResult, merge_agents_document
 
 
 def test_merge_replaces_one_existing_section():

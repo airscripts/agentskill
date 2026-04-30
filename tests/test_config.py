@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from commands.config import (
+from test_support import create_repo, create_sample_repo
+
+from agentskill.commands.config import (
     MAX_CONFIG_READ_BYTES,
     _detect_python_linter,
     _detect_python_type_checker,
@@ -12,8 +14,7 @@ from commands.config import (
     _read,
     detect,
 )
-from lib.parsers import load_toml_safe, load_yaml_safe
-from test_support import create_repo, create_sample_repo
+from agentskill.lib.parsers import load_toml_safe, load_yaml_safe
 
 
 def test_config_detects_python_tooling(tmp_path):
@@ -318,7 +319,7 @@ def test_config_load_toml_safe_normalizes_non_dict_output():
 
 
 def test_config_load_toml_safe_returns_empty_on_unavailable(monkeypatch):
-    import lib.parsers as parsers_mod
+    import agentskill.lib.parsers as parsers_mod
 
     monkeypatch.setattr(parsers_mod, "_toml_module", None)
     monkeypatch.setattr(parsers_mod, "_toml_checked", False)
@@ -348,7 +349,7 @@ def test_config_load_yaml_safe_normalizes_non_dict_output():
 
 
 def test_config_load_yaml_safe_returns_empty_on_unavailable(monkeypatch):
-    import lib.parsers as parsers_mod
+    import agentskill.lib.parsers as parsers_mod
 
     monkeypatch.setattr(parsers_mod, "_yaml_module", None)
     monkeypatch.setattr(parsers_mod, "_yaml_checked", False)

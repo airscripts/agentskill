@@ -1,11 +1,11 @@
 """Tests for reference adaptation engine."""
 
-from lib.reference_adaptation import (
+from agentskill.lib.reference_adaptation import (
     adapt_reference,
     adapt_references,
     split_markdown_sections,
 )
-from lib.references import ReferenceDocument, ReferenceSource
+from agentskill.lib.references import ReferenceDocument, ReferenceSource
 
 
 def test_split_markdown_sections_splits_on_headings():

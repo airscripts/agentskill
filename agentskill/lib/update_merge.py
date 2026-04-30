@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from lib.agents_document import (
+from agentskill.lib.agents_document import (
     AgentsDocument,
     AgentsSection,
     add_or_replace_section,

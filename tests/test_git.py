@@ -1,7 +1,9 @@
 import subprocess
 
-from commands import git as git_command
-from commands.git import (
+from test_support import create_sample_repo, git, init_git_repo, make_commit
+
+from agentskill.commands import git as git_command
+from agentskill.commands.git import (
     _analyze_bodies,
     _analyze_branches,
     _analyze_subjects,
@@ -10,8 +12,7 @@ from commands.git import (
     _run,
     analyze,
 )
-from lib.logging_utils import get_logger
-from test_support import create_sample_repo, git, init_git_repo, make_commit
+from agentskill.lib.logging_utils import get_logger
 
 
 def test_git_reports_empty_repository(tmp_path):

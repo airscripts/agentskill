@@ -1,12 +1,13 @@
 from pathlib import Path
 
-from commands.config import detect
-from commands.graph import build_graph
-from commands.measure import measure
-from commands.scan import scan
-from commands.symbols import extract_symbols
-from commands.tests import analyze_tests
 from test_support import EXAMPLES_DIR
+
+from agentskill.commands.config import detect
+from agentskill.commands.graph import build_graph
+from agentskill.commands.measure import measure
+from agentskill.commands.scan import scan
+from agentskill.commands.symbols import extract_symbols
+from agentskill.commands.tests import analyze_tests
 
 SUPPORTED_EXAMPLE_DIRS = {
     "python",

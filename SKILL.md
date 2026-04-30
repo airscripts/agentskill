@@ -2,6 +2,7 @@
 name: agentskill
 description: Analyze a code repository and synthesize an AGENTS.md.
 ---
+
 # SKILL.md — agentskill
 
 > **Operational spec for agentskill.**
@@ -42,6 +43,7 @@ Do **not** invoke this skill for general code review, refactoring, or style advi
 | `examples/`              | Reference `AGENTS.md` files; consult when handling an unfamiliar repo shape            |
 
 > **Maintenance rule:** If SYSTEM.md and SKILL.md ever contradict each other, SYSTEM.md wins. Fix SKILL.md to match.
+
 > **Availability rule:** If this skill was downloaded from ClawHub, or if `examples/` is unavailable locally, do not consult `examples/`; skip it to avoid execution errors.
 
 ---
@@ -152,11 +154,11 @@ Read the relevant file in [`examples/`](./examples/) if you are handling an unfa
 
 If this skill was downloaded from ClawHub, or if `examples/` is unavailable locally, skip this step to avoid execution errors.
 
-| Scenario                        | File to consult                  |
-| ------------------------------- | -------------------------------- |
-| Standard single-language repo   | `examples/SINGLE_LANGUAGE.md`    |
-| Monorepo with multiple services | `examples/MONOREPO.md`           |
-| Multi-language single repo      | `examples/MULTI_LANGUAGE.md`     |
+| Scenario                        | File to consult               |
+| ------------------------------- | ----------------------------- |
+| Standard single-language repo   | `examples/SINGLE_LANGUAGE.md` |
+| Monorepo with multiple services | `examples/MONOREPO.md`        |
+| Multi-language single repo      | `examples/MULTI_LANGUAGE.md`  |
 
 > **If no relevant example exists:** Proceed without one. Do not consult an example from a different repo shape — it will introduce structural assumptions that don't apply.
 
@@ -245,7 +247,7 @@ The scripts handle exactly and only what an LLM cannot do reliably from reading 
 | `git.py`     | Commit log and branch history require `git log` access; source files alone do not reveal prefix conventions or merge strategy               |
 | `graph.py`   | Import graph cycle detection and monorepo boundary identification require traversing all files simultaneously, not reading them one by one  |
 | `symbols.py` | Codebase-specific affix detection requires counting patterns across every identifier in the repo — impractical to do by reading samples     |
-| `tests.py`   | Test-to-source mapping and framework detection require walking the full file tree; sampling misses coverage gaps and naming inconsistencies  |
+| `tests.py`   | Test-to-source mapping and framework detection require walking the full file tree; sampling misses coverage gaps and naming inconsistencies |
 
 Everything else — error handling patterns, comment style, docstring format, architectural rules — comes from reading source files directly. Do not run scripts for things you can read.
 
@@ -279,7 +281,7 @@ python scripts/symbols.py <repo>
 python scripts/tests.py <repo>
 
 # Run all seven in parallel and merge output
-python cli.py analyze <repo> --pretty
+agentskill analyze <repo> --pretty
 ```
 
 All scripts output JSON to stdout. Pass `--pretty` for human-readable output. Pass `--out <file>` to write to disk.
