@@ -17,5 +17,5 @@ jobs:
 
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e '.[dev]'
-      - run: python cli.py --help
+      - run: python -m agentskill.main --help
       - run: agentskill --help
