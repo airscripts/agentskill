@@ -1,5 +1,6 @@
 """Direct AGENTS.md generation workflow without merge/update semantics."""
 
+import sys
 from pathlib import Path
 
 from agentskill.common.fs import validate_repo
@@ -11,7 +12,6 @@ from agentskill.lib.interactive_runner import (
     detect_generation_gaps,
     interactive_section_notes,
 )
-from agentskill.lib.logging_utils import get_logger
 from agentskill.lib.output import validate_out_path
 from agentskill.lib.reference_flow import load_reference_documents
 from agentskill.lib.reference_initialization import (
@@ -84,8 +84,6 @@ def generate_agents(
     interactive: bool = False,
     prompt_io: PromptIO | None = None,
 ) -> int:
-    logger = get_logger()
-
     try:
         repo_path = validate_repo(repo)
         markdown = render_agents_markdown(
@@ -102,7 +100,7 @@ def generate_agents(
         else:
             print(markdown, end="")
     except Exception as exc:
-        logger.error("Generate failed for repo %s: %s", repo, exc)
+        print(f"Generate failed for repo {repo}: {exc}", file=sys.stderr)
         return 1
 
     return 0

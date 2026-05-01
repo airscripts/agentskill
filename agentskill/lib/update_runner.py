@@ -1,5 +1,6 @@
 """Internal workflow for updating AGENTS.md from current analyzer output."""
 
+import sys
 from collections import Counter
 from pathlib import Path
 
@@ -9,7 +10,6 @@ from agentskill.lib.agents_document import (
     build_section,
     normalize_section_name,
 )
-from agentskill.lib.logging_utils import get_logger
 from agentskill.lib.output import validate_out_path
 from agentskill.lib.runner import run_all
 from agentskill.lib.update_feedback import (
@@ -514,8 +514,6 @@ def update_agents(
     out: str | None = None,
 ) -> int:
     """Update or create AGENTS.md for a repository."""
-    logger = get_logger()
-
     try:
         repo_path = validate_repo(repo)
         analysis = run_all(str(repo_path))
@@ -544,7 +542,7 @@ def update_agents(
         target_path.parent.mkdir(parents=True, exist_ok=True)
         target_path.write_text(merged.text)
     except Exception as exc:
-        logger.error("Update failed for repo %s: %s", repo, exc)
+        print(f"Update failed for repo {repo}: {exc}", file=sys.stderr)
         return 1
 
     return 0
