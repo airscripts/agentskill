@@ -1,4 +1,8 @@
 {
+  "prettier": {
+    "semi": true,
+    "singleQuote": false
+  },
   "scripts": {
     "test": "jest"
   },

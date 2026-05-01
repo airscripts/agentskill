@@ -180,6 +180,23 @@ def test_config_detects_typescript_go_and_rust_tooling(tmp_path):
     assert result["rust"]["linter"]["name"] == "clippy"
 
 
+def test_config_keeps_javascript_only_repos_under_javascript_key(tmp_path):
+    repo = create_repo(
+        tmp_path,
+        {
+            "package.json": '{"prettier":{"semi":true}}\n',
+            "src/index.js": "export const answer = 42;\n",
+            "src/index.test.js": "test('answer', () => expect(42).toBe(42));\n",
+        },
+    )
+
+    result = detect(str(repo))
+
+    assert "javascript" in result
+    assert "typescript" not in result
+    assert result["javascript"]["formatter"]["name"] == "prettier"
+
+
 def test_config_detects_java_and_kotlin_project_markers(tmp_path):
     repo = create_repo(
         tmp_path,

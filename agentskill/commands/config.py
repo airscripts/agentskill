@@ -606,6 +606,10 @@ def _attach_editorconfig(lang_result: dict, ec_sections: dict, lang: str) -> Non
         lang_result["editorconfig"] = ec
 
 
+def _has_matching_files(repo: Path, patterns: tuple[str, ...]) -> bool:
+    return any(next(repo.rglob(pattern), None) is not None for pattern in patterns)
+
+
 def detect(repo_path: str) -> dict:
     try:
         repo = validate_repo(repo_path)
@@ -632,10 +636,30 @@ def detect(repo_path: str) -> dict:
         result["python"] = py
 
     ts = _detect_typescript(repo)
+    has_typescript = (
+        _has_matching_files(repo, ("*.ts", "*.tsx"))
+        or (repo / "tsconfig.json").exists()
+    )
 
-    if ts:
-        _attach_editorconfig(ts, ec_sections, "typescript")
-        result["typescript"] = ts
+    has_javascript = (
+        _has_matching_files(repo, ("*.js", "*.jsx", "*.mjs", "*.cjs"))
+        or (repo / "jsconfig.json").exists()
+    )
+
+    if ts and has_typescript:
+        typescript = dict(ts)
+        _attach_editorconfig(typescript, ec_sections, "typescript")
+        result["typescript"] = typescript
+
+    if ts and has_javascript:
+        javascript = dict(ts)
+        _attach_editorconfig(javascript, ec_sections, "javascript")
+        result["javascript"] = javascript
+
+    if ts and not has_typescript and not has_javascript:
+        typescript = dict(ts)
+        _attach_editorconfig(typescript, ec_sections, "typescript")
+        result["typescript"] = typescript
 
     go = _detect_go(repo)
 
