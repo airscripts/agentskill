@@ -38,6 +38,11 @@ pip install agsk
 
 This installs the `agentskill` CLI command.
 
+Published package is available at:
+
+- PyPI: <https://pypi.org/project/agsk>
+- ClawHub: <https://clawhub.ai/airscripts/agentskill>
+
 For local development:
 
 ```bash
@@ -48,6 +53,41 @@ To enable the commit-time checks after installing the dev environment:
 
 ```bash
 pre-commit install
+```
+
+### For Agents
+
+This repository is also distributed as a standard skill with a repo-root
+`SKILL.md`. Harnesses that support skill installation from a filesystem path,
+git repository, or marketplace entry should install it as a normal skill and
+use `SKILL.md` as the entrypoint document.
+
+Generic install guidance for skill-aware harnesses:
+
+- If the harness installs skills from a local path, point it at the repository
+  root so it can read `SKILL.md`, `SYSTEM.md`, `references/`, and `examples/`.
+- If the harness installs skills from a git repository, use this repository URL
+  and keep the repo-root `SKILL.md` as the skill manifest.
+- If the harness installs skills from a marketplace, use the ClawHub entry:
+  <https://clawhub.ai/airscripts/agentskill>.
+- If the harness only needs the CLI and not the skill manifest, install the
+  PyPI package instead: <https://pypi.org/project/agsk>.
+
+Expected skill layout:
+
+```text
+SKILL.md            # skill entrypoint and workflow
+SYSTEM.md           # generation/synthesis behavioral spec
+references/         # gotchas and supporting guidance
+examples/           # fixture repos and reference shapes
+```
+
+After a harness installs the skill, the usual operator-facing commands remain:
+
+```bash
+agentskill analyze <repo> --pretty
+agentskill generate <repo>
+agentskill update <repo>
 ```
 
 ---
