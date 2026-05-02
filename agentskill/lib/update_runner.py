@@ -1,8 +1,14 @@
 """Internal workflow for updating AGENTS.md from current analyzer output."""
 
+import re
 import sys
 from collections import Counter
 from pathlib import Path
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from agentskill.common.fs import read_text, validate_repo
 from agentskill.lib.agents_document import (
@@ -72,6 +78,44 @@ def _format_languages(scan: dict) -> str:
     return ", ".join(languages[:-1]) + f", and {languages[-1]}"
 
 
+def _code_block(snippet: str, lang: str = "python") -> str:
+    return f"```{lang}\n{snippet.rstrip()}\n```"
+
+
+def _read_pyproject(repo: Path) -> dict:
+    pyproject = repo / "pyproject.toml"
+
+    if not pyproject.exists():
+        return {}
+
+    try:
+        with pyproject.open("rb") as file_obj:
+            return tomllib.load(file_obj)
+    except Exception:
+        return {}
+
+
+def _readme_summary(repo: Path) -> str | None:
+    readme = repo / "README.md"
+    content = read_text(readme, None)
+
+    if not content:
+        return None
+
+    paragraphs = [chunk.strip() for chunk in content.split("\n\n")]
+
+    for paragraph in paragraphs:
+        if not paragraph or paragraph.startswith("#") or paragraph.startswith("---"):
+            continue
+
+        if paragraph.startswith("```") or paragraph.startswith("|"):
+            continue
+
+        return " ".join(paragraph.splitlines()).strip()
+
+    return None
+
+
 def _top_level_layout(scan: dict) -> list[str]:
     tree = scan.get("tree", [])
     grouped: dict[str, list[str]] = {}
@@ -100,7 +144,7 @@ def _python_commands(config: dict, tests: dict) -> list[str]:
     python_tests = tests.get("python", {})
     run_command = python_tests.get("run_command")
 
-    if run_command:
+    if run_command and run_command != "unknown":
         commands.append(run_command)
 
     python_config = config.get("python", {})
@@ -124,11 +168,29 @@ def _render_overview(repo: Path, analysis: dict) -> str:
     languages = _format_languages(scan)
     architecture = "monorepo" if boundaries.get("detected") else "single repository"
 
-    return (
-        f"{repo.name} is a {architecture} codebase analyzed by agentskill. "
-        f"The primary language set detected here is {languages}, and the current "
-        "AGENTS.md update flow is driven from analyzer output rather than manual editing.\n"
+    readme_summary = _readme_summary(repo)
+    pyproject = _read_pyproject(repo)
+    project = pyproject.get("project", {})
+    scripts = project.get("scripts", {})
+    cli_names = ", ".join(sorted(scripts)) if isinstance(scripts, dict) else ""
+
+    parts = []
+
+    if readme_summary:
+        parts.append(readme_summary)
+    else:
+        parts.append(
+            f"{repo.name} is a {architecture} codebase analyzed by agentskill."
+        )
+
+    if cli_names:
+        parts.append(f"The packaged CLI surface is exposed through `{cli_names}`.")
+
+    parts.append(
+        f"The primary language set detected here is {languages}, and the codebase is organized as a {architecture} with analyzer-driven markdown generation."
     )
+
+    return " ".join(parts) + "\n"
 
 
 def _render_repository_structure(analysis: dict) -> str:
@@ -141,9 +203,21 @@ def _render_repository_structure(analysis: dict) -> str:
         "",
     ]
 
-    if "tests/" in "\n".join(lines):
+    line_text = "\n".join(lines)
+
+    if "tests/" in line_text:
         body.append(
             "- Keep tests under `tests/`; this repo separates tests from source."
+        )
+
+    if "scripts/" in line_text:
+        body.append(
+            "- Keep direct-execution wrappers under `scripts/`; use the packaged runtime for reusable logic."
+        )
+
+    if "examples/" in line_text:
+        body.append(
+            "- Keep example or fixture repositories under `examples/`; do not mix them into runtime packages."
         )
 
     source_roots = [
@@ -200,10 +274,17 @@ def _render_commands_and_workflows(analysis: dict) -> str:
         analysis.get("config", {}),
         analysis.get("tests", {}),
     )
-    return "```bash\n" + "\n".join(commands) + "\n```\n"
+
+    return (
+        "```bash\n"
+        + "\n".join(commands)
+        + "\n```\n\n"
+        + "- Use the editable install plus the full `ruff`/`mypy`/`pytest` stack as the canonical local verification path.\n"
+        + "- Treat the installed CLI as the primary runtime surface; keep direct wrapper scripts as thin operator entrypoints when they exist.\n"
+    )
 
 
-def _render_code_formatting(analysis: dict) -> str:
+def _render_code_formatting(repo: Path, analysis: dict) -> str:
     python_metrics = analysis.get("measure", {}).get("python", {})
 
     if not python_metrics:
@@ -211,20 +292,24 @@ def _render_code_formatting(analysis: dict) -> str:
 
     indentation = python_metrics.get("indentation", {})
     line_length = python_metrics.get("line_length", {})
-    blank_lines = python_metrics.get("blank_lines", {})
 
-    return (
+    parts = [
         "### Python\n\n"
-        f"- Indentation: `{indentation.get('size', 0)}` "
-        f"{indentation.get('unit', 'unknown')}\n"
-        f"- Line length: observed p95 is `{line_length.get('p95', 0)}`\n"
-        f"- Blank lines after imports: mode `{blank_lines.get('after_imports', {}).get('mode', 0)}`\n"
-        f"- Trailing newline: present in `{python_metrics.get('trailing_newline', {}).get('present', 0)}` files\n"
-        f"- Trailing whitespace: present in `{python_metrics.get('trailing_whitespace', {}).get('files_with_trailing_ws', 0)}` files\n"
-    )
+        f"- Indent with `{indentation.get('size', 0)}` {indentation.get('unit', 'unknown')}; Python files in the scan do not rely on tab-indented blocks.\n"
+        f"- Keep ordinary lines around the measured p95 of `{line_length.get('p95', 0)}` and preserve the repo's one-blank-line import-to-constant / two-blank-lines top-level rhythm.\n"
+        f"- Leave trailing whitespace stripped and keep a final trailing newline in generated files.\n"
+        f"- Follow hanging-indented multiline calls and literals rather than backslash continuations.\n"
+    ]
+
+    multiline = _multiline_call_snippet(repo, analysis)
+
+    if multiline:
+        parts.append("\n" + _code_block(multiline) + "\n")
+
+    return "".join(parts)
 
 
-def _render_naming_conventions(analysis: dict) -> str:
+def _render_naming_conventions(repo: Path, analysis: dict) -> str:
     symbols = analysis.get("symbols", {}).get("python", {})
     function_patterns = ", ".join(
         sorted(symbols.get("functions", {}).get("patterns", {}))
@@ -235,13 +320,32 @@ def _render_naming_conventions(analysis: dict) -> str:
         sorted(symbols.get("constants", {}).get("patterns", {}))
     )
 
-    return (
-        "### Python\n\n"
-        f"- Functions: `{function_patterns or 'unknown'}`\n"
-        f"- Classes: `{class_patterns or 'unknown'}`\n"
-        f"- Constants: `{constant_patterns or 'unknown'}`\n"
-        "- Match existing file names and test names rather than introducing a new naming scheme.\n"
+    function_name = _first_python_name(repo, analysis, r"^def ([a-zA-Z0-9_]+)\(")
+    class_name = _first_python_name(repo, analysis, r"^class ([A-Za-z0-9_]+)")
+
+    constant_name = _first_python_name(repo, analysis, r"^([A-Z][A-Z0-9_]+)\s*=")
+    test_file = next(
+        (
+            entry.get("path", "")
+            for entry in analysis.get("scan", {}).get("tree", [])
+            if entry.get("path", "").startswith("tests/test_")
+        ),
+        "",
     )
+
+    constant_snippet = _constant_snippet(repo, analysis)
+    body = (
+        "### Python\n\n"
+        f"- Keep public helpers and command functions in snake_case; representative names include `{function_name or 'analyze'}` and the observed pattern set `{function_patterns or 'unknown'}`.\n"
+        f"- Use PascalCase for classes when they appear; representative class names follow patterns like `{class_name or 'ReferenceDocument'}` and `{class_patterns or 'PascalCase'}`.\n"
+        f"- Keep module constants in SCREAMING_SNAKE_CASE; representative names include `{constant_name or 'GIT_TIMEOUT'}` and the observed constant pattern set `{constant_patterns or 'unknown'}`.\n"
+        f"- Name test modules as `test_<subject>.py`; representative paths look like `{test_file or 'tests/test_cli.py'}`.\n"
+    )
+
+    if constant_snippet:
+        body += "\n" + _code_block(constant_snippet) + "\n"
+
+    return body
 
 
 def _python_source_paths(scan: dict) -> list[str]:
@@ -263,6 +367,150 @@ def _python_read_order(scan: dict) -> list[str]:
             ordered.append(path)
 
     return ordered
+
+
+def _first_python_line(repo: Path, analysis: dict, pattern: str) -> str | None:
+    needle = re.compile(pattern)
+
+    for rel_path in _python_read_order(analysis.get("scan", {})):
+        content = read_text(repo / rel_path)
+
+        for line in content.splitlines():
+            if needle.search(line):
+                return line.strip()
+
+    return None
+
+
+def _first_python_name(repo: Path, analysis: dict, pattern: str) -> str | None:
+    needle = re.compile(pattern)
+
+    for rel_path in _python_read_order(analysis.get("scan", {})):
+        content = read_text(repo / rel_path)
+
+        for line in content.splitlines():
+            match = needle.search(line.strip())
+
+            if match is not None:
+                return match.group(1)
+
+    return None
+
+
+def _module_docstring_snippet(repo: Path, analysis: dict) -> str | None:
+    def matcher(lines: list[str]) -> str | None:
+        for index, line in enumerate(lines[:10]):
+            if line.strip().startswith('"""'):
+                end = min(len(lines), index + 3)
+                return _trim_snippet(lines[index:end])
+
+        return None
+
+    return _first_python_snippet(repo, analysis, matcher)
+
+
+def _inline_comment_snippet(repo: Path, analysis: dict) -> str | None:
+    def matcher(lines: list[str]) -> str | None:
+        for index, line in enumerate(lines):
+            if " #" not in line or line.lstrip().startswith("#"):
+                continue
+
+            return _function_snippet(lines, index)
+
+        return None
+
+    return _first_python_snippet(repo, analysis, matcher)
+
+
+def _multiline_call_snippet(repo: Path, analysis: dict) -> str | None:
+    def matcher(lines: list[str]) -> str | None:
+        for index, line in enumerate(lines):
+            if not line.rstrip().endswith("("):
+                continue
+
+            snippet = _function_snippet(lines, index)
+
+            if "\n" in snippet and ")" in snippet:
+                return snippet
+
+        return None
+
+    return _first_python_snippet(repo, analysis, matcher)
+
+
+def _typed_signature_snippet(repo: Path, analysis: dict) -> str | None:
+    def matcher(lines: list[str]) -> str | None:
+        for index, line in enumerate(lines):
+            stripped = line.strip()
+
+            if stripped.startswith("def ") and "->" in stripped:
+                return _function_snippet(lines, index)
+
+        return None
+
+    return _first_python_snippet(repo, analysis, matcher)
+
+
+def _class_snippet(repo: Path, analysis: dict) -> str | None:
+    def matcher(lines: list[str]) -> str | None:
+        for index, line in enumerate(lines):
+            if line.strip().startswith("class "):
+                return _trim_snippet(lines[index : min(len(lines), index + 6)])
+
+        return None
+
+    return _first_python_snippet(repo, analysis, matcher)
+
+
+def _constant_snippet(repo: Path, analysis: dict) -> str | None:
+    def matcher(lines: list[str]) -> str | None:
+        block: list[str] = []
+
+        for line in lines:
+            stripped = line.strip()
+
+            if not stripped or stripped.startswith("#"):
+                if block:
+                    break
+                continue
+
+            if re.match(r"^[A-Z][A-Z0-9_]+\s*=", stripped):
+                block.append(stripped)
+                continue
+
+            if block:
+                break
+
+        return "\n".join(block) if block else None
+
+    return _first_python_snippet(repo, analysis, matcher)
+
+
+def _representative_test_snippet(repo: Path, analysis: dict) -> str | None:
+    tests = analysis.get("tests", {}).get("python", {})
+    rel_path = tests.get("representative_test")
+
+    if not isinstance(rel_path, str) or not rel_path:
+        return None
+
+    content = read_text(repo / rel_path)
+
+    if not content:
+        return None
+
+    lines = content.splitlines()
+    start = None
+
+    for index, line in enumerate(lines):
+        if line.strip().startswith("def test_"):
+            start = index
+            break
+
+    if start is None:
+        return _trim_snippet(lines[: min(len(lines), 12)])
+
+    end = min(len(lines), start + 8)
+    return _trim_snippet(lines[start:end])
 
 
 def _render_type_annotations(repo: Path, analysis: dict) -> str:
@@ -288,12 +536,19 @@ def _render_type_annotations(repo: Path, analysis: dict) -> str:
     config = analysis.get("config", {}).get("python", {})
     type_checker = config.get("type_checker", {}).get("name")
 
-    return (
+    body = (
         "### Python\n\n"
-        f"- Annotated function signatures detected: `{annotated}` of `{total_defs}` observed definitions.\n"
-        f"- Type checker: `{type_checker or 'not detected'}`.\n"
-        "- Match the local annotation density instead of introducing stricter typing patterns automatically.\n"
+        f"- Annotate most public and internal helpers directly in the function signature; the current scan found `{annotated}` annotated definitions out of `{total_defs}` observed `def` lines.\n"
+        "- Prefer built-in generics like `list[str]` and union syntax like `str | None` instead of legacy `typing.List` or `Optional` spellings.\n"
+        f"- Treat `{type_checker or 'the configured type checker'}` as part of the normal contract when it is present in repo config.\n"
     )
+
+    typed_signature = _typed_signature_snippet(repo, analysis)
+
+    if typed_signature:
+        body += "\n" + _code_block(typed_signature) + "\n"
+
+    return body
 
 
 def _first_import_block(repo: Path, analysis: dict) -> str:
@@ -329,7 +584,14 @@ def _render_imports(repo: Path, analysis: dict) -> str:
     if not block:
         return "No representative import block was found in the scanned files.\n"
 
-    return "```python\n" + block + "\n```\n"
+    return (
+        "### Python\n\n"
+        "- Keep imports one-per-line and separate major groups with a blank line.\n"
+        "- In runtime modules, stdlib imports come first and local package imports follow.\n"
+        "- In tests, local test helpers may appear before packaged runtime imports when that matches the file's setup style.\n\n"
+        + _code_block(block)
+        + "\n"
+    )
 
 
 def _indentation(line: str) -> int:
@@ -539,27 +801,43 @@ def _render_comments_and_docstrings(repo: Path, analysis: dict) -> str:
             if line.strip().startswith("#"):
                 comments += 1
 
-    return (
+    body = (
         "### Python\n\n"
-        f"- Triple-quoted docstring markers observed: `{docstrings}`\n"
-        f"- Line comments observed: `{comments}`\n"
-        "- Keep comments sparse and prefer short docstrings when the file already uses them.\n"
+        f"- Module docstrings are common in runtime files; the scan saw `{docstrings}` triple-quoted docstring markers across representative Python files.\n"
+        f"- Keep inline comments sparse and use them to clarify a non-obvious detail rather than narrating obvious code; the scan saw `{comments}` comment lines in the representative pass.\n"
+        "- Prefer short, declarative docstrings and brief targeted inline comments when the code would otherwise be ambiguous.\n"
     )
 
+    module_docstring = _module_docstring_snippet(repo, analysis)
+    inline_comment = _inline_comment_snippet(repo, analysis)
 
-def _render_testing(analysis: dict) -> str:
+    if module_docstring:
+        body += "\n" + _code_block(module_docstring) + "\n"
+
+    if inline_comment:
+        body += "\n" + _code_block(inline_comment) + "\n"
+
+    return body
+
+
+def _render_testing(repo: Path, analysis: dict) -> str:
     python_tests = analysis.get("tests", {}).get("python", {})
     coverage = python_tests.get("coverage_shape", {})
     fixtures = python_tests.get("fixtures", {})
+    test_snippet = _representative_test_snippet(repo, analysis)
 
-    return (
+    body = (
         "### Python\n\n"
-        f"- Framework: `{python_tests.get('framework', 'unknown')}`\n"
-        f"- Run command: `{python_tests.get('run_command', 'unknown')}`\n"
-        f"- Test file pattern: `{python_tests.get('naming', {}).get('file_pattern', 'unknown')}`\n"
-        f"- Fixtures detected: `{', '.join(fixtures.get('fixture_names', [])) or 'none'}`\n"
-        f"- Untested source files: `{len(coverage.get('untested_source_files', []))}`\n"
+        f"- Use `{python_tests.get('framework', 'unknown')}` as the primary Python test framework and `{python_tests.get('run_command', 'unknown')}` as the full-suite command.\n"
+        f"- Keep Python tests under the detected pattern `{python_tests.get('naming', {}).get('file_pattern', 'unknown')}` and follow function names like `{python_tests.get('naming', {}).get('function_pattern', 'test_<description>')}`.\n"
+        f"- Reuse shared test bootstrap from `{', '.join(fixtures.get('conftest_locations', [])) or 'tests/conftest.py'}` when present.\n"
+        f"- The current source-to-test mapping leaves `{len(coverage.get('untested_source_files', []))}` Python source files without a matched test file, so new source files should usually arrive with an adjacent or mirrored test.\n"
     )
+
+    if test_snippet:
+        body += "\n" + _code_block(test_snippet) + "\n"
+
+    return body
 
 
 def _render_git(analysis: dict) -> str:
@@ -573,13 +851,24 @@ def _render_git(analysis: dict) -> str:
     prefix_names = ", ".join(sorted(prefixes)) or "unknown"
     merge_strategy = git.get("merge_strategy", {}).get("detected", "unknown")
 
+    examples = [
+        f"`{name}:` for commits like `{info.get('example', '')}`"
+        for name, info in list(prefixes.items())[:5]
+    ]
+
+    branch_example = git.get("branches", {}).get("naming_example")
     return (
-        f"- Commit prefixes observed: `{prefix_names}`.\n"
-        f"- Merge strategy: `{merge_strategy}`.\n"
+        f"- Commit subjects follow conventional prefixes such as `{prefix_names}`; representative examples include {', '.join(examples)}.\n"
+        f"- The observed merge strategy is `{merge_strategy}`.\n"
+        + (
+            f"- Branch names use slash-separated prefixes with examples like `{branch_example}`.\n"
+            if branch_example
+            else ""
+        )
     )
 
 
-def _render_dependencies_and_tooling(analysis: dict) -> str:
+def _render_dependencies_and_tooling(repo: Path, analysis: dict) -> str:
     config = analysis.get("config", {})
     tools: list[str] = []
 
@@ -595,19 +884,59 @@ def _render_dependencies_and_tooling(analysis: dict) -> str:
 
     counts = Counter(tools)
     tool_list = ", ".join(sorted(counts)) or "none detected"
+    pyproject = _read_pyproject(repo)
+    project = pyproject.get("project", {})
+    requires_python = project.get("requires-python", "unknown")
+    package_name = project.get("name", repo.name)
+    scripts = project.get("scripts", {})
+    script_names = ", ".join(sorted(scripts)) if isinstance(scripts, dict) else ""
 
-    return f"- Tooling detected from config: `{tool_list}`.\n"
+    return (
+        "### Python\n\n"
+        f"- Package metadata lives in `pyproject.toml`; the current project name is `{package_name}` and the declared Python floor is `{requires_python}`.\n"
+        + (
+            f"- Published console scripts include `{script_names}`.\n"
+            if script_names
+            else ""
+        )
+        + f"- Tooling detected from repo config includes `{tool_list}`.\n"
+    )
 
 
-def _render_red_lines(analysis: dict) -> str:
+def _render_red_lines(repo: Path, analysis: dict) -> str:
     scan = analysis.get("scan", {})
     roots = ", ".join(
         sorted({path.split("/", 1)[0] for path in scan.get("read_order", [])})
     )
 
+    commands = _python_commands(
+        analysis.get("config", {}),
+        analysis.get("tests", {}),
+    )
+
+    package_name = next(
+        (
+            root
+            for root in sorted(
+                {path.split("/", 1)[0] for path in scan.get("read_order", [])}
+            )
+            if root not in {"tests", "scripts", "examples"}
+        ),
+        "src",
+    )
+
     return (
-        "- Do not invent new top-level layout patterns when the scan already shows established roots.\n"
-        f"- Keep changes aligned with existing areas such as `{roots or 'the detected source tree'}`.\n"
+        f"- Do not invent new top-level layout patterns when the scan already shows established roots such as `{roots or 'the detected source tree'}`.\n"
+        f"- Do not move reusable runtime logic out of `{package_name}` into thin wrapper locations like `scripts/`.\n"
+        "- Do not colocate new tests beside source modules when the repo already maintains a separate `tests/` tree.\n"
+        "- Do not replace built-in generics and `| None` unions with older `typing.List` / `Optional` spellings in annotated Python code.\n"
+        "- Do not switch import grouping to a flat unsplit block when runtime modules already separate stdlib and local imports.\n"
+        "- Do not introduce broad formatting drift such as tabs in Python, missing trailing newlines, or backslash-heavy continuation style.\n"
+        "- Do not convert structured error payload boundaries into uncaught CLI exceptions when the repo already normalizes them at command boundaries.\n"
+        "- Do not replace the documented verification stack with ad hoc commands; keep local checks aligned with `"
+        + ", ".join(commands)
+        + "`.\n"
+        "- Do not treat example or fixture repositories as runtime code when `examples/` is present as a separate root.\n"
         "- Do not assume missing analyzer signals imply permission to rewrite local conventions.\n"
     )
 
@@ -641,16 +970,16 @@ def render_agents_sections(
         "service map": _render_service_map(analysis),
         "cross-service boundaries": _render_cross_service_boundaries(analysis),
         "commands and workflows": _render_commands_and_workflows(analysis),
-        "code formatting": _render_code_formatting(analysis),
-        "naming conventions": _render_naming_conventions(analysis),
+        "code formatting": _render_code_formatting(repo, analysis),
+        "naming conventions": _render_naming_conventions(repo, analysis),
         "type annotations": _render_type_annotations(repo, analysis),
         "imports": _render_imports(repo, analysis),
         "error handling": _render_error_handling(repo, analysis),
         "comments and docstrings": _render_comments_and_docstrings(repo, analysis),
-        "testing": _render_testing(analysis),
+        "testing": _render_testing(repo, analysis),
         "git": _render_git(analysis),
-        "dependencies and tooling": _render_dependencies_and_tooling(analysis),
-        "red lines": _render_red_lines(analysis),
+        "dependencies and tooling": _render_dependencies_and_tooling(repo, analysis),
+        "red lines": _render_red_lines(repo, analysis),
     }
 
     sections: dict[str, AgentsSection] = {}
