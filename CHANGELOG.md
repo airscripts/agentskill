@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-05-02
+
+### Added
+
+- GitHub issue templates for bug, feature, chore, ci, documentation, fix, performance, refactor, style, test, and build
+- GitHub pull request template
+- FUNDING.yml for sponsor/backing
+- CODE_OF_CONDUCT.md
+- CONTRIBUTING.md with development guidelines
+- SECURITY.md vulnerability reporting policy
+- OWNERS file
+- Repository cover image (`assets/agentskill.png`)
+- `VERSION` file for single-source version tracking
+
+### Changed
+
+- Simplified release workflow by removing unnecessary job steps
+- CI restructured for future monorepo handling
+- `AGENTSKILL_VERSION` constant synced to 1.2.0
+
 ## [1.1.0] - 2026-05-02
 
 ### Added
