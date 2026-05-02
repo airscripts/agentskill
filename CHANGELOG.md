@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-02
+
+### Added
+
+- Expanded README with skill installation guidance and expected layout
+- CLI tests for help commands and analyzer functionality
+- Language detection enhancements
+- Comprehensive API and CLI reference documentation (`docs/reference/`)
+- Reference handling improvements with better error reporting and workflows
+
+### Changed
+
+- AGENTS.md update workflow enhanced with pyproject.toml integration and improved markdown generation
+- Static enrichment now takes priority during agentic generation
+- AGENTS.md references updated to include file extension
+
+### Fixed
+
+- Release workflow tag validation now uses regex for version extraction
+- Broken tests fixed due to recent structural changes
+
 ## [1.0.0] - 2026-05-01
 
 ### Added
