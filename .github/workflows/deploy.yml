@@ -24,4 +24,5 @@ jobs:
 
         with:
           user: __token__
+          attestations: false
           password: ${{ secrets.PYPI_API_TOKEN }}
