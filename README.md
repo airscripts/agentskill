@@ -4,6 +4,28 @@ Analyze a code repository and synthesize an `AGENTS.md` that lets any agent prod
 
 ---
 
+## Table of Contents
+
+- [What It Does](#what-it-does)
+- [How It Works](#how-it-works)
+- [Supported Languages](#supported-languages)
+- [Generation Modes](#generation-modes)
+- [Install](#install)
+- [Development Checks](#development-checks)
+- [Usage](#usage)
+- [Repository Structure](#repository-structure)
+- [Where Code Goes](#where-code-goes)
+- [Developer Workflow](#developer-workflow)
+- [File Ecosystem](#file-ecosystem)
+- [Examples](#examples)
+- [API Reference](#api-reference)
+- [Contributing](#contributing)
+- [Security](#security)
+- [Support](#support)
+- [License](#license)
+
+---
+
 ## What It Does
 
 agentskill is not a linter and not a style guide generator. It is a forensic extraction tool. It walks a repository, measures every line, reads every config file, and inspects the commit log — then synthesizes a precise behavioral spec for a code-generating agent.
@@ -27,6 +49,68 @@ Seven analyzers run in parallel. Each extracts one class of signal that an LLM c
 | `tests`   | Test-to-source mapping, framework detection, fixture extraction     |
 
 Analyzer output feeds directly into `AGENTS.md` synthesis. The synthesis step follows the behavioral spec in [`SYSTEM.md`](./SYSTEM.md).
+
+---
+
+## Supported Languages
+
+agentskill already ships analyzer coverage and repository examples across a
+wide set of languages. This matters because the tool is meant to extract
+project-specific conventions from real repositories, not only from Python-only
+layouts.
+
+Current supported language set:
+
+- Python
+- TypeScript
+- JavaScript
+- Go
+- Rust
+- Java
+- Kotlin
+- C#
+- C
+- C++
+- Ruby
+- PHP
+- Swift
+- Objective-C
+- Shell / Bash
+
+The repository also includes fixture/example projects for these languages under
+[`examples/`](./examples/), which act as both regression coverage and reference
+shapes for multi-language analysis.
+
+---
+
+## Generation Modes
+
+agentskill supports two complementary generation workflows:
+
+### Static Generation
+
+Use the CLI when you want deterministic output based on analyzer results plus
+static source inspection.
+
+- `agentskill analyze <repo> --pretty` for combined machine-readable analysis
+- `agentskill generate <repo>` for a fresh `AGENTS.md` draft
+- `agentskill update <repo>` for deterministic regeneration of an existing
+  `AGENTS.md`
+
+This is the default mode for users who want a direct tool-driven workflow
+without relying on an external agent harness.
+
+### Artificial Generation
+
+This repository is also distributed as a dedicated skill through the repo-root
+[`SKILL.md`](./SKILL.md). In that mode, an agent harness can install the skill,
+follow the skill workflow, and use the same analyzers plus the richer
+skill/system instructions to synthesize or update `AGENTS.md`.
+
+In short:
+
+- use the CLI for basic static generation,
+- use the skill for agent-assisted or marketplace-installed generation.
 
 ---
 
@@ -400,6 +484,44 @@ Static API reference for the packaged codebase lives under
 The reference is contributor-oriented. It documents the packaged namespace and
 extension points that matter for real maintenance work without trying to expose
 every private helper as public API.
+
+---
+
+## Contributing
+
+Contributions are welcome, especially in these areas:
+
+- improving static `AGENTS.md` generation quality
+- expanding analyzer depth per supported language
+- tightening output contracts and regression coverage
+- improving skill ergonomics for agent harnesses
+
+Before opening a pull request, read:
+
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+- [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)
+
+Use the repository issue and pull request templates when reporting bugs,
+requesting features, or proposing changes.
+
+---
+
+## Security
+
+For supported versions and vulnerability reporting guidance, see
+[`SECURITY.md`](./SECURITY.md).
+
+---
+
+## Support
+
+Project metadata and support files available in this repository include:
+
+- [GitHub Sponsors](https://github.com/sponsors/airscripts)
+- [Ko-Fi](https://ko-fi.com/airscript)
+
+If you want to support the project, starring, sharing, contributing fixes, and
+supporting through GitHub Sponsors all help.
 
 ---
 
