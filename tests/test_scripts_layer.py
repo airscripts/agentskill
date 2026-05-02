@@ -7,13 +7,16 @@ def test_scripts_directory_contains_only_supported_wrapper_files():
     names = sorted(path.name for path in scripts_dir.iterdir())
 
     assert names == [
+        "analyze.py",
         "config.py",
+        "generate.py",
         "git.py",
         "graph.py",
         "measure.py",
         "scan.py",
         "symbols.py",
         "tests.py",
+        "update.py",
     ]
 
     for name in names:
