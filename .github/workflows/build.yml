@@ -4,8 +4,8 @@ on:
   workflow_call:
 
 jobs:
-  agentskill:
-    name: Agentskill
+  cli:
+    name: CLI
     runs-on: ubuntu-latest
 
     steps:
@@ -48,7 +48,7 @@ jobs:
       - run: /tmp/agentskill-build-venv/bin/agentskill generate examples/python > /tmp/generated-AGENTS.md
         name: Test Generate
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         name: Upload Distribution
 
         with:
