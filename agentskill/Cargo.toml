@@ -1,0 +1,29 @@
+[package]
+name = "agentskill"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+description = "Analyze repositories and synthesize AGENTS.md"
+
+[[bin]]
+name = "agentskill"
+path = "src/main.rs"
+
+[[bin]]
+name = "agsk"
+path = "src/bin/agsk.rs"
+
+[dependencies]
+agentskill-analyzers.workspace = true
+agentskill-core.workspace = true
+agentskill-generation.workspace = true
+clap.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true

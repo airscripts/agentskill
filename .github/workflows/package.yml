@@ -1,0 +1,147 @@
+name: Package
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
+
+      version:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  cli:
+    name: CLI
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            archive: tar.gz
+
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            archive: tar.gz
+
+          - os: macos-15
+            target: aarch64-apple-darwin
+            archive: tar.gz
+
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            archive: zip
+
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            archive: zip
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
+
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        name: Install Rust Toolchain
+
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        name: Cache Cargo
+
+      - run: cargo build --release --locked --target ${{ matrix.target }}
+        name: Build Release Binaries
+
+        env:
+          CARGO_BUILD_JOBS: 4
+
+      - if: matrix.archive == 'tar.gz'
+        run: |
+          set -euo pipefail
+
+          ./target/${{ matrix.target }}/release/agentskill --version
+          ./target/${{ matrix.target }}/release/agsk --version
+
+        name: Smoke Test Unix Binaries
+
+      - if: matrix.archive == 'zip'
+        shell: pwsh
+
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          & "target/${{ matrix.target }}/release/agentskill.exe" --version
+          & "target/${{ matrix.target }}/release/agsk.exe" --version
+
+        name: Smoke Test Windows Binaries
+
+      - if: matrix.archive == 'tar.gz'
+
+        run: |
+          set -euo pipefail
+
+          version="${{ inputs.version }}"
+          target="${{ matrix.target }}"
+          package_dir="agentskill-${version}-${target}"
+          archive="${package_dir}.tar.gz"
+
+          mkdir -p "$package_dir"
+          cp "target/${target}/release/agentskill" "$package_dir/"
+          cp "target/${target}/release/agsk" "$package_dir/"
+          cp LICENSE "$package_dir/"
+
+          tar -czf "$archive" "$package_dir"
+          bash agentskill-scripts/verify-release-archive.sh "$archive" "$target"
+
+        name: Package Unix Archive
+
+      - if: matrix.archive == 'zip'
+        shell: pwsh
+
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $version = "${{ inputs.version }}"
+          $target = "${{ matrix.target }}"
+          $packageDir = "agentskill-$version-$target"
+          $archive = "$packageDir.zip"
+
+          New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
+          Copy-Item "target/$target/release/agentskill.exe" "$packageDir/"
+          Copy-Item "target/$target/release/agsk.exe" "$packageDir/"
+          Copy-Item "LICENSE" "$packageDir/"
+
+          Compress-Archive -Path $packageDir -DestinationPath $archive
+          $verifyDir = Join-Path $env:RUNNER_TEMP "agentskill-release-verify-$target"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $verifyDir
+          Expand-Archive -LiteralPath $archive -DestinationPath $verifyDir
+
+          foreach ($required in @("agentskill.exe", "agsk.exe", "LICENSE")) {
+            if (-not (Get-ChildItem -Path $verifyDir -Recurse -File -Filter $required)) { throw "archive is missing $required" }
+          }
+
+        name: Package Windows Archive
+
+      - uses: actions/upload-artifact@v7
+        name: Upload Release Archive
+
+        with:
+          name: agentskill-${{ inputs.version }}-${{ matrix.target }}
+          path: agentskill-${{ inputs.version }}-${{ matrix.target }}.${{ matrix.archive }}
+          if-no-files-found: error

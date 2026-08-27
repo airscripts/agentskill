@@ -3,54 +3,34 @@ name: Build
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   cli:
     name: CLI
+
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    container:
+      image: rust:1.89-bookworm
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout Code
 
-      - uses: actions/setup-python@v6
-        name: Setup Python
+      - run: cargo build --release --locked
+        name: Build Release Binaries
 
-        with:
-          python-version: "3.10"
+      - run: target/release/agentskill --help
+        name: Test agentskill CLI
 
-      - run: python -m pip install --upgrade pip
-        name: Upgrade pip
+      - run: target/release/agsk --version
+        name: Test agsk CLI
 
-      - run: python -m pip install -e '.[dev]'
-        name: Install Dependencies
-
-      - run: python -m pip install build twine
-        name: Install Build Tools
-
-      - run: python -m build --sdist --wheel --no-isolation
-        name: Build Package
-
-      - run: python -m twine check dist/*
-        name: Check Distribution
-
-      - run: python -m venv /tmp/agentskill-build-venv
-        name: Create Virtual Environment
-
-      - run: /tmp/agentskill-build-venv/bin/pip install dist/agsk-*.whl
-        name: Install Built Package
-
-      - run: /tmp/agentskill-build-venv/bin/agentskill --help
-        name: Test CLI
-
-      - run: /tmp/agentskill-build-venv/bin/agentskill analyze examples/python --pretty
+      - run: target/release/agentskill analyze agentskill-skill/examples/python --pretty
         name: Test Analyze
 
-      - run: /tmp/agentskill-build-venv/bin/agentskill generate examples/python > /tmp/generated-AGENTS.md
+      - run: target/release/agentskill generate agentskill-skill/examples/python > /tmp/generated-AGENTS.md
         name: Test Generate
-
-      - uses: actions/upload-artifact@v6
-        name: Upload Distribution
-
-        with:
-          name: dist
-          path: dist/*

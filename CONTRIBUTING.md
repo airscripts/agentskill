@@ -1,58 +1,45 @@
 # Contributing
 
-When contributing to this repository, please first discuss the change you want
-to make through an issue, discussion, or pull request draft where appropriate.
+## Development Setup
 
-Before contributing, read and follow:
-
-- [Code of Conduct](./CODE_OF_CONDUCT.md)
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-
-## What To Contribute
-
-Useful contribution areas include:
-
-- Analyzer accuracy improvements.
-- Richer static `AGENTS.md` generation.
-- Language support expansion.
-- CLI and output contract improvements.
-- Tests, fixtures, and regression coverage.
-- Documentation and skill workflow clarity.
-
-## Development Workflow
-
-Set up the local environment:
+Install Rust through [rustup](https://rustup.rs/), then verify the workspace:
 
 ```bash
-python -m pip install -e '.[dev]'
-pre-commit install
+make verify
 ```
 
-Run the standard checks before opening a pull request:
+The minimum supported Rust version is 1.89. Keep `Cargo.lock` updated when
+dependencies change.
 
-```bash
-ruff format .
-ruff check .
-mypy
-pytest
-```
+## Architecture
 
-## Pull Requests
+- `agentskill-core` owns shared domain models, repository traversal, language
+  detection, error payloads, and markdown document operations.
+- `agentskill-analyzers` owns the seven analyzer families and their stable JSON
+  output contracts.
+- `agentskill-generation` owns deterministic markdown generation, references,
+  profiles, layouts, interactive notes, and update merges.
+- `agentskill` owns Clap parsing and the `agentskill`/`agsk` binaries only.
 
-- Keep changes focused and reviewable.
-- Add or update tests when behavior changes.
-- Update docs when the CLI, skill workflow, or generated output semantics change.
-- Preserve the packaged/runtime split described in `README.md` and `AGENTS.md`.
-- Prefer deterministic behavior and contract-stable output when changing generation code.
+Keep implementation logic in the appropriate crate. Do not reintroduce runtime
+Python or Python package-manager tooling. Python fixtures under
+`agentskill-skill/examples/` are retained because Python is a supported target
+language for analysis.
 
-## Issues
+## Tests And Contracts
 
-Use the repository issue templates for:
+Add Rust unit tests beside the owning crate or integration tests under that
+crate's `tests/` directory. Preserve command names, flags, output keys, error
+payloads, generated section order, and update behavior unless a deliberate v2
+contract change is documented.
 
-- Bug reports.
-- Feature requests.
-- Documentation gaps.
+## Documentation And Releases
 
-Include reproduction steps, expected behavior, and actual behavior whenever
-possible.
+Update `README.md`, `agentskill-skill/SKILL.md`, `agentskill-skill/SYSTEM.md`,
+and `agentskill-docs/` when public CLI behavior changes. Add user-visible
+changes to `CHANGELOG.md`. Stable
+release tags must match `VERSION` and have a matching changelog heading;
+`X.Y.Z-rc.N` tags publish prereleases automatically.
+
+Use `make build`, `make coverage`, `make security`, or `make workflows` for
+individual checks. Run `make fmt` to apply Rust formatting.
