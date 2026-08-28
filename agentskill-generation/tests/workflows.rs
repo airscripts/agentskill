@@ -145,7 +145,17 @@ fn preserves_references_in_multifile_index() {
 
     let index = fs::read_to_string(directory.path().join("docs/AGENTS.md")).unwrap();
     assert!(index.contains("<!-- agentskill-metadata"));
-    assert!(index.contains(&reference.path().to_string_lossy().to_string()));
+
+    let metadata = index
+        .split_once("<!-- agentskill-metadata\n")
+        .and_then(|(_, value)| value.split_once("\n-->").map(|(metadata, _)| metadata))
+        .and_then(|metadata| serde_json::from_str::<serde_json::Value>(metadata).ok())
+        .expect("multifile metadata should be valid JSON");
+
+    assert_eq!(
+        metadata["references"][0]["value"],
+        reference.path().to_string_lossy().to_string()
+    );
 }
 
 #[test]
