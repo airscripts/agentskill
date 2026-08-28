@@ -2,27 +2,65 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example 2.0.0 or 2.0.0-rc.1
+        required: true
+        type: string
 
   push:
     tags: ["*"]
 
 jobs:
+  prepare:
+    name: Prepare
+    uses: ./.github/workflows/prepare.yml
+
+    with:
+      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
   verify:
     name: Verify
+    needs: prepare
     uses: ./.github/workflows/verify.yml
 
-  build:
-    name: Build
-    needs: verify
-    uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ needs.prepare.outputs.tag }}
 
   test:
     name: Test
-    needs: build
+    needs: [prepare, verify]
     uses: ./.github/workflows/test.yml
 
-  deploy:
-    name: Deploy
-    needs: test
-    secrets: inherit
-    uses: ./.github/workflows/deploy.yml
+    with:
+      ref: ${{ needs.prepare.outputs.tag }}
+
+  package:
+    name: Package
+    needs: [prepare, test]
+    uses: ./.github/workflows/package.yml
+
+    with:
+      ref: ${{ needs.prepare.outputs.tag }}
+      version: ${{ needs.prepare.outputs.version }}
+
+  checksum:
+    name: Checksum
+    needs: [prepare, package]
+    uses: ./.github/workflows/checksum.yml
+
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+
+  publish:
+    name: Publish
+    needs: [prepare, checksum]
+    uses: ./.github/workflows/publish.yml
+
+    permissions:
+      contents: write
+
+    with:
+      tag: ${{ needs.prepare.outputs.tag }}
+      version: ${{ needs.prepare.outputs.version }}
+      prerelease: ${{ needs.prepare.outputs.prerelease }}

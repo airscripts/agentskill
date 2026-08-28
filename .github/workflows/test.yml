@@ -2,27 +2,74 @@ name: Test
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
 
 jobs:
-  cli:
-    name: CLI
+  container:
+    name: Container
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    container:
+      image: rust:1.89-bookworm
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout Code
 
-      - uses: actions/setup-python@v6
-        name: Setup Python
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Install Git
+        run: |
+          apt-get update
+          apt-get install --no-install-recommends --yes git
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - run: cargo install cargo-llvm-cov
+        name: Install Coverage Tool
+
+      - run: CARGO_BUILD_JOBS=4 cargo llvm-cov --fail-under-lines 80 --workspace --locked
+        name: Run Tests and Coverage
+
+  native:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: Ubuntu
+          - os: macos-latest
+            label: macOS
+          - os: windows-latest
+            label: Windows
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
 
         with:
-          python-version: "3.10"
+          ref: ${{ inputs.ref || github.ref }}
 
-      - run: python -m pip install --upgrade pip
-        name: Upgrade Pip
+      - uses: dtolnay/rust-toolchain@stable
+        name: Install Rust Toolchain
 
-      - run: python -m pip install -e '.[dev]'
-        name: Install Dependencies
+      - uses: Swatinem/rust-cache@v2
+        name: Cache Cargo
 
-      - run: pytest
-        name: Run Tests
+      - run: cargo test --workspace --locked
+        env:
+          CARGO_BUILD_JOBS: "4"
+        name: Run Workspace Tests

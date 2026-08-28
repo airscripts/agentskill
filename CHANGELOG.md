@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added a concise root `Makefile` for local verification and release checks.
+
+## [2.0.0] - 2026-08-27
+
+### Added
+
+- Replaced the Python runtime with a Rust workspace containing shared core,
+  analyzer, generation, and CLI crates.
+- Added `agentskill` and `agsk` release binaries for Linux, macOS, and Windows.
+- Added GitHub Release packaging with platform archives and SHA256 checksums.
+
+### Changed
+
+- Preserved the analyzer command surface, supported-language matrix, JSON
+  output shape, and AGENTS.md generation/update workflows.
+- Changed installation documentation from PyPI/pip to GitHub Releases and
+  Cargo source installation.
+
 ## [1.4.0] - 2026-05-06
 
 ### Added

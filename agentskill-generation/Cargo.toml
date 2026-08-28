@@ -1,0 +1,19 @@
+[package]
+name = "agentskill-generation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+description = "AGENTS.md generation and update workflows for agentskill"
+
+[dependencies]
+agentskill-analyzers.workspace = true
+agentskill-core.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

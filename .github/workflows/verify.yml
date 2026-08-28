@@ -2,33 +2,90 @@ name: Verify
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
 
 jobs:
+  workflow-lint:
+    name: Workflow And Script Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
+
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Install Actionlint And Shellcheck
+        shell: bash
+
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes shellcheck
+          mkdir -p "$RUNNER_TEMP/actionlint"
+          bash <(curl --fail --silent --show-error --location https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12 "$RUNNER_TEMP/actionlint"
+          echo "$RUNNER_TEMP/actionlint" >> "$GITHUB_PATH"
+
+      - name: Check GitHub Actions Workflows
+        run: actionlint -color
+
+      - name: Check Release Scripts
+        run: shellcheck --shell=bash agentskill-scripts/*.sh
+
   cli:
     name: CLI
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    container:
+      image: rust:1.89-bookworm
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout Code
 
-      - uses: actions/setup-python@v6
-        name: Setup Python
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - run: rustup component add rustfmt clippy
+        name: Install Rust Components
+
+      - uses: Swatinem/rust-cache@v2
+        name: Cache Cargo
+
+      - run: cargo fmt --all -- --check
+        name: Check Formatting
+
+      - run: CARGO_BUILD_JOBS=4 cargo clippy --workspace --all-targets --locked -- -D warnings
+        name: Lint Code
+
+      - run: CARGO_BUILD_JOBS=4 cargo check --workspace --locked
+        name: Check Compilation
+
+  msrv:
+    name: MSRV
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    container:
+      image: rust:1.89-bookworm
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
 
         with:
-          python-version: "3.10"
+          ref: ${{ inputs.ref || github.ref }}
 
-      - run: python -m pip install --upgrade pip
-        name: Upgrade Pip
-
-      - run: python -m pip install -e '.[dev]'
-        name: Install Dependencies
-
-      - run: ruff format --check .
-        name: Check Code Formatting
-
-      - run: ruff check .
-        name: Check Code Linting
-
-      - run: mypy
-        name: Check Type Hints
+      - run: CARGO_BUILD_JOBS=4 cargo check --workspace --locked
+        name: Check MSRV Compilation

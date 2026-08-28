@@ -1,0 +1,67 @@
+name: Prepare
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+
+    outputs:
+      version:
+        value: ${{ jobs.cli.outputs.version }}
+
+      prerelease:
+        value: ${{ jobs.cli.outputs.prerelease }}
+
+      tag:
+        value: ${{ jobs.cli.outputs.tag }}
+
+permissions:
+  contents: read
+
+jobs:
+  cli:
+    name: CLI
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
+
+        with:
+          ref: ${{ inputs.tag }}
+
+      - id: version
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+
+        run: |
+          set -euo pipefail
+
+          tag="$RELEASE_TAG"
+          bash agentskill-scripts/release-notes.sh "$tag" release-notes.md
+          version="${tag%-rc.*}"
+          prerelease=false
+          if [[ "$tag" == *-rc.* ]]; then prerelease=true; fi
+
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+        name: Validate Release Version
+
+      - uses: actions/upload-artifact@v7
+        name: Upload Release Notes
+
+        with:
+          name: agentskill-release-notes-${{ steps.version.outputs.version }}
+          path: release-notes.md
+          if-no-files-found: error

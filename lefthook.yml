@@ -1,0 +1,7 @@
+pre-commit:
+  piped: true
+  follow: true
+
+  commands:
+    rust:
+      run: agentskill-scripts/pre-commit.sh {staged_files}

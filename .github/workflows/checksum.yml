@@ -1,0 +1,46 @@
+name: Checksum
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  cli:
+    name: CLI
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/download-artifact@v8
+        name: Download Release Archives
+
+        with:
+          pattern: agentskill-${{ inputs.version }}-*
+          path: dist
+          merge-multiple: true
+
+      - run: |
+          set -euo pipefail
+
+          find dist -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' \) | sort > archives.txt
+
+          test "$(wc -l < archives.txt)" -eq 6
+
+          (cd dist && while read -r archive; do sha256sum "$(basename "$archive")"; done < ../archives.txt > SHA256SUMS)
+
+        name: Generate Checksums
+
+      - uses: actions/upload-artifact@v7
+        name: Upload Checksums
+
+        with:
+          name: agentskill-${{ inputs.version }}-checksums
+          path: dist/SHA256SUMS
+          if-no-files-found: error
