@@ -90,7 +90,7 @@ fn validates_paths_reads_files_and_skips_links() {
 
     assert_eq!(
         validate_repo(directory.path().to_str().unwrap()).unwrap(),
-        directory.path()
+        directory.path().canonicalize().unwrap()
     );
 
     assert_eq!(read_text(&source), "fn main() {}\n");

@@ -27,6 +27,11 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
+      - name: Install Git
+        run: |
+          apt-get update
+          apt-get install --no-install-recommends --yes git
+
       - run: cargo install cargo-llvm-cov
         name: Install Coverage Tool
 
@@ -57,5 +62,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         name: Cache Cargo
 
-      - run: CARGO_BUILD_JOBS=4 cargo test --workspace --locked
+      - run: cargo test --workspace --locked
+        env:
+          CARGO_BUILD_JOBS: "4"
         name: Run Workspace Tests
