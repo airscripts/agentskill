@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Removed obsolete marketplace badge and listing documentation.
+- Removed the obsolete Star History chart from the README.
 
 ## [2.0.0] - 2026-08-27
 

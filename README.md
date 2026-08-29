@@ -36,7 +36,6 @@ produce code consistent with the existing codebase.
 - [Contributing](#contributing)
 - [Security](#security)
 - [Releases](#releases)
-- [Statistics](#statistics)
 - [Support](#support)
 - [License](#license)
 
@@ -527,12 +526,6 @@ request templates when reporting bugs or proposing changes.
 See [`SECURITY.md`](./SECURITY.md) for supported versions and vulnerability
 reporting guidance. Dependency policy is checked with `cargo deny` and the
 release workflow validates archives before publishing them.
-
-## Statistics
-
-Track the project's public star history:
-
-[![Star History Chart](https://api.star-history.com/chart?repos=airscripts/agentskill&type=date&legend=top-left)](https://www.star-history.com/?repos=airscripts%2Fagentskill&type=date&legend=top-left)
 
 ## Releases
 
