@@ -4,11 +4,18 @@ use agentskill_core::Result;
 use regex::Regex;
 use serde_json::{Map, Value, json};
 
-use crate::common::{insert_language_result, repo_files, text};
+use crate::common::{RepoSnapshot, insert_language_result, repo_files, text};
 
 pub fn run(repo: &str, lang: Option<&str>) -> Result<Value> {
     let (_root, files) = repo_files(repo, lang)?;
+    run_with_files(&files, lang)
+}
 
+pub(crate) fn run_with_snapshot(snapshot: &RepoSnapshot) -> Result<Value> {
+    run_with_files(&snapshot.files, None)
+}
+
+fn run_with_files(files: &[agentskill_core::fs::RepoFile], lang: Option<&str>) -> Result<Value> {
     let mut result = Map::new();
     for language in agentskill_core::language::LANGUAGES
         .iter()

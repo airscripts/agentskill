@@ -5,7 +5,7 @@ use agentskill_core::Result;
 use regex::Regex;
 use serde_json::{Value, json};
 
-use crate::common::{is_auxiliary, repo_files, text};
+use crate::common::{RepoSnapshot, is_auxiliary, repo_files, text};
 
 const MAX_EDGES: usize = 200;
 const MAX_CYCLES: usize = 20;
@@ -14,7 +14,18 @@ const MONOREPO_BOUNDARY_DIRS: &[&str] = &["services", "packages", "apps", "modul
 
 pub fn run(repo: &str, lang: Option<&str>) -> Result<Value> {
     let (root, files) = repo_files(repo, lang)?;
+    run_with_data(&root, &files, lang)
+}
 
+pub(crate) fn run_with_snapshot(snapshot: &RepoSnapshot, lang: Option<&str>) -> Result<Value> {
+    run_with_data(&snapshot.root, &snapshot.files, lang)
+}
+
+fn run_with_data(
+    root: &Path,
+    files: &[agentskill_core::fs::RepoFile],
+    lang: Option<&str>,
+) -> Result<Value> {
     let mut result = BTreeMap::new();
     let mut auxiliary = BTreeMap::new();
 
@@ -38,7 +49,7 @@ pub fn run(repo: &str, lang: Option<&str>) -> Result<Value> {
 
         let module_index = build_module_index(language.id, &language_files);
         let go_module = if language.id == "go" {
-            read_go_module(&root)
+            read_go_module(root)
         } else {
             None
         };
@@ -96,7 +107,7 @@ pub fn run(repo: &str, lang: Option<&str>) -> Result<Value> {
     if !auxiliary.is_empty() {
         result.insert("auxiliary", json!(auxiliary));
     }
-    result.insert("monorepo_boundaries", detect_monorepo_boundaries(&root));
+    result.insert("monorepo_boundaries", detect_monorepo_boundaries(root));
 
     Ok(json!(result))
 }

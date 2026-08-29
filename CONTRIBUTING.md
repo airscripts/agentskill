@@ -14,11 +14,11 @@ dependencies change.
 ## Architecture
 
 - `agentskill-core` owns shared domain models, repository traversal, language
-  detection, error payloads, and markdown document operations.
+  detection, file roles, error payloads, and document parsing.
 - `agentskill-analyzers` owns the seven analyzer families and their stable JSON
   output contracts.
-- `agentskill-generation` owns deterministic markdown generation, references,
-  profiles, layouts, interactive notes, and update merges.
+- `agentskill-validation` owns read-only AGENTS.md validation and evidence/drift
+  checks (its source directory remains `agentskill-generation/`).
 - `agentskill` owns Clap parsing and the `agentskill`/`agsk` binaries only.
 
 Keep implementation logic in the appropriate crate. Do not reintroduce runtime
@@ -30,7 +30,7 @@ language for analysis.
 
 Add Rust unit tests beside the owning crate or integration tests under that
 crate's `tests/` directory. Preserve command names, flags, output keys, error
-payloads, generated section order, and update behavior unless a deliberate v2
+payloads, evidence provenance, and validation behavior unless a deliberate v2
 contract change is documented.
 
 ## Documentation And Releases

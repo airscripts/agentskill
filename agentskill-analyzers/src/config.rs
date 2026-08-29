@@ -29,18 +29,25 @@ const MAX_CONFIG_READ_BYTES: usize = 32_000;
 
 pub fn run(repo: &str) -> Result<Value> {
     let root = validate_repo(repo)?;
-
     let files = collect_files(&root);
+    run_with_data(&root, &files)
+}
+
+pub(crate) fn run_with_snapshot(snapshot: &crate::common::RepoSnapshot) -> Result<Value> {
+    run_with_data(&snapshot.root, &snapshot.files)
+}
+
+fn run_with_data(root: &Path, files: &[agentskill_core::fs::RepoFile]) -> Result<Value> {
     let has_language = |language: &str| {
         files
             .iter()
             .any(|file| file.language.is_some_and(|item| item.id == language))
     };
 
-    let editor_sections = parse_editorconfig(&read(&root, ".editorconfig"));
+    let editor_sections = parse_editorconfig(&read(root, ".editorconfig"));
     let mut result = Map::new();
 
-    let python = detect_python(&root);
+    let python = detect_python(root);
 
     if !python.is_empty() {
         result.insert(
@@ -49,12 +56,12 @@ pub fn run(repo: &str) -> Result<Value> {
         );
     }
 
-    let package = parse_json(&read(&root, "package.json"));
+    let package = parse_json(&read(root, "package.json"));
 
     let has_typescript = has_language("typescript") || root.join("tsconfig.json").exists();
     let has_javascript = has_language("javascript");
 
-    let javascript_config = detect_javascript(&root, &package, has_typescript);
+    let javascript_config = detect_javascript(root, &package, has_typescript);
     if !javascript_config.is_empty() {
         let language = if has_typescript || !has_javascript {
             "typescript"
@@ -72,7 +79,7 @@ pub fn run(repo: &str) -> Result<Value> {
     }
 
     if has_typescript && has_javascript {
-        let config = detect_javascript(&root, &package, true);
+        let config = detect_javascript(root, &package, true);
         result.insert(
             "javascript".into(),
             json!(attach_editorconfig(config, &editor_sections, "javascript")),
@@ -82,11 +89,7 @@ pub fn run(repo: &str) -> Result<Value> {
     if has_language("go") || root.join("go.mod").exists() {
         result.insert(
             "go".into(),
-            json!(attach_editorconfig(
-                detect_go(&root),
-                &editor_sections,
-                "go"
-            )),
+            json!(attach_editorconfig(detect_go(root), &editor_sections, "go")),
         );
     }
 
@@ -94,40 +97,40 @@ pub fn run(repo: &str) -> Result<Value> {
         result.insert(
             "rust".into(),
             json!(attach_editorconfig(
-                detect_rust(&root),
+                detect_rust(root),
                 &editor_sections,
                 "rust"
             )),
         );
     }
 
-    add_java(&root, &files, &mut result, &editor_sections);
-    add_kotlin(&root, &files, &mut result, &editor_sections);
-    add_csharp(&root, &files, &mut result, &editor_sections);
-    add_c_family(&root, &files, &mut result, "c", &editor_sections);
-    add_c_family(&root, &files, &mut result, "cpp", &editor_sections);
+    add_java(root, files, &mut result, &editor_sections);
+    add_kotlin(root, files, &mut result, &editor_sections);
+    add_csharp(root, files, &mut result, &editor_sections);
+    add_c_family(root, files, &mut result, "c", &editor_sections);
+    add_c_family(root, files, &mut result, "cpp", &editor_sections);
     add_dotnet_language(
-        &root,
-        &files,
+        root,
+        files,
         &mut result,
         "fsharp",
         &[".fsproj", ".sln"],
         &editor_sections,
     );
     add_dotnet_language(
-        &root,
-        &files,
+        root,
+        files,
         &mut result,
         "visualbasic",
         &[".vbproj", ".sln"],
         &editor_sections,
     );
-    add_ruby(&root, &files, &mut result, &editor_sections);
-    add_php(&root, &files, &mut result, &editor_sections);
-    add_apple(&root, &files, &mut result, "swift", &editor_sections);
-    add_apple(&root, &files, &mut result, "objectivec", &editor_sections);
-    add_extended_languages(&root, &files, &mut result, &editor_sections);
-    add_auxiliary_formats(&root, &files, &mut result, &editor_sections);
+    add_ruby(root, files, &mut result, &editor_sections);
+    add_php(root, files, &mut result, &editor_sections);
+    add_apple(root, files, &mut result, "swift", &editor_sections);
+    add_apple(root, files, &mut result, "objectivec", &editor_sections);
+    add_extended_languages(root, files, &mut result, &editor_sections);
+    add_auxiliary_formats(root, files, &mut result, &editor_sections);
 
     if !editor_sections.is_empty() {
         result.insert("editorconfig".into(), json!(editor_sections));

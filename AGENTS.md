@@ -1,75 +1,71 @@
 # AGENTS.md
 
-## Overview
+## Mission
 
-agentskill is a Rust CLI distributed as `agentskill` and `agsk` binaries. It
-analyzes one or more repositories, emits structured analyzer output, and
-supports deterministic `AGENTS.md` generation and in-place updates.
+agentskill turns repositories into compact, evidence-backed `AGENTS.md`
+playbooks that AI coding agents can actually follow. It is a Rust CLI shipped
+as `agentskill` and `agsk`; the packaged LLM skill authors semantic Markdown.
 
-## Repository Structure
+## Repository Map
 
-```text
-agentskill-core/        Shared errors, types, filesystem, language registry
-agentskill-analyzers/   Seven analyzers and aggregate execution
-agentskill-generation/  References, rendering, layouts, and update merging
-agentskill/              Clap CLI and binary targets
-agentskill-skill/        Skill instructions, references, and target fixtures
-agentskill-scripts/      Release-note and archive verification helpers
-agentskill-docs/         CLI and architecture reference
-agentskill-assets/       Repository artwork
-agentskill-tests/        Contract fixtures for compatibility checks
-```
+- `agentskill-core/`: shared errors, language registry, filesystem, roles, and
+  document parsing.
+- `agentskill-analyzers/`: scan, measure, config, Git, graph, symbols, tests,
+  and normalized evidence.
+- `agentskill-generation/`: validation package (`agentskill-validation`) for
+  read-only document checks and drift reporting.
+- `agentskill/`: thin Clap CLI and both binaries.
+- `agentskill-skill/`: LLM workflow, output contract, references, and fixtures.
+- `agentskill-docs/`: CLI and architecture documentation.
 
-Keep implementation logic in its owning crate. Keep `agentskill/src/main.rs`
-thin and route behavior through the library crates. Target-language fixtures
-may use Python or any other supported language; the agentskill implementation
-must remain Rust-only.
+## Non-Negotiables
 
-## Commands And Workflows
+- Keep the agentskill runtime Rust-only; target-language fixtures may use any
+  supported language, including Python.
+- Keep logic in its owning crate and keep `agentskill/src/main.rs` thin.
+- Preserve deterministic output: sorted paths, stable keys, bounded reads, and
+  reproducible analyzer results.
+- Treat analyzer keys, evidence fields, CLI flags, supported languages, and
+  validation behavior as compatibility surfaces; update tests and docs with
+  intentional changes.
+
+## Don'ts
+
+- Do not reintroduce static semantic Markdown generation or update workflows;
+  the LLM skill owns document authorship.
+- Do not put analyzer or validation logic in the CLI entrypoint.
+- Do not remove supported target languages or their example fixtures.
+- Do not invent repository rules from counts or uncertain analyzer output.
+- Do not publish artifacts without locked verification and archive checks.
+
+## Quick Start
 
 ```bash
-cargo fmt --all
-cargo clippy --workspace --all-targets -- -D warnings
-cargo check --workspace --locked
-cargo test --workspace --locked
+make fmt
+make lint
+make check
+make test
+make verify
 ```
 
-Run the CLI locally with `cargo run --bin agentskill -- <command> ...` or
-`cargo run --bin agsk -- <command> ...`. Release artifacts are built and
-published by GitHub Actions from numeric `X.Y.Z` and `X.Y.Z-rc.N` tags.
+Use `cargo run --bin agentskill -- <command> ...` or the equivalent `agsk`
+binary while iterating. Run `agentskill evidence <repo> --pretty` for the
+LLM input, then `agentskill validate <repo>` and `agentskill drift <repo>`
+after writing documents.
 
-## Rust Conventions
+## Change Routing
 
-- Use Rust 2024 edition and preserve the MSRV of 1.89.
-- Run rustfmt; do not hand-format around it.
-- Keep public APIs documented when they cross crate boundaries.
-- Prefer typed domain structs at crate boundaries and `serde_json::Value` only
-  for the intentionally JSON-shaped analyzer contract.
-- Return tolerant per-file or per-analyzer errors where a repository scan can
-  continue; reserve process failure for invalid CLI arguments or unusable paths.
-- Keep output deterministic: stable section ordering, sorted file paths, and
-  reproducible JSON values.
+Put shared behavior in `agentskill-core/`, analyzer behavior in
+`agentskill-analyzers/`, document checks in `agentskill-generation/`, and CLI
+dispatch only in `agentskill/`. Update `agentskill-skill/SYSTEM.md` and
+`agentskill-skill/SKILL.md` when the LLM document contract changes. Update user-facing docs and
+`CHANGELOG.md` for public behavior changes.
 
-## Testing
+## Testing And Release
 
-Tests live in each crate's `tests/` directory or in source modules for focused
-unit behavior. Cover command flags, exact analyzer keys and error payloads,
-language detection, references, generation profiles/layouts, document merging,
-both binary names, and release helper scripts.
+Run the owning crate tests while iterating, then the locked workspace checks.
+Release tags use `X.Y.Z` or `X.Y.Z-rc.N`; `VERSION` matches the workspace
+version. Archives must contain both binaries and `LICENSE`, plus `SHA256SUMS`.
 
-## Release Rules
-
-`VERSION` is the stable base version and must match the workspace version.
-Final release notes are extracted from the matching `CHANGELOG.md` section.
-RC tags publish prereleases with generated candidate notes. Archives must
-contain `agentskill`, `agsk`, and `LICENSE`, and the release must include
-`SHA256SUMS`.
-
-## Red Lines
-
-- Do not reintroduce Python runtime code, package setup, or Python CI workflows.
-- Do not remove supported target languages or their example fixtures.
-- Do not place analyzer or generation logic in the CLI entrypoint.
-- Do not change stable JSON/markdown behavior without updating contract tests,
-  documentation, and the changelog.
-- Do not publish an artifact without locked verification and archive checks.
+For deeper architecture, evidence semantics, workflows, and rationale, read
+[`AGENTS.reference.md`](AGENTS.reference.md) selectively.

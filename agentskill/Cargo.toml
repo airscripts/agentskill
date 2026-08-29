@@ -8,7 +8,7 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-description = "Analyze repositories and synthesize AGENTS.md"
+description = "Turn any codebase into an AGENTS.md playbook AI coding agents can actually follow"
 
 [[bin]]
 name = "agentskill"
@@ -21,9 +21,9 @@ path = "src/bin/agsk.rs"
 [dependencies]
 agentskill-analyzers.workspace = true
 agentskill-core.workspace = true
-agentskill-generation.workspace = true
+agentskill-validation.workspace = true
 clap.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
-serde_json.workspace = true
 tempfile.workspace = true

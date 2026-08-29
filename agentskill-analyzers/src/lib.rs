@@ -1,5 +1,6 @@
 mod common;
 pub mod config;
+mod evidence;
 pub mod git;
 pub mod graph;
 pub mod measure;
@@ -29,9 +30,41 @@ pub fn run_one(name: &str, repo: &str, lang: Option<&str>) -> Value {
 }
 
 pub fn run_all(repo: &str, lang: Option<&str>) -> Value {
+    let snapshot = match common::RepoSnapshot::load(repo) {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            let mut map = Map::new();
+            for name in ANALYZER_NAMES {
+                map.insert(name.to_string(), error_payload(&error, name));
+            }
+            return Value::Object(map);
+        }
+    };
+    run_all_snapshot(&snapshot, lang)
+}
+
+pub(crate) fn run_all_snapshot(snapshot: &common::RepoSnapshot, lang: Option<&str>) -> Value {
+    let language_snapshot = snapshot.filtered(lang);
     let values: Vec<(&str, Value)> = ANALYZER_NAMES
         .par_iter()
-        .map(|name| (*name, run_one(name, repo, lang)))
+        .map(|name| {
+            let result = match *name {
+                "scan" => scan::run_with_snapshot(&language_snapshot),
+                "measure" => measure::run_with_snapshot(&language_snapshot),
+                "config" => config::run_with_snapshot(snapshot),
+                "git" => git::run(&snapshot.root.to_string_lossy()),
+                "graph" => graph::run_with_snapshot(&language_snapshot, lang),
+                "symbols" => symbols::run_with_snapshot(&language_snapshot),
+                "tests" => tests::run_with_snapshot(snapshot),
+                _ => Err(agentskill_core::AgentskillError::InvalidArgument(format!(
+                    "unknown analyzer: {name}"
+                ))),
+            };
+            (
+                *name,
+                result.unwrap_or_else(|error| error_payload(error, name)),
+            )
+        })
         .collect();
 
     let mut map = Map::new();
@@ -52,4 +85,10 @@ pub fn run_many(repos: &[String], lang: Option<&str>) -> Value {
         map.insert(repo.clone(), run_all(repo, lang));
     }
     Value::Object(map)
+}
+
+/// Builds the normalized evidence bundle used by the LLM skill.
+pub fn run_evidence(repo: &str, lang: Option<&str>) -> agentskill_core::Result<Value> {
+    let snapshot = common::RepoSnapshot::load(repo)?.filtered(lang);
+    evidence::run_snapshot(&snapshot, lang)
 }

@@ -2,7 +2,9 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use crate::language::{LanguageSpec, language_for_content};
+use crate::language::{
+    LanguageRole, LanguageSpec, is_test_path, language_for_content, language_role,
+};
 
 const SKIP_DIRS: &[&str] = &[
     ".git",
@@ -40,6 +42,32 @@ pub struct RepoFile {
     pub language: Option<&'static LanguageSpec>,
     pub bytes: u64,
     pub lines: usize,
+    pub role: FileRole,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FileRole {
+    Source,
+    Test,
+    Example,
+    Documentation,
+    Generated,
+    Configuration,
+    Auxiliary,
+}
+
+impl FileRole {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Source => "source",
+            Self::Test => "test",
+            Self::Example => "example",
+            Self::Documentation => "documentation",
+            Self::Generated => "generated",
+            Self::Configuration => "configuration",
+            Self::Auxiliary => "auxiliary",
+        }
+    }
 }
 
 pub fn read_text(path: &Path) -> String {
@@ -85,7 +113,7 @@ fn collect_into(repo: &Path, current: &Path, files: &mut Vec<RepoFile>) {
         }
 
         if path.is_dir() {
-            if !SKIP_DIRS.contains(&name.as_str()) && !name.starts_with('.') {
+            if !SKIP_DIRS.contains(&name.as_str()) {
                 collect_into(repo, &path, files);
             }
             continue;
@@ -108,14 +136,85 @@ fn collect_into(repo: &Path, current: &Path, files: &mut Vec<RepoFile>) {
         let text = read_text(&path);
         let language = language_for_content(&path, &text, Some(repo));
         let lines = line_count(&path);
+        let role = classify_role(&relative, &path, language);
         files.push(RepoFile {
             path,
             relative,
             language,
             bytes: metadata.len(),
             lines,
+            role,
         });
     }
+}
+
+fn classify_role(relative: &str, path: &Path, language: Option<&'static LanguageSpec>) -> FileRole {
+    let components = relative
+        .split('/')
+        .map(|item| item.to_ascii_lowercase())
+        .collect::<Vec<_>>();
+    let name = path
+        .file_name()
+        .and_then(|item| item.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    if components.iter().any(|item| {
+        matches!(
+            item.as_str(),
+            "generated" | "gen" | "dist" | "build" | "out" | "target"
+        )
+    }) || name.contains("generated")
+    {
+        return FileRole::Generated;
+    }
+
+    if components.iter().any(|item| {
+        matches!(
+            item.as_str(),
+            "examples" | "example" | "fixtures" | "fixture" | "testdata" | "samples"
+        )
+    }) {
+        return FileRole::Example;
+    }
+
+    if components
+        .iter()
+        .any(|item| matches!(item.as_str(), "docs" | "documentation"))
+        || matches!(name.as_str(), "readme.md" | "changelog.md" | "license")
+    {
+        return FileRole::Documentation;
+    }
+
+    if matches!(
+        name.as_str(),
+        ".editorconfig"
+            | ".gitignore"
+            | "cargo.toml"
+            | "cargo.lock"
+            | "package.json"
+            | "pyproject.toml"
+            | "makefile"
+            | "cmakelists.txt"
+            | "dockerfile"
+            | "go.mod"
+            | "pom.xml"
+            | "build.gradle"
+            | "build.gradle.kts"
+    ) {
+        return FileRole::Configuration;
+    }
+
+    if let Some(language) = language {
+        if is_test_path(path, language) {
+            return FileRole::Test;
+        }
+        if language_role(language.id) == Some(LanguageRole::Auxiliary) {
+            return FileRole::Auxiliary;
+        }
+    }
+
+    FileRole::Source
 }
 
 pub fn line_count(path: &Path) -> usize {

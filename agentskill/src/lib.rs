@@ -1,12 +1,13 @@
 use clap::{Args, Parser, Subcommand};
 
-use agentskill_core::output::write_value;
+use agentskill_core::output::{ANALYZER_NAMES, write_value};
+use serde_json::Value;
 
 #[derive(Parser)]
 #[command(
     name = "agentskill",
     version,
-    about = "Analyze repositories and synthesize AGENTS.md"
+    about = "Collect repository evidence for LLM-authored AGENTS.md files"
 )]
 pub struct Cli {
     #[arg(long, global = true, help = "Pretty-print JSON output")]
@@ -26,6 +27,8 @@ pub struct Cli {
 enum Commands {
     #[command(about = "Run all analyzers and merge output")]
     Analyze(AnalyzeArgs),
+    #[command(about = "Build normalized evidence for the LLM skill")]
+    Evidence(RepoLangArgs),
     #[command(about = "Directory tree and file inventory")]
     Scan(RepoLangArgs),
     #[command(about = "Exact formatting metrics")]
@@ -40,10 +43,10 @@ enum Commands {
     Symbols(RepoLangArgs),
     #[command(about = "Test-to-source mapping and framework detection")]
     Tests(RepoArgs),
-    #[command(about = "Generate AGENTS.md markdown from repository analysis")]
-    Generate(GenerateArgs),
-    #[command(about = "Update or create AGENTS.md")]
-    Update(UpdateArgs),
+    #[command(about = "Validate LLM-authored AGENTS.md files without writing")]
+    Validate(RepoArgs),
+    #[command(about = "Report stale AGENTS.md references without writing")]
+    Drift(RepoArgs),
 }
 
 #[derive(Args)]
@@ -64,36 +67,6 @@ struct AnalyzeArgs {
     repos: Vec<String>,
     #[arg(long)]
     lang: Option<String>,
-    #[arg(long = "reference", action = clap::ArgAction::Append)]
-    references: Vec<String>,
-}
-
-#[derive(Args)]
-struct GenerateArgs {
-    repo: String,
-    #[arg(long = "reference", action = clap::ArgAction::Append)]
-    references: Vec<String>,
-    #[arg(long)]
-    interactive: bool,
-    #[arg(long, default_value = "concise")]
-    profile: String,
-    #[arg(long, default_value = "single")]
-    layout: String,
-}
-
-#[derive(Args)]
-struct UpdateArgs {
-    repo: String,
-    #[arg(long = "section", action = clap::ArgAction::Append)]
-    sections: Vec<String>,
-    #[arg(long = "exclude-section", action = clap::ArgAction::Append)]
-    excluded_sections: Vec<String>,
-    #[arg(long)]
-    force: bool,
-    #[arg(long, default_value = "concise")]
-    profile: String,
-    #[arg(long, default_value = "single")]
-    layout: String,
 }
 
 pub fn run() -> i32 {
@@ -110,18 +83,19 @@ pub fn run() -> i32 {
 
 fn dispatch(cli: Cli) -> agentskill_core::Result<bool> {
     let pretty = cli.pretty;
-
     let out = cli.out.as_deref();
+
     match cli.command {
         Commands::Analyze(args) => {
-            agentskill_core::reference::load_reference_documents(&args.references)?;
-            write_value(
-                &agentskill_analyzers::run_many(&args.repos, args.lang.as_deref()),
-                pretty,
-                out,
-            )
-            .map(|()| false)
+            let value = agentskill_analyzers::run_many(&args.repos, args.lang.as_deref());
+            let failed = aggregate_failed(&value, args.repos.len() > 1);
+            write_value(&value, pretty, out).map(|()| failed)
         }
+        Commands::Evidence(args) => write_result(
+            agentskill_analyzers::run_evidence(&args.repo, args.lang.as_deref()),
+            pretty,
+            out,
+        ),
         Commands::Scan(args) => {
             write_analyzer("scan", &args.repo, args.lang.as_deref(), pretty, out)
         }
@@ -137,46 +111,18 @@ fn dispatch(cli: Cli) -> agentskill_core::Result<bool> {
             write_analyzer("symbols", &args.repo, args.lang.as_deref(), pretty, out)
         }
         Commands::Tests(args) => write_analyzer("tests", &args.repo, None, pretty, out),
-        Commands::Generate(args) => {
-            if pretty {
-                return Err(agentskill_core::AgentskillError::InvalidArgument(
-                    "generate does not support --pretty".into(),
-                ));
-            }
-
-            let answers = if args.interactive {
-                agentskill_generation::collect_interactive_answers(&args.repo, &args.references)?
-            } else {
-                std::collections::BTreeMap::new()
-            };
-            agentskill_generation::generate_with_answers(
-                &args.repo,
-                out,
-                &args.references,
-                args.interactive,
-                &args.profile,
-                &args.layout,
-                &answers,
-            )
-            .map(|()| false)
-        }
-        Commands::Update(args) => {
-            if pretty {
-                return Err(agentskill_core::AgentskillError::InvalidArgument(
-                    "update does not support --pretty".into(),
-                ));
-            }
-            agentskill_generation::update(
-                &args.repo,
-                out,
-                &args.sections,
-                &args.excluded_sections,
-                args.force,
-                &args.profile,
-                &args.layout,
-            )
-            .map(|()| false)
-        }
+        Commands::Validate(args) => write_validation(
+            agentskill_validation::validate(&args.repo),
+            pretty,
+            out,
+            |value| value["valid"] != true,
+        ),
+        Commands::Drift(args) => write_validation(
+            agentskill_validation::drift(&args.repo),
+            pretty,
+            out,
+            |value| value["stale"] == true,
+        ),
     }
 }
 
@@ -194,6 +140,47 @@ fn write_analyzer(
     Ok(failed)
 }
 
+fn aggregate_failed(value: &Value, multiple_repositories: bool) -> bool {
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+
+    if multiple_repositories {
+        return object
+            .values()
+            .any(|repository| aggregate_failed(repository, false));
+    }
+
+    ANALYZER_NAMES.iter().any(|name| {
+        object
+            .get(*name)
+            .and_then(Value::as_object)
+            .is_some_and(|analyzer| analyzer.contains_key("error"))
+    })
+}
+
+fn write_result(
+    result: agentskill_core::Result<serde_json::Value>,
+    pretty: bool,
+    out: Option<&str>,
+) -> agentskill_core::Result<bool> {
+    let value = result?;
+    write_value(&value, pretty, out)?;
+    Ok(false)
+}
+
+fn write_validation(
+    result: agentskill_core::Result<serde_json::Value>,
+    pretty: bool,
+    out: Option<&str>,
+    failed: impl FnOnce(&serde_json::Value) -> bool,
+) -> agentskill_core::Result<bool> {
+    let value = result?;
+    let failed = failed(&value);
+    write_value(&value, pretty, out)?;
+    Ok(failed)
+}
+
 #[cfg(test)]
 mod unit_tests {
     use std::fs;
@@ -202,77 +189,60 @@ mod unit_tests {
     use clap::Parser;
     use tempfile::tempdir;
 
-    fn example() -> String {
-        format!(
-            "{}/../agentskill-skill/examples/rust",
-            env!("CARGO_MANIFEST_DIR")
-        )
-    }
-
     #[test]
-    fn dispatches_all_analyzers_and_document_commands() {
+    fn dispatches_analyzers_evidence_and_validation() {
         let directory = tempdir().unwrap();
+        fs::create_dir_all(directory.path().join("src")).unwrap();
+        fs::write(directory.path().join("src/main.rs"), "fn main() {}\n").unwrap();
+        fs::write(directory.path().join("AGENTS.md"), "# AGENTS.md\n").unwrap();
 
         let repo = directory.path().to_string_lossy().into_owned();
-        fs::write(directory.path().join("main.rs"), "fn main() {}\n").unwrap();
+        let output_directory = format!("target/agentskill-test-output-{}", std::process::id());
+        fs::create_dir_all(&output_directory).unwrap();
 
         let analyzers = [
             "scan", "measure", "config", "git", "graph", "symbols", "tests",
         ];
-        let output_directory = format!("target/agentskill-test-output-{}", std::process::id());
-        fs::create_dir_all(&output_directory).unwrap();
-
         for (index, analyzer) in analyzers.into_iter().enumerate() {
             let output = format!("{output_directory}/{index}.json");
             let cli =
                 Cli::try_parse_from(["agentskill", "--pretty", "--out", &output, analyzer, &repo])
                     .unwrap();
             dispatch(cli).unwrap();
-
             assert!(std::path::Path::new(&output).exists());
         }
 
-        let analyze_output = format!("{output_directory}/analyze.json");
-        dispatch(
-            Cli::try_parse_from([
-                "agentskill",
-                "--out",
-                &analyze_output,
-                "analyze",
-                &example(),
-            ])
-            .unwrap(),
-        )
-        .unwrap();
+        for command in ["analyze", "evidence", "validate", "drift"] {
+            let output = format!("{output_directory}/{command}.json");
+            let cli =
+                Cli::try_parse_from(["agentskill", "--out", &output, command, &repo]).unwrap();
+            dispatch(cli).unwrap();
+            assert!(std::path::Path::new(&output).exists());
+        }
 
-        let generated = directory.path().join("AGENTS.md");
-        let generated = generated.to_string_lossy().into_owned();
-        dispatch(
-            Cli::try_parse_from(["agentskill", "--out", &generated, "generate", &repo]).unwrap(),
-        )
-        .unwrap();
-        dispatch(Cli::try_parse_from(["agentskill", "update", &repo, "--force"]).unwrap()).unwrap();
+        assert!(Cli::try_parse_from(["agentskill", "generate", &repo]).is_err());
+        assert!(Cli::try_parse_from(["agentskill", "update", &repo]).is_err());
         fs::remove_dir_all(output_directory).unwrap();
-    }
-
-    #[test]
-    fn rejects_pretty_document_commands() {
-        let directory = tempdir().unwrap();
-        fs::write(directory.path().join("main.rs"), "fn main() {}\n").unwrap();
-
-        let repo = directory.path().to_string_lossy().into_owned();
-        let generate = Cli::try_parse_from(["agentskill", "--pretty", "generate", &repo]);
-
-        assert!(dispatch(generate.unwrap()).is_err());
-        let update = Cli::try_parse_from(["agentskill", "--pretty", "update", &repo]);
-
-        assert!(dispatch(update.unwrap()).is_err());
     }
 
     #[test]
     fn reports_analyzer_errors_as_failed_commands() {
         let cli = Cli::try_parse_from(["agentskill", "scan", "/missing/repository"]).unwrap();
-
         assert!(dispatch(cli).unwrap());
+    }
+
+    #[test]
+    fn reports_aggregate_analyzer_errors_as_failed_commands() {
+        let cli = Cli::try_parse_from(["agentskill", "analyze", "/missing/repository"]).unwrap();
+        assert!(dispatch(cli).unwrap());
+
+        let first = Cli::try_parse_from([
+            "agentskill",
+            "analyze",
+            "/missing/repository",
+            "/another/missing/repository",
+        ])
+        .unwrap();
+        assert!(dispatch(first).unwrap());
     }
 }

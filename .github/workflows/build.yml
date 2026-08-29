@@ -32,5 +32,5 @@ jobs:
       - run: target/release/agentskill analyze agentskill-skill/examples/python --pretty
         name: Test Analyze
 
-      - run: target/release/agentskill generate agentskill-skill/examples/python > /tmp/generated-AGENTS.md
-        name: Test Generate
+      - run: target/release/agentskill evidence agentskill-skill/examples/python --pretty
+        name: Test Evidence

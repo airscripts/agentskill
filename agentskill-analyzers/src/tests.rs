@@ -4,12 +4,19 @@ use agentskill_core::{Result, error::validate_repo, fs::RepoFile, language::is_t
 use regex::Regex;
 use serde_json::{Map, Value, json};
 
-use crate::common::insert_language_result;
+use crate::common::{RepoSnapshot, insert_language_result};
 
 pub fn run(repo: &str) -> Result<Value> {
     let root = validate_repo(repo)?;
-
     let files = agentskill_core::fs::collect_files(&root);
+    run_with_data(&root, &files)
+}
+
+pub(crate) fn run_with_snapshot(snapshot: &RepoSnapshot) -> Result<Value> {
+    run_with_data(&snapshot.root, &snapshot.files)
+}
+
+fn run_with_data(root: &std::path::Path, files: &[RepoFile]) -> Result<Value> {
     let mut result = Map::new();
 
     for language in agentskill_core::language::LANGUAGES {
@@ -40,7 +47,7 @@ pub fn run(repo: &str) -> Result<Value> {
             .collect::<Vec<_>>();
 
         let all_content = contents.join("\n");
-        let framework = detect_framework(language.id, &root, &all_content);
+        let framework = detect_framework(language.id, root, &all_content);
 
         let mappings = map_tests(&sources, &tests);
         let test_dir = test_directory(&tests);
@@ -50,7 +57,7 @@ pub fn run(repo: &str) -> Result<Value> {
             .map(|file| test_file_pattern(language.id, &file.relative));
 
         let fixture_info = fixture_data(language.id, &language_files);
-        let run_command = run_command(language.id, &root, framework, !tests.is_empty());
+        let run_command = run_command(language.id, root, framework, !tests.is_empty());
 
         let representative_test = tests.first().map(|file| file.relative.clone());
         insert_language_result(

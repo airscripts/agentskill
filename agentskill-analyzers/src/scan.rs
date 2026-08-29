@@ -4,7 +4,7 @@ use std::path::Path;
 use agentskill_core::Result;
 use serde_json::{Value, json};
 
-use crate::common::{is_auxiliary, repo_files};
+use crate::common::{RepoSnapshot, is_auxiliary, repo_files};
 
 const ENTRY_POINT_NAMES: &[&str] = &[
     "main", "cli", "app", "index", "server", "cmd", "__main__", "manage", "wsgi", "asgi", "run",
@@ -12,15 +12,24 @@ const ENTRY_POINT_NAMES: &[&str] = &[
 
 pub fn run(repo: &str, lang: Option<&str>) -> Result<serde_json::Value> {
     let (_root, files) = repo_files(repo, lang)?;
+    Ok(scan_snapshot(&files))
+}
+
+pub(crate) fn run_with_snapshot(snapshot: &RepoSnapshot) -> Result<serde_json::Value> {
+    Ok(scan_snapshot(&snapshot.files))
+}
+
+fn scan_snapshot(files: &[agentskill_core::fs::RepoFile]) -> serde_json::Value {
     let (primary, auxiliary): (Vec<_>, Vec<_>) = files
-        .into_iter()
+        .iter()
+        .cloned()
         .partition(|file| !is_auxiliary(file.language.expect("filtered files have a language").id));
 
     let mut result = scan_files(&primary);
     if !auxiliary.is_empty() {
         result["auxiliary"] = scan_files(&auxiliary);
     }
-    Ok(result)
+    result
 }
 
 fn scan_files(files: &[agentskill_core::fs::RepoFile]) -> serde_json::Value {

@@ -46,7 +46,7 @@ Available example repos:
 ```bash
 agentskill analyze agentskill-skill/examples/python --pretty
 agentskill scan agentskill-skill/examples/typescript --pretty
-agentskill generate agentskill-skill/examples/mixed
+agentskill evidence agentskill-skill/examples/mixed --pretty
 ```
 
 Use the installed `agentskill` CLI as the canonical interface. The example
@@ -56,6 +56,6 @@ to be built or installed as standalone projects.
 ## Reference Markdown Examples
 
 `SINGLE_LANGUAGE.md`, `MULTI_LANGUAGE.md`, and `MONOREPO.md` are reference
-`AGENTS.md` outputs. They are useful for understanding the rendered document
-shape, but they are not the analyzer-fixture source of truth for language
-support.
+context examples for the LLM skill. They are useful for designing rich
+repository guidance, but they are not the analyzer-fixture source of truth for
+language support.

@@ -3,8 +3,8 @@
 [![Main](https://github.com/airscripts/agentskill/actions/workflows/main.yml/badge.svg)](https://github.com/airscripts/agentskill/actions/workflows/main.yml)
 [![Release](https://github.com/airscripts/agentskill/actions/workflows/release.yml/badge.svg)](https://github.com/airscripts/agentskill/actions/workflows/release.yml)
 
-Analyze a code repository and synthesize an `AGENTS.md` that lets any agent
-produce code consistent with the existing codebase.
+Turn any codebase into an `AGENTS.md` playbook AI coding agents can actually
+follow.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/airscripts/agentskill/main/agentskill-assets/agentskill.png" alt="agentskill" width="1280">
@@ -22,11 +22,8 @@ produce code consistent with the existing codebase.
 - [Development Checks](#development-checks)
 - [Usage](#usage)
 - [Choosing a Command](#choosing-a-command)
-- [References](#references)
-- [Interactive Generation](#interactive-generation)
-- [Update Workflow](#update-workflow)
-- [Profiles and Layouts](#profiles-and-layouts)
-- [Repo-Local Feedback](#repo-local-feedback)
+- [AGENTS.md Output](#agentsmd-output)
+- [Maintainer Context](#maintainer-context)
 - [Repository Layout](#repository-layout)
 - [Where Code Goes](#where-code-goes)
 - [Developer Workflow](#developer-workflow)
@@ -46,11 +43,10 @@ produce code consistent with the existing codebase.
 agentskill is not a linter or a generic style-guide generator. It is a
 forensic extraction tool. It walks a repository, measures source conventions,
 reads formatter and linter configuration, inspects Git history, and analyzes
-imports, symbols, and tests. It then emits structured evidence or a
-deterministic `AGENTS.md` document.
+imports, symbols, and tests. It then emits structured evidence for an LLM.
 
-The output is not generic advice. It is repository-specific guidance for an
-agent working in an existing codebase.
+The LLM skill uses that evidence to author compact, repository-specific
+`AGENTS.md` guidance.
 
 ## How It Works
 
@@ -67,8 +63,8 @@ JSON shape:
 | `symbols` | Functions, types, constants, naming patterns, and affixes |
 | `tests` | Test frameworks, mappings, fixtures, and test commands |
 
-The generation crate turns this evidence into ordered markdown sections. The
-generation contract is documented in [`agentskill-skill/SYSTEM.md`](./agentskill-skill/SYSTEM.md).
+The evidence contract and LLM output rules are documented in
+[`agentskill-skill/SYSTEM.md`](./agentskill-skill/SYSTEM.md).
 The seven analyzers are implemented in Rust and run in parallel where the
 workspace can safely do so.
 
@@ -150,34 +146,15 @@ single-language, mixed-language, and monorepo shapes for regression coverage.
 
 ## Generation Modes
 
-agentskill supports deterministic CLI generation and AI-assisted skill
-generation.
-
-### Static Generation (CLI)
-
-Use the CLI when the packaged Rust runtime should produce reproducible output:
-
-- `agentskill analyze <repo> --pretty` emits machine-readable evidence.
-- `agentskill generate <repo>` creates a fresh document.
-- `agentskill generate <repo> --profile comprehensive` includes richer detail.
-- `agentskill generate <repo> --layout split` creates a concise document and a
-  comprehensive companion.
-- `agentskill generate <repo> --layout multifile` creates an index and one file
-  per generated section.
-- `agentskill update <repo>` regenerates sections while preserving manual text.
-
-### AI-Assisted Generation (Skill)
-
 The repository also contains a complete skill package in
 [`agentskill-skill/`](./agentskill-skill/). An agent harness can install that
-directory as a skill, run the analyzers for evidence, read `SYSTEM.md`, and
-author the final `AGENTS.md` itself. This mode supports conversational
-refinement and context-aware section depth.
+directory as a skill, run the evidence command, read `SYSTEM.md`, and author
+the final `AGENTS.md` itself. Semantic Markdown generation happens through the
+LLM skill rather than the Rust CLI.
 
-The skill workflow uses analyzer commands as evidence gathering; it does not
-need to invoke the static `generate` command. Use the CLI for deterministic
-runtime output and the skill when an agent should synthesize and refine the
-document interactively.
+The skill supports `init`, `enrich`, `scope`, `context`, `update`, and `audit`
+workflows. `operational` output is the compact root document; `reference`
+output is deeper context loaded only when needed.
 
 ## Installation
 
@@ -243,13 +220,14 @@ and `agentskill-scripts/pre-commit.sh`.
 
 ## Usage
 
-Global `--pretty` and `--out FILE` options apply to analyzer commands. `generate`
-and `update` produce markdown and therefore reject `--pretty`.
+Global `--pretty` and `--out FILE` options apply to static JSON commands. The
+CLI never writes semantic Markdown.
 
 ```bash
 # Aggregate or focused evidence
 agentskill analyze <repo> --pretty
 agentskill analyze <repo-a> <repo-b> --pretty
+agentskill evidence <repo> --pretty
 agentskill scan <repo> --pretty
 agentskill measure <repo> --lang rust --pretty
 agentskill config <repo> --pretty
@@ -261,19 +239,9 @@ agentskill tests <repo> --pretty
 # Save analyzer JSON
 agentskill --out report.json analyze <repo>
 
-# Generate a fresh document
-agentskill generate <repo>
-agentskill generate <repo> --out AGENTS.md
-agentskill generate <repo> --profile comprehensive
-agentskill generate <repo> --layout split
-agentskill generate <repo> --layout multifile
-
-# Update an existing document
-agentskill update <repo>
-agentskill update <repo> --section testing
-agentskill update <repo> --exclude-section git
-agentskill update <repo> --force
-agentskill update <repo> --out updated-AGENTS.md
+# Validate and inspect LLM-authored documents
+agentskill validate <repo>
+agentskill drift <repo>
 ```
 
 Use `agsk` in place of `agentskill` for every command. Run
@@ -286,137 +254,41 @@ Use `analyze` when you want JSON from all analyzers without writing markdown.
 It accepts one or more repositories and is the contract-stable inspection
 path. Use an individual analyzer when a focused signal is needed.
 
-Use `generate` for a new document. Single-layout generation prints markdown to
-stdout by default and only writes a file when `--out` is supplied. It never
-merges with an existing `AGENTS.md`.
+Use `evidence` when an LLM needs normalized facts with scope, confidence, and
+provenance. Use an individual analyzer when a focused static signal is needed.
 
-Use `update` when an `AGENTS.md` already exists or when you want deterministic
-regeneration with preservation. It writes to `<repo>/AGENTS.md` by default, or
-to `--out` while still using the repository's existing document as merge input.
+Use the installed skill for `init`, `enrich`, `scope`, `context`, `update`, and
+`audit`. Use `validate` and `drift` after the skill writes or updates documents.
 
-## References
+## AGENTS.md Output
 
-`analyze` and `generate` accept repeatable `--reference` flags. A local
-reference must be a directory containing a readable, non-empty `AGENTS.md`.
-Remote Git URLs (`http://`, `https://`, `ssh://`, or `git@...`) are cloned shallowly and
-read the same way. References are explicit inputs, are validated before use,
-and duplicate local sources are rejected.
+The skill writes two optional depth views from the same evidence:
 
-```bash
-agentskill analyze <repo> --reference ../reference-repo --pretty
-agentskill generate <repo> \
-  --reference ../reference-a \
-  --reference https://github.com/example/reference.git
-```
+- `AGENTS.md` is the compact operational contract. Keep it self-sufficient,
+  imperative, and normally within 500–1,000 tokens; treat 1,500 as a hard
+  ceiling.
+- `AGENTS.reference.md` is unrestricted supporting context: architecture,
+  rationale, evidence details, workflows, and examples that an agent can load
+  selectively. The root file links to it when it exists.
 
-Reference provenance is retained in generated metadata, including source and
-commit information when available. References do not silently change the
-analyzer JSON contract.
+The root document should prioritize repository mission and map, non-negotiable
+rules, conceptual don'ts, quick-start commands, change routing, architecture,
+testing, and only the most useful playbooks. It should state verified facts as
+rules, avoid raw analyzer dumps, and omit uncertain conventions. The reference
+document can preserve depth without spending every agent's context window.
 
-## Interactive Generation
+The LLM skill is responsible for `init`, `enrich`, `scope`, `context`, `update`,
+and `audit`. The CLI remains deterministic and read-only: `evidence` supplies
+facts, while `validate` and `drift` check the documents after the skill writes
+them.
 
-`generate --interactive` is opt-in gap filling. It asks when important signals
-are unavailable, such as a canonical test command or Git conventions. Answers
-are inserted as explicit notes in the relevant sections;
-an answer inferred from a supplied reference avoids an unnecessary prompt.
+## Maintainer Context
 
-```bash
-agentskill generate <repo> --interactive
-```
-
-Review generated notes against the repository when evidence from multiple
-sources differs.
-
-## Update Workflow
-
-`agentskill update <repo>` analyzes the repository, regenerates generated
-sections, merges them with the existing document, and writes the result back.
-
-- `--section NAME` regenerates only named sections.
-- `--exclude-section NAME` leaves named generated sections untouched.
-- Missing targeted sections are inserted without rewriting unrelated manual
-  sections.
-- Untouched custom sections and preamble text remain in place in normal mode.
-- `--force` performs a clean-slate rebuild and ignores preservation hints.
-
-`update` currently supports only the default `single` layout. Passing `split`
-or `multifile` is rejected clearly.
-
-## Profiles and Layouts
-
-### Profiles (content density)
-
-`generate` and `update` accept `--profile`:
-
-- `concise` (default) contains operational rules and key facts.
-- `comprehensive` adds a verification reminder to each generated section for
-  workflows that need more guidance while reviewing evidence.
-
-Both profiles are deterministic and preserve section headings and order.
-
-### Layouts (Output Packaging)
-
-`generate` accepts `--layout`:
-
-- `single` (default) emits one complete markdown document.
-- `split` writes a concise `AGENTS.md` and an `AGENTS.reference.md` companion;
-  the primary links to the companion. The primary is always concise and the
-  companion always comprehensive.
-- `multifile` writes a compact `AGENTS.md` index and section files in a
-  `.agentskill/` directory. Section filenames use stable numbering, for
-  example `01_OVERVIEW.md`, `05_COMMANDS_AND_WORKFLOWS.md`, and
-  `12_TESTING.md`:
-
-  ```text
-  .agentskill/
-    01_OVERVIEW.md
-    02_REPOSITORY_STRUCTURE.md
-    05_COMMANDS_AND_WORKFLOWS.md
-    06_CODE_FORMATTING.md
-    07_NAMING_CONVENTIONS.md
-    08_TYPE_ANNOTATIONS.md
-    09_IMPORTS.md
-    10_ERROR_HANDLING.md
-    11_COMMENTS_AND_DOCSTRINGS.md
-    12_TESTING.md
-    13_GIT.md
-    14_DEPENDENCIES_AND_TOOLING.md
-    15_RED_LINES.md
-  ```
-
-When `--out` is omitted, split and multifile write into the target repository.
-For single layout, markdown goes to stdout unless `--out` is supplied.
-
-| Layout | Profile behavior | Default profile |
-| --- | --- | --- |
-| `single` | Controls the one output document | `concise` |
-| `split` | Ignored; primary is concise and companion comprehensive | N/A |
-| `multifile` | Controls each section file | `concise` |
-
-## Repo-Local Feedback
-
-Incremental updates can read an optional, version-controlled
-`.agentskill-feedback.json` beside the repository's `AGENTS.md`:
-
-```json
-{
-  "sections": {
-    "overview": {
-      "prepend_notes": ["Deployments go through GitHub Actions."]
-    },
-    "testing": {
-      "pinned_facts": ["Use cargo test as the canonical test runner."]
-    }
-  },
-  "preserve_sections": ["red lines"]
-}
-```
-
-Supported keys are intentionally narrow: `sections.<name>.prepend_notes`,
-`sections.<name>.pinned_facts`, and `preserve_sections`. In normal update mode,
-preserved sections act like an implicit exclusion list. `--force` ignores those
-hints. Use the sidecar for durable regeneration guidance; edit `AGENTS.md`
-directly for one-off manual text.
+Durable maintainer answers belong in the repository's normal review flow or in
+the reference document, not in a CLI feedback sidecar. During generation the
+skill should ask only high-impact questions that static evidence cannot answer,
+record the resulting decision in the appropriate document, and distinguish
+maintainer policy from repository observation.
 
 ## Repository Layout
 
@@ -427,7 +299,7 @@ Cargo.toml                # Rust workspace definition
 Cargo.lock                # reproducible dependency resolution
 agentskill-core/          # shared types, filesystem, language registry
 agentskill-analyzers/     # seven analyzers and aggregate execution
-agentskill-generation/    # rendering, references, layouts, and merging
+agentskill-generation/    # validation and evidence/document drift checks
 agentskill/               # Clap CLI and agentskill/agsk binaries
 agentskill-skill/         # skill instructions, references, and fixtures
 agentskill-scripts/       # release and archive verification helpers
@@ -443,12 +315,12 @@ agentskill-tests/         # compatibility contract fixtures
   in `agentskill-core/`.
 - Put analyzer implementations and aggregate execution in
   `agentskill-analyzers/`.
-- Put document rendering, profiles, layouts, references, feedback, and update
-  merging in `agentskill-generation/`.
+- Put document validation and evidence/document drift checks in the
+  `agentskill-generation/` package (published as `agentskill-validation`).
 - Keep `agentskill/src/main.rs` thin; route CLI behavior through the library
   crates and expose both binaries from `agentskill/`.
 - Keep `agentskill-scripts/` limited to release, archive, and operator helpers;
-  do not put analyzer or generation logic there.
+  do not put analyzer or validation logic there.
 - Keep target-language fixtures under `agentskill-skill/examples/` and contract
   fixtures under `agentskill-tests/`.
 
@@ -469,15 +341,16 @@ For a normal change:
 5. Run `make fmt`, then `make verify` before opening a pull request.
 
 Public command names, flags, analyzer keys, error payloads, supported target
-languages, and generation/update semantics are compatibility surfaces.
+languages, evidence fields, and document validation semantics are compatibility
+surfaces.
 
 ## File Ecosystem
 
-Read these files together before changing generation behavior:
+Read these files together before changing evidence or document behavior:
 
 | File | Role |
 | --- | --- |
-| [`agentskill-skill/SYSTEM.md`](./agentskill-skill/SYSTEM.md) | Contract for generated `AGENTS.md` sections |
+| [`agentskill-skill/SYSTEM.md`](./agentskill-skill/SYSTEM.md) | Contract for LLM-authored `AGENTS.md` files |
 | [`agentskill-skill/SKILL.md`](./agentskill-skill/SKILL.md) | AI-assisted evidence and synthesis workflow |
 | [`agentskill-skill/references/GOTCHAS.md`](./agentskill-skill/references/GOTCHAS.md) | Extraction and synthesis errors to avoid |
 | [`agentskill-docs/cli.md`](./agentskill-docs/cli.md) | Detailed CLI surface |
@@ -488,16 +361,16 @@ Read these files together before changing generation behavior:
 
 [`agentskill-skill/examples/README.md`](./agentskill-skill/examples/README.md)
 indexes compact fixtures for every supported target language and reference
-outputs for single-language, multi-language, and monorepo repositories. They
-are used by analyzer coverage and contract tests, and are useful when checking
-how language detection or test mapping behaves.
+context examples for single-language, multi-language, and monorepo repositories.
+They are used by analyzer coverage and contract tests, and are useful when
+checking how language detection or test mapping behaves.
 
 Try one locally:
 
 ```bash
 agentskill analyze agentskill-skill/examples/python --pretty
 agentskill scan agentskill-skill/examples/typescript --pretty
-agentskill generate agentskill-skill/examples/mixed
+agentskill evidence agentskill-skill/examples/mixed --pretty
 ```
 
 ## API Reference
@@ -507,7 +380,7 @@ Contributor-oriented documentation lives under
 
 - [`cli.md`](./agentskill-docs/cli.md) describes commands, flags, and output.
 - [`architecture.md`](./agentskill-docs/architecture.md) describes crate
-  responsibilities, analyzer contracts, generation, and release flow.
+  responsibilities, evidence contracts, validation, and release flow.
 
 The Rust crates are the implementation source of truth; the docs summarize
 their public boundaries without exposing every private helper.
@@ -515,8 +388,8 @@ their public boundaries without exposing every private helper.
 ## Contributing
 
 Contributions are welcome, especially improvements to analyzer depth,
-deterministic generation, supported-language fixtures, compatibility contracts,
-and skill ergonomics. Before opening a pull request, read
+evidence quality, supported-language fixtures, compatibility contracts, and
+skill ergonomics. Before opening a pull request, read
 [`CONTRIBUTING.md`](./CONTRIBUTING.md) and
 [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md). Use the repository issue and pull
 request templates when reporting bugs or proposing changes.

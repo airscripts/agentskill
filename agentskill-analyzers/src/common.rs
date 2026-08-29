@@ -7,19 +7,43 @@ pub fn repo_files(
     repo: &str,
     lang: Option<&str>,
 ) -> agentskill_core::Result<(PathBuf, Vec<RepoFile>)> {
-    let root = agentskill_core::error::validate_repo(repo)?;
+    let snapshot = RepoSnapshot::load(repo)?.filtered(lang);
+    Ok((snapshot.root, snapshot.files))
+}
 
-    let files = collect_files(&root)
-        .into_iter()
-        .filter(|file| {
-            let Some(language) = file.language else {
-                return false;
-            };
-            lang.is_none_or(|filter| language.id == filter)
-        })
-        .collect();
+pub struct RepoSnapshot {
+    pub root: PathBuf,
+    pub files: Vec<RepoFile>,
+}
 
-    Ok((root, files))
+impl RepoSnapshot {
+    pub fn load(repo: &str) -> agentskill_core::Result<Self> {
+        let root = agentskill_core::error::validate_repo(repo)?;
+        let files = collect_files(&root)
+            .into_iter()
+            .filter(|file| file.language.is_some())
+            .collect();
+
+        Ok(Self { root, files })
+    }
+
+    pub fn filtered(&self, lang: Option<&str>) -> Self {
+        let files = self
+            .files
+            .iter()
+            .filter(|file| {
+                lang.is_none_or(|filter| {
+                    file.language.is_some_and(|language| language.id == filter)
+                })
+            })
+            .cloned()
+            .collect();
+
+        Self {
+            root: self.root.clone(),
+            files,
+        }
+    }
 }
 
 pub fn text(path: &Path) -> String {

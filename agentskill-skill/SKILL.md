@@ -5,18 +5,20 @@ description: Let any agent produce code consistent with the existing codebase.
 
 # Agentskill Skill
 
-Use the agentskill binary to gather repository evidence, then author the final
-`AGENTS.md` from that evidence. The skill is AI-led: analyzer output is raw
-material, not the finished document.
+Use the agentskill binary to gather repository evidence, then author and
+maintain `AGENTS.md` through the LLM. Analyzer output is raw material, not the
+finished document.
 
 ## Workflow
 
-1. Confirm the target repository path or paths.
-2. Collect broad evidence with `agentskill analyze <repo> --pretty`.
-3. Inspect representative entrypoints, core modules, tests, manifests, and
+1. Confirm the target repository path.
+2. Collect normalized evidence with `agentskill evidence <repo> --pretty`.
+3. Inspect representative entrypoints, core modules, tests, manifests, CI, and
    configuration files directly.
-4. Read `SYSTEM.md` fully before drafting the document.
-5. Synthesize and validate the final `AGENTS.md` against observed conventions.
+4. Read `SYSTEM.md` fully before drafting or updating documents.
+5. Ask only high-impact questions that evidence cannot resolve.
+6. Write compact `AGENTS.md` guidance and optional reference context.
+7. Run `agentskill validate <repo>` and show the semantic diff.
 
 Use individual analyzers when a focused signal is needed:
 
@@ -30,25 +32,22 @@ agentskill symbols <repo> --pretty
 agentskill tests <repo> --pretty
 ```
 
-References may be supplied to `analyze` with repeated `--reference` flags.
-References are explicit inputs and must contain a readable `AGENTS.md`.
+References are explicit inputs to the LLM workflow and must contain a readable
+`AGENTS.md`. Compare reference conventions against target-repository evidence;
+never copy them as unquestioned truth.
 
-## Static CLI Workflows
+## LLM Workflows
 
-Use these when the user explicitly wants deterministic runtime-generated
-markdown rather than AI-authored synthesis:
+Use these workflows for semantic repository guidance:
 
 ```bash
-agentskill generate <repo>
-agentskill generate <repo> --profile comprehensive
-agentskill generate <repo> --layout split --out AGENTS.md
-agentskill generate <repo> --layout multifile --out AGENTS.md
-agentskill update <repo>
-agentskill update <repo> --section testing
+agentskill evidence <repo> --pretty
+agentskill validate <repo>
+agentskill drift <repo>
 ```
 
-`update` preserves untouched manual sections by default. `--force` rebuilds
-from regenerated sections. `update` supports only the `single` layout.
+The LLM skill owns `init`, `enrich`, `scope`, `context`, `update`, and `audit`.
+The Rust CLI never writes semantic Markdown.
 
 ## Evidence Rules
 

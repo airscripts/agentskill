@@ -45,13 +45,13 @@ for file in "${files[@]}"; do
             add_package agentskill-analyzers
             ;;
         agentskill-generation/Cargo.toml|agentskill-generation/src/*|agentskill-generation/tests/*)
-            add_package agentskill-generation
+            add_package agentskill-validation
             ;;
     esac
 done
 
 if [ "$all_packages" -eq 1 ]; then
-    packages=" agentskill agentskill-core agentskill-analyzers agentskill-generation"
+    packages=" agentskill agentskill-core agentskill-analyzers agentskill-validation"
 fi
 
 if [ -z "$packages" ]; then

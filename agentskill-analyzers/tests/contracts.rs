@@ -48,6 +48,75 @@ fn language_filter_limits_scan() {
 }
 
 #[test]
+fn aggregate_language_filter_preserves_repository_wide_analyzers() {
+    let directory = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(directory.path().join("src")).unwrap();
+    std::fs::create_dir_all(directory.path().join("tests")).unwrap();
+    std::fs::write(directory.path().join("src/main.rs"), "fn main() {}\n").unwrap();
+    std::fs::write(
+        directory.path().join("src/tool.py"),
+        "def tool():\n    return True\n",
+    )
+    .unwrap();
+    std::fs::write(
+        directory.path().join("tests/test_tool.py"),
+        "def test_tool():\n    assert True\n",
+    )
+    .unwrap();
+    std::fs::write(
+        directory.path().join("pyproject.toml"),
+        "[tool.ruff]\nline-length = 88\n",
+    )
+    .unwrap();
+
+    let output =
+        agentskill_analyzers::run_all(directory.path().to_string_lossy().as_ref(), Some("rust"));
+
+    assert!(output["scan"]["summary"]["by_language"]["rust"].is_object());
+    assert!(output["config"]["python"]["linter"].is_object());
+    assert!(output["tests"]["python"].is_object());
+}
+
+#[test]
+fn evidence_bundle_contains_scoped_facts_and_provenance() {
+    let example = format!(
+        "{}/../agentskill-skill/examples/python",
+        env!("CARGO_MANIFEST_DIR")
+    );
+
+    let output = agentskill_analyzers::run_evidence(&example, None).unwrap();
+    assert_eq!(output["schema_version"], 3);
+    assert!(output["repository"]["root"].is_string());
+    let facts = output["facts"].as_array().unwrap();
+    assert!(!facts.is_empty());
+    for fact in facts {
+        assert!(fact["id"].is_string());
+        assert!(fact["scope"].is_string());
+        assert!(fact["confidence"].is_string());
+        assert!(fact["evidence"].is_array());
+    }
+}
+
+#[test]
+fn evidence_does_not_fabricate_config_paths_for_builtin_tools() {
+    let example = format!(
+        "{}/../agentskill-skill/examples/mixed",
+        env!("CARGO_MANIFEST_DIR")
+    );
+
+    let output = agentskill_analyzers::run_evidence(&example, None).unwrap();
+    let fact = output["facts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|fact| fact["id"] == "tool.go.formatter")
+        .expect("mixed fixture should expose gofmt evidence");
+
+    assert_eq!(fact["confidence"], "inferred");
+    assert!(fact["evidence"].as_array().unwrap().is_empty());
+}
+
+#[test]
 fn compatibility_scan_contract_fixtures_are_exercised() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let fixtures = [

@@ -3,15 +3,22 @@ use std::collections::BTreeMap;
 use agentskill_core::Result;
 use serde_json::{Map, Value, json};
 
-use crate::common::{insert_language_result, percentile, repo_files, text};
+use crate::common::{RepoSnapshot, insert_language_result, percentile, repo_files, text};
 
 pub fn run(repo: &str, lang: Option<&str>) -> Result<Value> {
     let (_root, files) = repo_files(repo, lang)?;
+    run_with_files(&files)
+}
 
+pub(crate) fn run_with_snapshot(snapshot: &RepoSnapshot) -> Result<Value> {
+    run_with_files(&snapshot.files)
+}
+
+fn run_with_files(files: &[agentskill_core::fs::RepoFile]) -> Result<Value> {
     let mut result = Map::new();
     let mut by_language: BTreeMap<&str, Vec<_>> = BTreeMap::new();
 
-    for file in &files {
+    for file in files {
         by_language
             .entry(file.language.expect("language").id)
             .or_default()

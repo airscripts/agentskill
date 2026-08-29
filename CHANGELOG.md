@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed obsolete marketplace badge and listing documentation.
 - Removed the obsolete Star History chart from the README.
+- Made the LLM skill the only author of semantic `AGENTS.md` content; the CLI
+  now emits evidence and performs read-only validation and drift checks.
+- Added normalized evidence facts with scope, confidence, repository revision,
+  and source-path provenance for reliable LLM synthesis.
+- Removed static CLI generation, update, profile, layout, reference, and
+  feedback workflows from the user-facing command surface.
 
 ## [2.0.0] - 2026-08-27
 
