@@ -155,8 +155,14 @@ fn aggregate_failed(value: &Value, multiple_repositories: bool) -> bool {
         object
             .get(*name)
             .and_then(Value::as_object)
-            .is_some_and(|analyzer| analyzer.contains_key("error"))
+            .is_some_and(|analyzer| {
+                analyzer.contains_key("error") && !is_expected_analyzer_limitation(name, analyzer)
+            })
     })
+}
+
+fn is_expected_analyzer_limitation(name: &str, analyzer: &serde_json::Map<String, Value>) -> bool {
+    name == "git" && analyzer["error"] == "not a git repository"
 }
 
 fn write_result(
@@ -244,5 +250,15 @@ mod unit_tests {
         ])
         .unwrap();
         assert!(dispatch(first).unwrap());
+    }
+
+    #[test]
+    fn allows_aggregate_analysis_without_git_history() {
+        let directory = tempdir().unwrap();
+        fs::write(directory.path().join("main.rs"), "fn main() {}\n").unwrap();
+        let repo = directory.path().to_string_lossy().into_owned();
+        let cli = Cli::try_parse_from(["agentskill", "analyze", &repo]).unwrap();
+
+        assert!(!dispatch(cli).unwrap());
     }
 }

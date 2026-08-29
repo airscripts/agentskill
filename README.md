@@ -192,8 +192,15 @@ provides deterministic evidence and document operations.
 
 ## Development Checks
 
-Install Rust through [rustup](https://rustup.rs/). The minimum supported Rust
-version is 1.89. The canonical verification command is:
+Install Rust through [rustup](https://rustup.rs/) and Lefthook with
+`cargo install lefthook`, then enable the repository hooks:
+
+```bash
+lefthook install
+```
+
+The minimum supported Rust version is 1.89. The canonical verification command
+is:
 
 ```bash
 make verify
