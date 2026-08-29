@@ -31,12 +31,15 @@ as `agentskill` and `agsk`; the packaged LLM skill authors semantic Markdown.
 
 ## Don'ts
 
-- Do not reintroduce static semantic Markdown generation or update workflows;
-  the LLM skill owns document authorship.
-- Do not put analyzer or validation logic in the CLI entrypoint.
-- Do not remove supported target languages or their example fixtures.
-- Do not invent repository rules from counts or uncertain analyzer output.
-- Do not publish artifacts without locked verification and archive checks.
+- Do not generate or update semantic Markdown in Rust; the LLM skill owns
+  document authorship.
+- Do not put analyzer, evidence, or validation logic in the CLI entrypoint.
+- Do not treat target-language fixtures as production code or remove supported
+  languages and their example fixtures.
+- Do not turn counts, heuristics, or low-confidence evidence into repository
+  rules.
+- Do not bypass locked verification, release archive checks, or checksum
+  generation.
 
 ## Quick Start
 

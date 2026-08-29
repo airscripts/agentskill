@@ -1,14 +1,14 @@
 # AGENTS.md
 
 > **Example: multi-language single repo.**
-> Fictional Python/TypeScript project — `lumen`, a documentation site generator with a Python build engine and a TypeScript browser runtime. All data is fabricated for illustration.
+> Fictional Python/TypeScript project: `lumen`, a documentation site generator with a Python build engine and a TypeScript browser runtime. All data is fabricated for illustration.
 > The structure and level of detail here represent the target quality for any multi-language single-repo output.
 
 ---
 
 ## 1. Overview
 
-lumen is a documentation site generator: a Python package that parses Markdown and structured YAML into an intermediate representation, then serializes it to static HTML; and a TypeScript browser runtime that adds client-side search, syntax highlighting, and navigation to the generated output. The two halves share no code at runtime — the Python engine runs at build time, the TypeScript bundle is embedded in generated pages. Both halves live in one repository and are developed together. The codebase favors explicit data flow over magic: no monkey-patching, no global mutation, no hidden imports.
+lumen is a documentation site generator: a Python package that parses Markdown and structured YAML into an intermediate representation, then serializes it to static HTML; and a TypeScript browser runtime that adds client-side search, syntax highlighting, and navigation to the generated output. The two halves share no code at runtime: the Python engine runs at build time, the TypeScript bundle is embedded in generated pages. Both halves live in one repository and are developed together. The codebase favors explicit data flow over magic: no monkey-patching, no global mutation, no hidden imports.
 
 ---
 
@@ -22,7 +22,7 @@ lumen/
   Makefile
   lumen/                  # Python package
     __init__.py
-    cli.py                # entry point — argparse dispatch only
+    cli.py                # entry point: argparse dispatch only
     builder.py            # orchestrates the full build pipeline
     parser.py             # Markdown and YAML → IR
     renderer.py           # IR → HTML
@@ -30,10 +30,10 @@ lumen/
     config.py             # config file loading and validation
     errors.py             # all custom exception classes
     models.py             # dataclasses for the IR
-    util.py               # shared utilities — string, path, hash helpers
+    util.py               # shared utilities: string, path, hash helpers
   runtime/                # TypeScript browser runtime
     src/
-      index.ts            # entry point — exports the public API
+      index.ts            # entry point: exports the public API
       search.ts           # client-side search index and query engine
       highlight.ts        # syntax highlighting integration
       nav.ts              # navigation and scroll-spy
@@ -54,42 +54,42 @@ lumen/
 - New TypeScript modules go in `runtime/src/`.
 - Custom exception classes go in `lumen/errors.py` only. Do not define exceptions inline.
 - Shared TypeScript types go in `runtime/src/types.ts`. Do not duplicate type definitions across files.
-- `lumen/cli.py` contains only argument parsing and dispatch — no build logic.
+- `lumen/cli.py` contains only argument parsing and dispatch: no build logic.
 - Nothing other than config files, `Makefile`, `pyproject.toml`, and `package.json` belongs at the repo root.
 
 ---
 
-## 5. Commands and Workflows
+## 5. Commands And Workflows
 
 ```bash
-# Install Python Development Dependencies
+# Install Python Development Dependencies.
 uv sync --dev
 
-# Install TypeScript dependencies
+# Install TypeScript dependencies.
 npm install
 
-# Run Python tests
+# Run Python tests.
 pytest
 
-# Run TypeScript tests
+# Run TypeScript tests.
 npm test
 
-# Build the TypeScript bundle
+# Build the TypeScript bundle.
 npm run build
 
-# Build documentation site (full pipeline)
+# Build documentation site (full pipeline).
 lumen build ./docs --out ./site
 
-# Lint Python
+# Lint Python.
 ruff check lumen/ tests/
 
-# Format Python
+# Format Python.
 ruff format lumen/ tests/
 
-# Lint TypeScript
+# Lint TypeScript.
 npm run lint
 
-# Format TypeScript
+# Format TypeScript.
 npm run format
 ```
 
@@ -113,7 +113,7 @@ def render(node: PageNode, ctx: RenderContext) -> str:
 
 **Line length:** 88 characters. Configured as `line-length = 88` in `[tool.ruff]`. The 95th percentile across source files is 81.
 
-**Blank lines — top-level:** Two blank lines between every top-level function and class definition.
+**Blank lines: top-level:** Two blank lines between every top-level function and class definition.
 
 ```python
 def parse_frontmatter(source: str) -> dict[str, str]:
@@ -124,7 +124,7 @@ def parse_body(source: str) -> list[BlockNode]:
     ...
 ```
 
-**Blank lines — methods:** One blank line between methods inside a class.
+**Blank lines: methods:** One blank line between methods inside a class.
 
 ```python
 class Renderer:
@@ -135,7 +135,7 @@ class Renderer:
         ...
 ```
 
-**Blank lines — class open:** No blank line between the class declaration and the first method.
+**Blank lines: class open:** No blank line between the class declaration and the first method.
 
 ```python
 class BuildError(LumenError):
@@ -144,9 +144,9 @@ class BuildError(LumenError):
         self.path = path
 ```
 
-**Blank lines — after imports:** One blank line between the last import and the first definition.
+**Blank lines: after imports:** One blank line between the last import and the first definition.
 
-**Blank lines — end of file:** Every file ends with exactly one trailing newline.
+**Blank lines: end of file:** Every file ends with exactly one trailing newline.
 
 **Trailing whitespace:** Never present. `ruff format` enforces this.
 
@@ -179,7 +179,7 @@ result = renderer.render(
 )
 ```
 
-**Import block formatting:** Three groups — stdlib, then third-party, then local — separated by one blank line each. `isort` profile `"black"` is configured. One import per line.
+**Import block formatting:** Three groups: stdlib, then third-party, then local: separated by one blank line each. `isort` profile `"black"` is configured. One import per line.
 
 ```python
 import hashlib
@@ -214,11 +214,11 @@ function buildIndex(pages: Page[]): SearchIndex {
 
 **Line length:** 100 characters. Configured as `printWidth: 100` in `.prettierrc`.
 
-**Blank lines — top-level:** One blank line between top-level function and class definitions.
+**Blank lines: top-level:** One blank line between top-level function and class definitions.
 
-**Blank lines — methods:** One blank line between methods inside a class.
+**Blank lines: methods:** One blank line between methods inside a class.
 
-**Blank lines — end of file:** Every file ends with exactly one trailing newline. Prettier enforces this.
+**Blank lines: end of file:** Every file ends with exactly one trailing newline. Prettier enforces this.
 
 **Trailing whitespace:** Never present.
 
@@ -230,7 +230,7 @@ const endpoint = "/_search/index.json";
 
 **Semicolons:** Always present at end of statements. Configured as `semi: true`.
 
-**Trailing commas:** `"all"` — present in function parameters, arguments, arrays, and objects wherever valid.
+**Trailing commas:** `"all"`: present in function parameters, arguments, arrays, and objects wherever valid.
 
 ```typescript
 export function highlight(
@@ -291,7 +291,7 @@ class BuildError(LumenError): ...
 
 **Functions:** `camelCase`. Named after action and noun: `buildIndex`, `queryIndex`, `highlightCode`, `scrollToAnchor`.
 
-**Classes:** `PascalCase`. Rare — prefer plain functions and objects.
+**Classes:** `PascalCase`. Rare: prefer plain functions and objects.
 
 **Interfaces and type aliases:** `PascalCase`. Interfaces for objects with behavior, type aliases for data shapes.
 
@@ -324,7 +324,7 @@ const DEBOUNCE_MS = 150;
 
 ### Python
 
-- Annotate every function signature — parameters and return type.
+- Annotate every function signature: parameters and return type.
 - Use built-in generics: `list[str]`, `dict[str, Any]`, `set[str]`. Never import from `typing` for these.
 - Use `X | None` for optional types. Never `Optional[X]`.
 - Dataclasses in `models.py` have fully annotated fields.
@@ -402,7 +402,7 @@ import { slugify } from "./util";
 ### Python
 
 - All custom exceptions are defined in `lumen/errors.py` and inherit from `LumenError`.
-- Public functions that can fail raise a `LumenError` subclass — never a bare `Exception` or `ValueError`.
+- Public functions that can fail raise a `LumenError` subclass: never a bare `Exception` or `ValueError`.
 - Internal helpers raise the same typed exceptions; they do not catch and re-wrap unless adding context.
 - `cli.py` catches `LumenError` at the top level, prints the message to stderr, and exits with code 1.
 
@@ -422,7 +422,7 @@ def load_config(path: Path) -> Config:
 
 ### TypeScript
 
-- Functions that can fail return `Result<T, E>` — a discriminated union, not thrown exceptions.
+- Functions that can fail return `Result<T, E>`: a discriminated union, not thrown exceptions.
 - Exceptions are only thrown for programmer errors (impossible states). User-facing errors use `Result`.
 
 ```typescript
@@ -438,7 +438,7 @@ export function parseQuery(raw: string): Result<Query, string> {
 
 ---
 
-## 11. Comments and Docstrings
+## 11. Comments And Docstrings
 
 ### Python
 
@@ -530,13 +530,13 @@ describe("queryIndex", () => {
 
 **Commit prefixes:**
 
-- `feat:` — new user-visible feature in either the Python engine or the TypeScript runtime
-- `fix:` — bug correction
-- `refactor:` — restructuring without behavior change
-- `docs:` — documentation only
-- `chore:` — build, CI, dependency, tooling changes
-- `test:` — adds or modifies tests
-- `perf:` — measurable performance improvement
+- `feat:`: new user-visible feature in either the Python engine or the TypeScript runtime
+- `fix:`: bug correction
+- `refactor:`: restructuring without behavior change
+- `docs:`: documentation only
+- `chore:`: build, CI, dependency, tooling changes
+- `test:`: adds or modifies tests
+- `perf:`: measurable performance improvement
 
 **Scopes:** Optional. Used to disambiguate when the commit is clearly isolated to one half of the codebase.
 
@@ -562,7 +562,7 @@ chore/vitest-upgrade
 
 ---
 
-## 14. Dependencies and Tooling
+## 14. Dependencies And Tooling
 
 ### Python
 
@@ -589,9 +589,9 @@ chore/vitest-upgrade
 
 **Formatting violations:**
 
-- Never use single quotes in Python. All string literals use double quotes — enforced by `ruff format`.
-- Never use tabs in Python. All indentation is 4 spaces — enforced by `ruff format`.
-- Never use tabs in TypeScript. All indentation is 2 spaces — enforced by Prettier.
+- Never use single quotes in Python. All string literals use double quotes: enforced by `ruff format`.
+- Never use tabs in Python. All indentation is 4 spaces: enforced by `ruff format`.
+- Never use tabs in TypeScript. All indentation is 2 spaces: enforced by Prettier.
 
 **Architectural violations:**
 

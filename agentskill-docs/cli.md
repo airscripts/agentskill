@@ -20,7 +20,7 @@ Analyzer commands accept `--pretty` and `--out FILE`; language-aware commands
 also accept `--lang`. `analyze` accepts multiple repositories. The CLI never
 authors or updates semantic Markdown.
 
-## Evidence workflow
+## Evidence Workflow
 
 `evidence` is the primary input for the LLM skill:
 
@@ -33,7 +33,7 @@ normalized facts, confidence, evidence paths, and the complete analyzer output.
 Facts are intentionally compact and suitable for synthesis; source files and
 maintainer decisions still need to be inspected by the skill.
 
-## Document checks
+## Document Checks
 
 After the LLM writes `AGENTS.md` and, optionally, `AGENTS.reference.md`, run:
 
@@ -47,7 +47,7 @@ trailing newlines, and the operational token budget. `drift` records the current
 repository revision and reports broken paths referenced by the documents. Both
 commands are read-only and return a non-zero status when their check fails.
 
-## Exit status and output
+## Exit Status And Output
 
 Successful commands write JSON and exit `0`. Analyzer failures are represented
 as JSON error payloads and exit `1`. Invalid paths and output failures are

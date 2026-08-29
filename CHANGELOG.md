@@ -147,28 +147,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `tests/test_scripts_layer.py` — backward compatibility test for scripts/ wrapper shims
+- `tests/test_scripts_layer.py`: backward compatibility test for scripts/ wrapper shims
 - `CHANGELOG.md` updated with historical entries
 
 ## [0.9.0] - 2026-04-29
 
 ### Added
 
-- `scripts/lib/generate_runner.py` — generate command to create AGENTS.md from repository analysis
-- `scripts/lib/interactive_runner.py` — interactive mode for AGENTS.md generation to prompt for missing inputs
-- `scripts/lib/reference_flow.py` — support for multiple reference repositories in analyze and generate commands
-- `scripts/lib/output_schema.py` — output schema validation with JSON Schema definitions
-- `scripts/lib/runner.py` — enhanced runner with generate command support
-- `scripts/lib/output.py` — output validation improvements
-- `cli.py` — `generate` subcommand with `--interactive` flag
+- `scripts/lib/generate_runner.py`: generate command to create AGENTS.md from repository analysis
+- `scripts/lib/interactive_runner.py`: interactive mode for AGENTS.md generation to prompt for missing inputs
+- `scripts/lib/reference_flow.py`: support for multiple reference repositories in analyze and generate commands
+- `scripts/lib/output_schema.py`: output schema validation with JSON Schema definitions
+- `scripts/lib/runner.py`: enhanced runner with generate command support
+- `scripts/lib/output.py`: output validation improvements
+- `cli.py`: `generate` subcommand with `--interactive` flag
 - Contract test fixtures for Python and mixed-language examples
-- `tests/contract_utils.py` — shared contract test helpers
-- `tests/contracts/` — JSON contract files for analyze, config, graph, scan, and symbols
-- `tests/test_generate_cli.py` — generate command CLI tests
-- `tests/test_interactive_flow.py` — interactive flow tests
-- `tests/test_output_schema.py` — output schema validation tests
-- `tests/test_output_contracts.py` — output contract tests
-- `tests/test_output.py` — expanded output validation tests
+- `tests/contract_utils.py`: shared contract test helpers
+- `tests/contracts/`: JSON contract files for analyze, config, graph, scan, and symbols
+- `tests/test_generate_cli.py`: generate command CLI tests
+- `tests/test_interactive_flow.py`: interactive flow tests
+- `tests/test_output_schema.py`: output schema validation tests
+- `tests/test_output_contracts.py`: output contract tests
+- `tests/test_output.py`: expanded output validation tests
 - `AGENTS.md` and `SKILL.md` updated to clarify usage of examples from ClawHub
 
 ### Changed
@@ -181,15 +181,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `agentskill/lib/cli_entrypoint.py` — shared CLI entrypoint helper for command modules
-- `tests/test_cli_entrypoint.py` — tests for CLI entrypoint argument parsing and dispatch
-- `tests/test_error_contracts.py` — error contract tests across command modules
-- `tests/test_config.py` — expanded config detection tests with multi-language fixtures
-- `tests/test_graph.py` — expanded import resolution and dependency graph tests
-- `tests/test_measure.py` — measurement tests for indentation, line length, and blank lines
-- `tests/test_scan.py` — expanded scan tests including symlink and skip-directory handling
-- `tests/test_symbols.py` — expanded symbol extraction tests for Python, JS/TS, Go, Rust
-- `ROADMAP.md` — 0.10.0 milestone for CLI and skill split
+- `agentskill/lib/cli_entrypoint.py`: shared CLI entrypoint helper for command modules
+- `tests/test_cli_entrypoint.py`: tests for CLI entrypoint argument parsing and dispatch
+- `tests/test_error_contracts.py`: error contract tests across command modules
+- `tests/test_config.py`: expanded config detection tests with multi-language fixtures
+- `tests/test_graph.py`: expanded import resolution and dependency graph tests
+- `tests/test_measure.py`: measurement tests for indentation, line length, and blank lines
+- `tests/test_scan.py`: expanded scan tests including symlink and skip-directory handling
+- `tests/test_symbols.py`: expanded symbol extraction tests for Python, JS/TS, Go, Rust
+- `ROADMAP.md`: 0.10.0 milestone for CLI and skill split
 
 ### Changed
 
@@ -202,29 +202,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `agentskill/lib/agents_document.py` — parsing and serialization for sectioned AGENTS.md documents
-- `AgentsSection` / `AgentsDocument` — frozen dataclasses representing headings, body text, and raw lines
-- `parse_agents_document()` — ATX heading-based section extraction preserving blank lines and structure
-- `build_section()` / `serialize_document()` — deterministic round-trip serialization
-- `add_or_replace_section()` / `remove_section()` / `get_section()` — mutation helpers with normalized name lookup
-- `normalize_section_name()` — case-insensitive, whitespace-normalized section name matching
-- `agentskill/lib/update_merge.py` — merge helpers for incremental AGENTS.md updates
-- `MergePlan` — declarative merge plan with per-section actions (add, replace, preserve, append, prepend)
-- `plan_merge()` — diff existing document sections against new analyzer output, producing a merge plan
-- `apply_merge()` — execute a merge plan against an `AgentsDocument`, returning the updated document
+- `agentskill/lib/agents_document.py`: parsing and serialization for sectioned AGENTS.md documents
+- `AgentsSection` / `AgentsDocument`: frozen dataclasses representing headings, body text, and raw lines
+- `parse_agents_document()`: ATX heading-based section extraction preserving blank lines and structure
+- `build_section()` / `serialize_document()`: deterministic round-trip serialization
+- `add_or_replace_section()` / `remove_section()` / `get_section()`: mutation helpers with normalized name lookup
+- `normalize_section_name()`: case-insensitive, whitespace-normalized section name matching
+- `agentskill/lib/update_merge.py`: merge helpers for incremental AGENTS.md updates
+- `MergePlan`: declarative merge plan with per-section actions (add, replace, preserve, append, prepend)
+- `plan_merge()`: diff existing document sections against new analyzer output, producing a merge plan
+- `apply_merge()`: execute a merge plan against an `AgentsDocument`, returning the updated document
 - Section-level prepend/append with feedback-sourced content
-- `agentskill/lib/update_feedback.py` — repo-local feedback loading for AGENTS.md update workflows
-- `FeedbackEntry` / `FeedbackFile` — structured models for `.agentskill-feedback.json`
-- `load_feedback()` — load and validate feedback file from a repository root
-- `apply_feedback()` — merge feedback entries into a merge plan as prepend notes and pinned facts
-- `SUPPORTED_SECTION_FEEDBACK_KEYS` — supported feedback instruction types
-- `agentskill/lib/update_runner.py` — internal workflow for updating AGENTS.md from current analyzer output
-- `update_agents()` — end-to-end update flow: validate repo, run analyzers, diff sections, apply feedback, serialize
+- `agentskill/lib/update_feedback.py`: repo-local feedback loading for AGENTS.md update workflows
+- `FeedbackEntry` / `FeedbackFile`: structured models for `.agentskill-feedback.json`
+- `load_feedback()`: load and validate feedback file from a repository root
+- `apply_feedback()`: merge feedback entries into a merge plan as prepend notes and pinned facts
+- `SUPPORTED_SECTION_FEEDBACK_KEYS`: supported feedback instruction types
+- `agentskill/lib/update_runner.py`: internal workflow for updating AGENTS.md from current analyzer output
+- `update_agents()`: end-to-end update flow: validate repo, run analyzers, diff sections, apply feedback, serialize
 - Section filtering with `--only` flag (run specific analyzers)
 - Custom output path with `--out` flag
 - Configurable `--mode` (overwrite, merge-new, merge-all)
-- `agentskill.main` — `update` subcommand for updating or creating AGENTS.md
-- `PLANNER.md` — release planner system prompt for generating implementation-ready PR briefs
+- `agentskill.main`: `update` subcommand for updating or creating AGENTS.md
+- `PLANNER.md`: release planner system prompt for generating implementation-ready PR briefs
 
 ### Changed
 
@@ -235,7 +235,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Shared language registry — `agentskill/common/languages.py` with `LanguageSpec`, 15 languages, 6 helper functions
+- Shared language registry: `agentskill/common/languages.py` with `LanguageSpec`, 15 languages, 6 helper functions
 - `language_for_path()`, `language_for_extension()`, `language_by_id()`, `is_test_path()`, `is_supported_language()`, `all_language_specs()`
 - TypeScript and JavaScript parity across graph, symbols, and tests analyzers
 - Comment stripping for JS/TS sources
@@ -274,39 +274,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `agentskill/lib/references.py` — reference source, document, load result, and metadata models
-- `load_local_reference()` / `load_local_references()` — load AGENTS.md from local directories
-- `load_remote_reference()` / `load_remote_references()` — load AGENTS.md from remote repos via shallow clone
-- `_run_git()` — subprocess helper with 60s timeout and error capture
-- `agentskill/lib/reference_adaptation.py` — reference adaptation engine with heuristic classification
-- `ReferenceSection`, `AdaptedConvention`, `ReferenceAdaptationResult` — frozen dataclasses for section splitting and convention classification
-- `split_markdown_sections()` — heading-based Markdown section extraction
-- `adapt_reference()` / `adapt_references()` — classify conventions as applicable, mismatched, uncertain, or ignored
+- `agentskill/lib/references.py`: reference source, document, load result, and metadata models
+- `load_local_reference()` / `load_local_references()`: load AGENTS.md from local directories
+- `load_remote_reference()` / `load_remote_references()`: load AGENTS.md from remote repos via shallow clone
+- `_run_git()`: subprocess helper with 60s timeout and error capture
+- `agentskill/lib/reference_adaptation.py`: reference adaptation engine with heuristic classification
+- `ReferenceSection`, `AdaptedConvention`, `ReferenceAdaptationResult`: frozen dataclasses for section splitting and convention classification
+- `split_markdown_sections()`: heading-based Markdown section extraction
+- `adapt_reference()` / `adapt_references()`: classify conventions as applicable, mismatched, uncertain, or ignored
 - Category detection with priority ordering: directory_structure, testing, formatter, linter, type_checker, git
 - Language/tool extraction and target analysis comparison
 - Directory path matching against scan tree
-- `agentskill/lib/reference_questions.py` — gap detection and targeted question generation
+- `agentskill/lib/reference_questions.py`: gap detection and targeted question generation
 - `ReferenceQuestion` model with section, question, reason, category, source, blocking, options
-- `generate_reference_questions()` — produce targeted questions from uncertain and mismatched conventions
+- `generate_reference_questions()`: produce targeted questions from uncertain and mismatched conventions
 - Selective question generation: irrelevant mismatches filtered, ecosystem-aware relevance checks
 - Conflict detection across multiple references proposing different conventions
 - Question deduplication and deterministic ordering
-- `agentskill/lib/reference_initialization.py` — empty-project initialization from references
-- `is_empty_target()` — detect empty or near-empty target repositories
-- `build_reference_metadata()` — build deterministic metadata from loaded documents
-- `render_reference_metadata_block()` — render metadata as Markdown HTML comment with JSON
-- `ReferenceInitializationResult` — structured result with adapted references, questions, metadata, warnings
-- `initialize_from_references()` — end-to-end initialization flow
-- `successful_reference_documents()` — filter load results to successful documents
+- `agentskill/lib/reference_initialization.py`: empty-project initialization from references
+- `is_empty_target()`: detect empty or near-empty target repositories
+- `build_reference_metadata()`: build deterministic metadata from loaded documents
+- `render_reference_metadata_block()`: render metadata as Markdown HTML comment with JSON
+- `ReferenceInitializationResult`: structured result with adapted references, questions, metadata, warnings
+- `initialize_from_references()`: end-to-end initialization flow
+- `successful_reference_documents()`: filter load results to successful documents
 - `AGENTSKILL_VERSION` constant
 
 ## [0.4.0] - 2026-04-27
 
 ### Added
 
-- `agentskill/lib/parsers.py` — shared TOML and YAML parser loading with optional dependency fallback
-- `load_toml` / `load_yaml` — strict parsers that raise `ParserUnavailableError` when deps are missing
-- `load_toml_safe` / `load_yaml_safe` — graceful parsers returning `{}` on any error
+- `agentskill/lib/parsers.py`: shared TOML and YAML parser loading with optional dependency fallback
+- `load_toml` / `load_yaml`: strict parsers that raise `ParserUnavailableError` when deps are missing
+- `load_toml_safe` / `load_yaml_safe`: graceful parsers returning `{}` on any error
 - Comprehensive config parsing tests with real-world fixtures for Python, JS, Go, and Rust
 
 ### Changed
@@ -317,17 +317,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- `_parse_toml`, `_parse_toml_value`, `_split_toml_array` — replaced by real TOML parser
-- `_parse_yaml_simple`, `_yaml_scalar` — replaced by real YAML parser
+- `_parse_toml`, `_parse_toml_value`, `_split_toml_array`: replaced by real TOML parser
+- `_parse_yaml_simple`, `_yaml_scalar`: replaced by real YAML parser
 
 ## [0.3.0] - 2026-04-26
 
 ### Added
 
-- Logging infrastructure — `agentskill/lib/logging_utils.py` with configurable log level and exception capture
-- Output path validation — `--out` paths are validated; parent directories are created automatically
-- Per-analyzer timeout logging — runner logs when an analyzer exceeds its deadline
-- `write_output` exception handling — captures and logs JSON serialization errors
+- Logging infrastructure: `agentskill/lib/logging_utils.py` with configurable log level and exception capture
+- Output path validation: `--out` paths are validated; parent directories are created automatically
+- Per-analyzer timeout logging: runner logs when an analyzer exceeds its deadline
+- `write_output` exception handling: captures and logs JSON serialization errors
 
 ### Changed
 
@@ -338,7 +338,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- GitHub Actions CI workflows — build, test, verify, and main branch checks
+- GitHub Actions CI workflows: build, test, verify, and main branch checks
 - `tomli` runtime dependency for Python < 3.11 TOML support
 
 ### Changed
@@ -357,23 +357,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release of agentskill
-- `analyze` command — run all analyzers and synthesize an `AGENTS.md` report
-- `scan` analyzer — directory tree mapping, file inventory, suggested read order
-- `measure` analyzer — exact indentation, line length percentiles, blank line distributions
-- `config` analyzer — formatter, linter, and type-checker detection with config excerpts
-- `git` analyzer — commit prefixes, branch naming, merge strategy, and signing detection
-- `graph` analyzer — internal import graph, circular dependencies, most-depended modules
-- `symbols` analyzer — symbol name extraction, naming pattern clustering, affix detection
-- `tests` analyzer — test-to-source mapping, framework detection, fixture extraction
+- `analyze` command: run all analyzers and synthesize an `AGENTS.md` report
+- `scan` analyzer: directory tree mapping, file inventory, suggested read order
+- `measure` analyzer: exact indentation, line length percentiles, blank line distributions
+- `config` analyzer: formatter, linter, and type-checker detection with config excerpts
+- `git` analyzer: commit prefixes, branch naming, merge strategy, and signing detection
+- `graph` analyzer: internal import graph, circular dependencies, most-depended modules
+- `symbols` analyzer: symbol name extraction, naming pattern clustering, affix detection
+- `tests` analyzer: test-to-source mapping, framework detection, fixture extraction
 - Parallel analyzer execution via `ThreadPoolExecutor`
 - Pretty-printed and machine-readable JSON output modes (`--pretty`, `--json`)
 - `--out` flag to write report to a file
 - `--language` flag to override auto-detected language
 - Language-agnostic analysis engine supporting Python, JavaScript/TypeScript, Rust, Go, and others
 - Multiple output example formats: `SINGLE_LANGUAGE.md`, `MULTI_LANGUAGE.md`, `MONOREPO.md`
-- `SYSTEM.md` — behavioral spec for the synthesis step
-- `SKILL.md` — OpenClaw AgentSkill manifest
-- `AGENTS.md` — self-documented analysis rules
+- `SYSTEM.md`: behavioral spec for the synthesis step
+- `SKILL.md`: OpenClaw AgentSkill manifest
+- `AGENTS.md`: self-documented analysis rules
 - Full test suite with pytest covering all modules
 - `pyproject.toml` with `project.scripts` entry points
 - Development dependencies: `ruff`, `pytest`

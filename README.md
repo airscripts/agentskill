@@ -1,4 +1,4 @@
-# agentskill
+# Agentskill
 
 [![Main](https://github.com/airscripts/agentskill/actions/workflows/main.yml/badge.svg)](https://github.com/airscripts/agentskill/actions/workflows/main.yml)
 [![Release](https://github.com/airscripts/agentskill/actions/workflows/release.yml/badge.svg)](https://github.com/airscripts/agentskill/actions/workflows/release.yml)
@@ -12,7 +12,7 @@ follow.
 
 ---
 
-## Table of Contents
+## Table Of Contents
 
 - [What It Does](#what-it-does)
 - [How It Works](#how-it-works)
@@ -231,7 +231,7 @@ Global `--pretty` and `--out FILE` options apply to static JSON commands. The
 CLI never writes semantic Markdown.
 
 ```bash
-# Aggregate or focused evidence
+# Aggregate or focused evidence.
 agentskill analyze <repo> --pretty
 agentskill analyze <repo-a> <repo-b> --pretty
 agentskill evidence <repo> --pretty
@@ -243,10 +243,10 @@ agentskill graph <repo> --pretty
 agentskill symbols <repo> --pretty
 agentskill tests <repo> --pretty
 
-# Save analyzer JSON
+# Save analyzer JSON.
 agentskill --out report.json analyze <repo>
 
-# Validate and inspect LLM-authored documents
+# Validate and inspect LLM-authored documents.
 agentskill validate <repo>
 agentskill drift <repo>
 ```
@@ -255,7 +255,7 @@ Use `agsk` in place of `agentskill` for every command. Run
 `agentskill --help` or `agentskill <command> --help` for the exact current
 Clap syntax.
 
-## Choosing a Command
+## Choosing A Command
 
 Use `analyze` when you want JSON from all analyzers without writing markdown.
 It accepts one or more repositories and is the contract-stable inspection

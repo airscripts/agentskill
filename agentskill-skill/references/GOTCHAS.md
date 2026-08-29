@@ -1,4 +1,4 @@
-# GOTCHAS.md — Extraction and Synthesis Errors
+# GOTCHAS.md: Extraction And Synthesis Errors
 
 > Read this file in full before drafting any section of `AGENTS.md`.
 > Every entry here is a failure mode discovered from an actual run.
@@ -8,7 +8,7 @@
 
 ## Extraction Errors
 
-These errors occur during data collection — the signal is wrong before synthesis even begins.
+These errors occur during data collection: the signal is wrong before synthesis even begins.
 
 ---
 
@@ -32,13 +32,13 @@ These errors occur during data collection — the signal is wrong before synthes
 
 **What happens:** Vendored files, lockfiles, and generated code have zero comments, uniform indentation, and no meaningful names. Including them distorts every measurement.
 
-**Fix:** Exclude all directories in `SKIP_DIRS` — including `node_modules`, `vendor`, `dist`, `build`, `.eggs`, `site-packages`, and `__pycache__`. Do not include `.lock` files in line length or whitespace analysis.
+**Fix:** Exclude all directories in `SKIP_DIRS`: including `node_modules`, `vendor`, `dist`, `build`, `.eggs`, `site-packages`, and `__pycache__`. Do not include `.lock` files in line length or whitespace analysis.
 
 ---
 
 ### Test File Bias
 
-**What happens:** Test files use different idioms than source files — more `assert` statements, more fixture variables, more repetitive naming. Mixing them into source analysis contaminates naming and error handling measurements.
+**What happens:** Test files use different idioms than source files: more `assert` statements, more fixture variables, more repetitive naming. Mixing them into source analysis contaminates naming and error handling measurements.
 
 **Fix:** Analyze test files and source files separately. Only report source-file patterns as codebase conventions. Call out test-specific patterns explicitly under Section 12.
 
@@ -78,7 +78,7 @@ These errors occur during data collection — the signal is wrong before synthes
 
 ## Synthesis Errors
 
-These errors occur during `AGENTS.md` generation — the data is fine but the output is wrong.
+These errors occur during `AGENTS.md` generation: the data is fine but the output is wrong.
 
 ---
 
@@ -86,7 +86,7 @@ These errors occur during `AGENTS.md` generation — the data is fine but the ou
 
 **What happens:** `AGENTS.md` states "uses snake_case for variable names in Python" or "uses tabs in Go." These are language defaults, not codebase conventions. An agent following these rules learns nothing specific about this repo.
 
-**Fix:** Never state a language default as a codebase rule unless you have a specific reason — for example, the codebase deviates from the default, or the default is so frequently violated in practice that it's worth reinforcing. If you can't point to a concrete reason to include it, omit it.
+**Fix:** Never state a language default as a codebase rule unless you have a specific reason: for example, the codebase deviates from the default, or the default is so frequently violated in practice that it's worth reinforcing. If you can't point to a concrete reason to include it, omit it.
 
 ---
 
@@ -102,13 +102,13 @@ These errors occur during `AGENTS.md` generation — the data is fine but the ou
 
 **What happens:** Red lines include entries like "be consistent with naming" or "handle errors properly." These apply to every codebase and teach an agent nothing about this one.
 
-**Fix:** Every red line must be grounded in something this specific codebase avoids. If you cannot point to evidence that this repo avoids a pattern, do not list it. Prefer "never use `Optional[X]` — this repo uses `X | None` exclusively" over "use consistent type annotation style."
+**Fix:** Every red line must be grounded in something this specific codebase avoids. If you cannot point to evidence that this repo avoids a pattern, do not list it. Prefer "never use `Optional[X]`: this repo uses `X | None` exclusively" over "use consistent type annotation style."
 
 ---
 
 ### Omitting The Code Formatting Section Or Treating It As Lower Priority
 
-**What happens:** Synthesis focuses on naming and error handling — the interesting sections — and produces a thin or empty Code Formatting section. The agent then generates code with wrong indentation, wrong blank lines, or wrong quote style.
+**What happens:** Synthesis focuses on naming and error handling: the interesting sections: and produces a thin or empty Code Formatting section. The agent then generates code with wrong indentation, wrong blank lines, or wrong quote style.
 
 **Fix:** Code Formatting is the highest-fidelity section. It must be completed in full before any other section is considered done. Apply the Mimicry Test to it first.
 
@@ -134,7 +134,7 @@ These errors occur during `AGENTS.md` generation — the data is fine but the ou
 
 **What happens:** A Python naming rule or a TypeScript error handling pattern ends up in a shared or unlabeled section, and an agent working in Go applies it.
 
-**Fix:** Every rule must be explicitly scoped. Repo-wide rules get a `> **Repo-wide:**` blockquote. Language-specific rules live under clearly named `### Language` subsections. A rule that appears in both languages must be stated twice — once per language — unless it is explicitly marked repo-wide.
+**Fix:** Every rule must be explicitly scoped. Repo-wide rules get a `> **Repo-wide:**` blockquote. Language-specific rules live under clearly named `### Language` subsections. A rule that appears in both languages must be stated twice: once per language: unless it is explicitly marked repo-wide.
 
 ---
 
@@ -163,4 +163,4 @@ These errors occur during `AGENTS.md` generation — the data is fine but the ou
 ---
 
 _Add new entries here after every run where a failure mode is discovered._
-_Do not remove entries — even superseded gotchas document the shape of the problem space._
+_Do not remove entries: even superseded gotchas document the shape of the problem space._

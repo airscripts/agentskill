@@ -1,2 +1,2 @@
-# Extended fixture
+# Extended Fixture
 

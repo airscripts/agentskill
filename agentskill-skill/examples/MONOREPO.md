@@ -1,7 +1,7 @@
 # AGENTS.md
 
 > **Example: monorepo with multiple services.**
-> Fictional monorepo — `helix`, a developer platform with a Rust API gateway, a Go worker service, and a Python data pipeline. All data is fabricated for illustration.
+> Fictional monorepo: `helix`, a developer platform with a Rust API gateway, a Go worker service, and a Python data pipeline. All data is fabricated for illustration.
 > The structure and level of detail here represent the target quality for any monorepo output.
 
 ---
@@ -37,7 +37,7 @@ helix/
   worker/             # Go background worker
     cmd/
       worker/
-        main.go       # entry point — flag parsing and worker bootstrap only
+        main.go       # entry point: flag parsing and worker bootstrap only
     internal/
       queue/
         consumer.go
@@ -53,7 +53,7 @@ helix/
   pipeline/           # Python data pipeline
     pipeline/
       __init__.py
-      cli.py          # entry point — argparse dispatch only
+      cli.py          # entry point: argparse dispatch only
       ingest.py
       transform.py
       sink.py
@@ -83,7 +83,7 @@ helix/
 
 - Each service is its own independent unit. Add new services as new top-level directories.
 - `proto/` is the only cross-service shared code. Generated client stubs live in `proto/generated/<lang>/`.
-- `scripts/` contains repo-wide shell scripts only — no business logic.
+- `scripts/` contains repo-wide shell scripts only: no business logic.
 - Nothing other than `proto/`, `scripts/`, `.github/`, and top-level config files belongs at the repo root.
 - Never add a shared library directory that multiple services import directly. Use `proto/` for contracts; duplicate utilities if needed.
 
@@ -91,11 +91,11 @@ helix/
 
 ## 3. Service Map
 
-**gateway** (`gateway/`) — Rust. HTTP API gateway. Handles authentication token validation, job submission, and proxies health checks to downstream services. Entry point: `gateway/src/main.rs`. Package manager: Cargo. CI: `.github/workflows/gateway.yml`.
+**gateway** (`gateway/`): Rust. HTTP API gateway. Handles authentication token validation, job submission, and proxies health checks to downstream services. Entry point: `gateway/src/main.rs`. Package manager: Cargo. CI: `.github/workflows/gateway.yml`.
 
-**worker** (`worker/`) — Go. Background job processor. Consumes job queues from Redis, dispatches to registered handlers, and writes results to the shared ClickHouse sink. Entry point: `worker/cmd/worker/main.go`. Package manager: Go modules. CI: `.github/workflows/worker.yml`.
+**worker** (`worker/`): Go. Background job processor. Consumes job queues from Redis, dispatches to registered handlers, and writes results to the shared ClickHouse sink. Entry point: `worker/cmd/worker/main.go`. Package manager: Go modules. CI: `.github/workflows/worker.yml`.
 
-**pipeline** (`pipeline/`) — Python. Telemetry ingestion pipeline. Reads events from Kafka, applies transformation rules, and writes batches to ClickHouse. Entry point: `pipeline/pipeline/cli.py`. Package manager: pip with `pyproject.toml`. CI: `.github/workflows/pipeline.yml`.
+**pipeline** (`pipeline/`): Python. Telemetry ingestion pipeline. Reads events from Kafka, applies transformation rules, and writes batches to ClickHouse. Entry point: `pipeline/pipeline/cli.py`. Package manager: pip with `pyproject.toml`. CI: `.github/workflows/pipeline.yml`.
 
 ---
 
@@ -103,78 +103,78 @@ helix/
 
 Direct source-level imports between services are prohibited. `gateway/src/` must not reference `worker/` or `pipeline/` source files, and vice versa.
 
-Shared types and contracts are defined in `proto/helix.proto`. Generated stubs in `proto/generated/<lang>/` are the only sanctioned cross-service interface. Consume generated stubs directly — do not copy or re-define their types inside a service.
+Shared types and contracts are defined in `proto/helix.proto`. Generated stubs in `proto/generated/<lang>/` are the only sanctioned cross-service interface. Consume generated stubs directly: do not copy or re-define their types inside a service.
 
 No contract testing layer exists. Breaking changes to `helix.proto` must be backwards-compatible or coordinated across all three services in a single pull request. Additive changes (new fields, new message types) are safe. Renaming or removing fields requires a migration plan noted in the PR description.
 
 ---
 
-## 5. Commands and Workflows
+## 5. Commands And Workflows
 
 ### Gateway (Rust)
 
 ```bash
-# Build
+# Build.
 cargo build
 
-# Build release
+# Build release.
 cargo build --release
 
-# Test
+# Test.
 cargo test
 
-# Lint
+# Lint.
 cargo clippy -- -D warnings
 
-# Format
+# Format.
 cargo fmt
 ```
 
 ### Worker (Go)
 
 ```bash
-# Build
+# Build.
 make build
 
-# Test
+# Test.
 make test
 
-# Test with race detector
+# Test with race detector.
 go test -race ./...
 
-# Lint
+# Lint.
 golangci-lint run ./...
 
-# Format
+# Format.
 gofmt -w .
 ```
 
 ### Pipeline (Python)
 
 ```bash
-# Install development dependencies
+# Install development dependencies.
 uv sync --dev
 
-# Test
+# Test.
 uv run pytest
 
-# Lint
+# Lint.
 uv run ruff check pipeline/ tests/
 
-# Format
+# Format.
 uv run ruff format pipeline/ tests/
 
-# Type check
+# Type check.
 uv run mypy pipeline/
 ```
 
 ### Repo-Wide
 
 ```bash
-# Regenerate Protobuf stubs for all languages
+# Regenerate Protobuf stubs for all languages.
 ./scripts/gen-proto.sh
 
-# Check that all service versions agree on the proto revision
+# Check that all service versions agree on the proto revision.
 ./scripts/check-versions.sh
 ```
 
@@ -200,11 +200,11 @@ pub async fn handle_submit(
 
 **Line length:** 100 characters. Configured as `max_width = 100` in `rustfmt.toml`. The 95th percentile is 87.
 
-**Blank lines — top-level:** One blank line between top-level function and `impl` block definitions.
+**Blank lines: top-level:** One blank line between top-level function and `impl` block definitions.
 
-**Blank lines — methods:** One blank line between methods inside an `impl` block.
+**Blank lines: methods:** One blank line between methods inside an `impl` block.
 
-**Blank lines — after imports:** One blank line after the `use` block before the first item.
+**Blank lines: after imports:** One blank line after the `use` block before the first item.
 
 **Trailing commas:** Present on the last element of multi-line struct expressions, `match` arms, and function parameters.
 
@@ -216,7 +216,7 @@ let config = Config {
 };
 ```
 
-**Import block formatting:** Three groups separated by blank lines — `std`, then external crates, then `crate`. Sorted alphabetically within each group.
+**Import block formatting:** Three groups separated by blank lines: `std`, then external crates, then `crate`. Sorted alphabetically within each group.
 
 ```rust
 use std::collections::HashMap;
@@ -249,9 +249,9 @@ func (e *Executor) Run(ctx context.Context, job Job) error {
 
 **Line length:** No configured limit. Keep lines under 100 characters in practice; the 95th percentile is 79.
 
-**Blank lines — top-level:** One blank line between top-level function definitions.
+**Blank lines: top-level:** One blank line between top-level function definitions.
 
-**Import block formatting:** Two groups — stdlib then external. Blank line between groups. `goimports` enforces ordering.
+**Import block formatting:** Two groups: stdlib then external. Blank line between groups. `goimports` enforces ordering.
 
 ```go
 import (
@@ -286,9 +286,9 @@ Formatted by `ruff format`. Config in `pipeline/pyproject.toml` under `[tool.ruf
 
 **Line length:** 88 characters. Configured as `line-length = 88`.
 
-**Blank lines — top-level:** Two blank lines between top-level function and class definitions.
+**Blank lines: top-level:** Two blank lines between top-level function and class definitions.
 
-**Blank lines — methods:** One blank line between methods inside a class.
+**Blank lines: methods:** One blank line between methods inside a class.
 
 **Quote style:** Double quotes. Configured as `quote-style = "double"`.
 
@@ -300,7 +300,7 @@ def transform(event: RawEvent, rules: list[TransformRule]) -> Event | None:
     return None
 ```
 
-**Import block formatting:** Three groups — stdlib, third-party, local. `isort` profile `"black"`.
+**Import block formatting:** Three groups: stdlib, third-party, local. `isort` profile `"black"`.
 
 ```python
 import json
@@ -379,19 +379,19 @@ MAX_RETRIES: int = 3
 
 ### Rust (Gateway)
 
-- All function signatures are fully typed — the compiler enforces this.
+- All function signatures are fully typed: the compiler enforces this.
 - Use `Result<T, AppError>` for all fallible functions. Do not return `Result<T, Box<dyn Error>>` in public API functions.
 - Use `Option<T>` for optional values. Never represent absence with a sentinel value.
 
 ### Go (Worker)
 
-- All exported functions have explicit parameter and return types — the compiler enforces this.
+- All exported functions have explicit parameter and return types: the compiler enforces this.
 - `error` is always the last return value when a function can fail.
 - `context.Context` is the first parameter of all functions that perform I/O.
 
 ### Python (Pipeline)
 
-- Annotate every function signature — both parameters and return type.
+- Annotate every function signature: both parameters and return type.
 - Use built-in generics: `list[str]`, `dict[str, Any]`. Never import from `typing` for these.
 - Use `X | None` for optional types. Never `Optional[X]`.
 - Type checker: `mypy`. Config in `pyproject.toml` under `[tool.mypy]`.
@@ -462,7 +462,7 @@ func (c *Consumer) poll(ctx context.Context) (*Job, error) {
 ### Python (Pipeline)
 
 - All custom exceptions defined in `pipeline/errors.py`, inheriting from `PipelineError`.
-- Public functions raise typed exceptions — never bare `Exception` or `ValueError`.
+- Public functions raise typed exceptions: never bare `Exception` or `ValueError`.
 - `cli.py` catches `PipelineError` at the top level, prints to stderr, exits with code 1.
 - Never use bare `except:`. Always `except Exception` at minimum.
 
@@ -479,7 +479,7 @@ def ingest_batch(messages: list[bytes]) -> list[RawEvent]:
 
 ---
 
-## 11. Comments and Docstrings
+## 11. Comments And Docstrings
 
 ### Rust (Gateway)
 
@@ -597,16 +597,16 @@ def test_transform_drops_unknown_events(sample_rules: list[TransformRule]) -> No
 
 > **Repo-wide:**
 
-**Commit prefixes — use exactly one per commit:**
+**Commit prefixes: use exactly one per commit:**
 
-- `feat:` — new user-visible feature
-- `fix:` — bug correction
-- `refactor:` — restructuring without behavior change
-- `docs:` — documentation only
-- `chore:` — build, CI, dependency, tooling changes
-- `test:` — adds or modifies tests
-- `perf:` — measurable performance improvement
-- `proto:` — changes to `proto/helix.proto` or generated stubs
+- `feat:`: new user-visible feature
+- `fix:`: bug correction
+- `refactor:`: restructuring without behavior change
+- `docs:`: documentation only
+- `chore:`: build, CI, dependency, tooling changes
+- `test:`: adds or modifies tests
+- `perf:`: measurable performance improvement
+- `proto:`: changes to `proto/helix.proto` or generated stubs
 
 **Scopes:** Used to identify which service a commit affects.
 
@@ -619,7 +619,7 @@ proto: add JobCancelRequest message
 
 **Subject line:** Imperative mood. No period. Under 72 characters.
 
-**Body:** Required for `proto:` commits — must describe backwards-compatibility impact.
+**Body:** Required for `proto:` commits: must describe backwards-compatibility impact.
 
 **Branch naming:** `<prefix>/<service>/<short-description>` for service-specific changes, `<prefix>/<short-description>` for repo-wide changes.
 
@@ -635,7 +635,7 @@ chore/upgrade-proto-toolchain
 
 ---
 
-## 14. Dependencies and Tooling
+## 14. Dependencies And Tooling
 
 ### Gateway (Rust)
 
@@ -674,7 +674,7 @@ chore/upgrade-proto-toolchain
 **Formatting violations:**
 
 - Never use spaces for indentation in Go or Rust. Both use tabs (Go) and 4-space indentation (Rust) enforced by their respective formatters.
-- Never use single quotes in Python. All string literals use double quotes — enforced by `ruff format`.
+- Never use single quotes in Python. All string literals use double quotes: enforced by `ruff format`.
 
 **Architectural violations:**
 
@@ -699,5 +699,5 @@ chore/upgrade-proto-toolchain
 
 - Never commit without GPG signing. CI rejects unsigned commits.
 - Never commit a `proto:` change without verifying all three generated stub directories are regenerated.
-- Never commit without a conventional prefix — including a scope when the change is service-specific.
+- Never commit without a conventional prefix: including a scope when the change is service-specific.
 - Never commit commented-out code.

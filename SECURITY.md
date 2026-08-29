@@ -6,7 +6,7 @@
 | ------- | --------- |
 | 1.1.x   | yes       |
 
-## Reporting a Vulnerability
+## Reporting A Vulnerability
 
 If you discover a security issue, please report it privately before opening a
 public issue.

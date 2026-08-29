@@ -1,14 +1,14 @@
 # AGENTS.md
 
 > **Example: single-language repo.**
-> Fictional Go HTTP service — `harbor`. All data is fabricated for illustration.
+> Fictional Go HTTP service: `harbor`. All data is fabricated for illustration.
 > The structure and level of detail here represent the target quality for any single-language output.
 
 ---
 
 ## 1. Overview
 
-harbor is a Go HTTP service that proxies requests to upstream container registries, enforces pull-through caching via a local BoltDB store, and exposes a REST API for cache inspection and invalidation. The codebase is structured as a single Go module with no sub-packages — all logic lives in package `main`. Error handling is explicit throughout: every function that can fail returns an `error`; `log.Fatal` is reserved for startup failures only.
+harbor is a Go HTTP service that proxies requests to upstream container registries, enforces pull-through caching via a local BoltDB store, and exposes a REST API for cache inspection and invalidation. The codebase is structured as a single Go module with no sub-packages: all logic lives in package `main`. Error handling is explicit throughout: every function that can fail returns an `error`; `log.Fatal` is reserved for startup failures only.
 
 ---
 
@@ -16,7 +16,7 @@ harbor is a Go HTTP service that proxies requests to upstream container registri
 
 ```
 harbor/
-  main.go           # entry point — flag parsing and server bootstrap only
+  main.go           # entry point: flag parsing and server bootstrap only
   server.go         # HTTP handler registration and middleware wiring
   proxy.go          # upstream request forwarding and response streaming
   cache.go          # BoltDB read/write and TTL eviction
@@ -34,32 +34,32 @@ harbor/
     responses/      # canned upstream responses for handler tests
 ```
 
-- New functionality goes in a new `.go` file at the repo root — not in a subdirectory. There are no sub-packages.
+- New functionality goes in a new `.go` file at the repo root: not in a subdirectory. There are no sub-packages.
 - `main.go` contains only `main()`. No business logic belongs there.
 - `errors.go` is the canonical home for all sentinel errors. Do not define `var Err...` values anywhere else.
 - No `internal/` or `pkg/` directories. The single-package structure is intentional.
 
 ---
 
-## 5. Commands and Workflows
+## 5. Commands And Workflows
 
 ```bash
-# Build
+# Build.
 make build
 
-# Run locally
+# Run locally.
 ./harbor --port 8080 --upstream https://registry-1.docker.io
 
-# Test
+# Test.
 make test
 
-# Test with race detector
+# Test with race detector.
 go test -race ./...
 
-# Lint
+# Lint.
 golangci-lint run
 
-# Format (enforced by CI)
+# Format (enforced by CI).
 gofmt -w .
 ```
 
@@ -94,7 +94,7 @@ resp, err := c.client.
 	Do(req.WithContext(ctx))
 ```
 
-**Blank lines — top-level:** One blank line between top-level function definitions. Two blank lines before a type declaration that opens a new conceptual group.
+**Blank lines: top-level:** One blank line between top-level function definitions. Two blank lines before a type declaration that opens a new conceptual group.
 
 ```go
 func (p *Proxy) forward(r *http.Request) (*http.Response, error) {
@@ -106,11 +106,11 @@ func (p *Proxy) rewriteURL(upstream string, r *http.Request) (*url.URL, error) {
 }
 ```
 
-**Blank lines — methods:** One blank line between methods on the same type.
+**Blank lines: methods:** One blank line between methods on the same type.
 
-**Blank lines — after imports:** One blank line after the import block before the first declaration.
+**Blank lines: after imports:** One blank line after the import block before the first declaration.
 
-**Blank lines — end of file:** Every file ends with exactly one trailing newline.
+**Blank lines: end of file:** Every file ends with exactly one trailing newline.
 
 **Trailing whitespace:** Never present.
 
@@ -129,7 +129,7 @@ if err != nil {
 }
 ```
 
-**Import block formatting:** Three groups separated by blank lines — stdlib, then external, then none (this repo has no internal packages). Sorted alphabetically within each group. `goimports` enforces this.
+**Import block formatting:** Three groups separated by blank lines: stdlib, then external, then none (this repo has no internal packages). Sorted alphabetically within each group. `goimports` enforces this.
 
 ```go
 import (
@@ -144,7 +144,7 @@ import (
 )
 ```
 
-**Spacing — operators:** Standard Go: space on both sides of binary operators, no space inside parentheses or brackets.
+**Spacing: operators:** Standard Go: space on both sides of binary operators, no space inside parentheses or brackets.
 
 **Trailing commas:** Required on the last element of multi-line struct literals and function call argument lists.
 
@@ -224,7 +224,7 @@ func (c *Cache) Set(key string, val []byte, ttl time.Duration) error
 - Interfaces are defined where they are consumed, not where the type is defined.
 
 ```go
-// In proxy.go — defined where used
+// In proxy.go: defined where used.
 type tokenFetcher interface {
 	FetchToken(ctx context.Context, repo string) (string, error)
 }
@@ -238,7 +238,7 @@ type tokenFetcher interface {
 
 - Three groups: stdlib, external, internal. One blank line between each group.
 - No dot imports (`import . "pkg"`). No blank import aliases except for side-effect registration (e.g. `_ "net/http/pprof"`).
-- `goimports` manages ordering automatically — do not sort by hand.
+- `goimports` manages ordering automatically: do not sort by hand.
 
 ```go
 import (
@@ -287,7 +287,7 @@ func (c *Cache) Get(key string) ([]byte, error) {
 
 ---
 
-## 11. Comments and Docstrings
+## 11. Comments And Docstrings
 
 ### Go
 
@@ -329,13 +329,13 @@ ttl := r.Header.Get("Cache-Control")  // may be empty; default applied in cache.
 Framework: standard library `testing` package. No third-party test framework.
 
 ```bash
-# Run all tests
+# Run all tests.
 make test
 
-# Run with race detector
+# Run with race detector.
 go test -race ./...
 
-# Run a specific test
+# Run a specific test.
 go test -run TestProxy_forwardRequest ./...
 ```
 
@@ -362,15 +362,15 @@ func TestCache_Get_missingBucket(t *testing.T) {
 
 > **Repo-wide:**
 
-**Commit prefixes — use exactly one per commit:**
+**Commit prefixes: use exactly one per commit:**
 
-- `feat:` — adds new user-visible behavior
-- `fix:` — corrects a bug
-- `refactor:` — restructures code without changing behavior
-- `docs:` — documentation only
-- `chore:` — build, CI, dependency, or tooling changes
-- `test:` — adds or modifies tests only
-- `perf:` — measurable performance improvement
+- `feat:`: adds new user-visible behavior
+- `fix:`: corrects a bug
+- `refactor:`: restructures code without changing behavior
+- `docs:`: documentation only
+- `chore:`: build, CI, dependency, or tooling changes
+- `test:`: adds or modifies tests only
+- `perf:`: measurable performance improvement
 
 **Scopes:** Not used.
 
@@ -398,14 +398,14 @@ chore/ci-go-version
 
 ---
 
-## 14. Dependencies and Tooling
+## 14. Dependencies And Tooling
 
 ### Go
 
 - **Module:** `go.mod` + `go.sum`. Both committed.
 - **Add a dependency:** `go get github.com/example/pkg@v1.2.3` then `go mod tidy`.
 - **Linter:** `golangci-lint`. Config in `.golangci.yml` at repo root.
-- **Formatter:** `gofmt` (via `goimports`). Enforced by CI — unformatted commits fail the pipeline.
+- **Formatter:** `gofmt` (via `goimports`). Enforced by CI: unformatted commits fail the pipeline.
 - **CI:** GitHub Actions. Workflow at `.github/workflows/ci.yml`. Runs `make test` and `golangci-lint run` on every push and pull request.
 - **Minimum Go:** 1.21 (declared in `go.mod`).
 

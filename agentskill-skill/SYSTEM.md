@@ -1,4 +1,4 @@
-# SYSTEM.md — Agentskill LLM Generation Contract
+# SYSTEM.md: Agentskill LLM Generation Contract
 
 This document is the behavioral source of truth for generated `AGENTS.md`
 files. Generated guidance must be grounded in repository evidence and must

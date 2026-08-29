@@ -5,7 +5,7 @@ facts that tools can verify; the skill turns those facts, source inspection, and
 maintainer answers into useful repository guidance. The Rust CLI never writes
 semantic Markdown.
 
-## System boundary
+## System Boundary
 
 The target repository is read, bounded, and never modified by an analyzer run.
 The supported target-language matrix remains owned by the language registry.
@@ -31,7 +31,7 @@ libraries, analyzers depend on core, and the skill consumes the CLI contract.
 The physical `agentskill-generation/` path is retained for source-layout
 compatibility; its published crate name is `agentskill-validation`.
 
-## Evidence flow
+## Evidence Flow
 
 ```mermaid
 flowchart LR
@@ -71,7 +71,7 @@ Facts should be compact and actionable: inventories, tools, commands, test
 topology, language roles, and architectural boundaries. Raw analyzer output is
 retained for deeper inspection, not copied into Markdown.
 
-## Crate responsibilities
+## Crate Responsibilities
 
 ### Core
 
@@ -106,7 +106,7 @@ valid local references, end cleanly, and keep the operational file within its
 budget. `drift` reruns evidence, captures the current revision, and reports
 broken paths in both documents. Both operations are read-only.
 
-## LLM document contract
+## LLM Document Contract
 
 The skill owns `init`, `enrich`, `scope`, `context`, `update`, and `audit`.
 `operational` and `reference` are depth views of one understanding, not two
@@ -128,7 +128,7 @@ There are no Rust-side profiles, layouts, reference loaders, interactive
 prompts, or feedback sidecars. The LLM decides whether to create or update the root and
 reference views after comparing evidence with direct source inspection.
 
-## CLI contracts
+## CLI Contracts
 
 ```text
 agentskill <command> ...
@@ -140,7 +140,7 @@ Public commands are `analyze`, `evidence`, `scan`, `measure`, `config`, `git`,
 `--pretty` and safe relative `--out FILE`. Analyzer failures are JSON payloads
 with a failed status; invalid arguments and unusable paths are process errors.
 
-## Testing and extension
+## Testing And Extension
 
 Changes to analyzer keys, evidence fields, language detection, roles, command
 flags, or validation semantics require contract tests and documentation.
@@ -153,7 +153,7 @@ analyzer tests, documentation, and release matrix coverage. Adding an analyzer
 updates the registry, dispatch, evidence mapping when relevant, tests, and CLI
 documentation.
 
-## Release architecture
+## Release Architecture
 
 Numeric `X.Y.Z` and `X.Y.Z-rc.N` tags drive verified GitHub Actions releases.
 Archives contain both binaries and `LICENSE`; `SHA256SUMS` is required. `VERSION`
