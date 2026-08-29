@@ -2,7 +2,6 @@
 
 [![Main](https://github.com/airscripts/agentskill/actions/workflows/main.yml/badge.svg)](https://github.com/airscripts/agentskill/actions/workflows/main.yml)
 [![Release](https://github.com/airscripts/agentskill/actions/workflows/release.yml/badge.svg)](https://github.com/airscripts/agentskill/actions/workflows/release.yml)
-![ClawHub](https://skill-history.com/badge/airscripts/agentskill.svg)
 
 Analyze a code repository and synthesize an `AGENTS.md` that lets any agent
 produce code consistent with the existing codebase.
@@ -214,9 +213,6 @@ If the harness only needs the analyzer runtime, install the binaries and use
 the commands below. The skill package and the Rust CLI are intentionally
 separate: the former gives an agent a synthesis workflow, while the latter
 provides deterministic evidence and document operations.
-
-The skill is also listed on [ClawHub](https://clawhub.ai/airscripts/agentskill)
-for harnesses that install skills from a marketplace.
 
 ## Development Checks
 

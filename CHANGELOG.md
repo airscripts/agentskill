@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added expanded language-family graph, symbol, configuration, and test
   conventions with a complete extended fixture and contract coverage.
 
+### Changed
+
+- Removed obsolete marketplace badge and listing documentation.
+
 ## [2.0.0] - 2026-08-27
 
 ### Added
