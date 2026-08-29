@@ -18,8 +18,16 @@
     }
   },
   "git": {
-    "error": "str",
-    "script": "str"
+    "branches": {},
+    "commits": {
+      "examples": {},
+      "prefixes": {},
+      "total": "number"
+    },
+    "merge_strategy": {
+      "evidence": "str",
+      "strategy": "str"
+    }
   },
   "graph": {
     "bash": {
@@ -127,13 +135,25 @@
       "by_language": {
         "bash": {
           "file_count": "number",
+          "kind": "str",
+          "role": "str",
           "total_lines": "number"
         },
         "go": {
           "file_count": "number",
+          "kind": "str",
+          "role": "str",
           "total_lines": "number"
         },
         "typescript": {
+          "file_count": "number",
+          "kind": "str",
+          "role": "str",
+          "total_lines": "number"
+        }
+      },
+      "by_kind": {
+        "programming": {
           "file_count": "number",
           "total_lines": "number"
         }
@@ -145,6 +165,8 @@
       {
         "depth": "number",
         "language": "str",
+        "language_kind": "str",
+        "language_role": "str",
         "line_count": "number",
         "path": "str",
         "size_bytes": "number",

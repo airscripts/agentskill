@@ -4,7 +4,7 @@ use agentskill_core::Result;
 use regex::Regex;
 use serde_json::{Map, Value, json};
 
-use crate::common::{repo_files, text};
+use crate::common::{insert_language_result, repo_files, text};
 
 pub fn run(repo: &str, lang: Option<&str>) -> Result<Value> {
     let (_root, files) = repo_files(repo, lang)?;
@@ -67,6 +67,7 @@ pub fn run(repo: &str, lang: Option<&str>) -> Result<Value> {
 
         let mut all_functions = functions;
         all_functions.extend(arrow_functions);
+        all_functions.extend(language_functions(language.id, &source));
 
         let types = names(
             &source,
@@ -86,7 +87,7 @@ pub fn run(repo: &str, lang: Option<&str>) -> Result<Value> {
             payload.remove("classes");
             payload.remove("types");
         }
-        result.insert(language.id.into(), Value::Object(payload));
+        insert_language_result(&mut result, language.id, Value::Object(payload));
     }
 
     Ok(Value::Object(result))
@@ -98,6 +99,24 @@ fn names(source: &str, pattern: &str) -> Vec<String> {
         .captures_iter(source)
         .filter_map(|capture| capture.get(1).map(|value| value.as_str().to_string()))
         .collect()
+}
+
+fn language_functions(language: &str, source: &str) -> Vec<String> {
+    let pattern = match language {
+        "erlang" => r"(?m)^\s*([a-z][A-Za-z0-9_]*)\s*\([^)]*\)\s*->",
+        "lua" => r"(?m)\bfunction\s+(?:[A-Za-z_][A-Za-z0-9_]*\.)?([A-Za-z_][A-Za-z0-9_]*)\s*\(",
+        "r" => r"(?m)^\s*([A-Za-z_][A-Za-z0-9_.]*)\s*<-\s*function",
+        "julia" => r"(?m)^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\([^)]*\)\s*=",
+        "haskell" => r"(?m)^\s*([a-z][A-Za-z0-9_']*)\s+[^=\n]+\s*=",
+        "clojure" => r"(?m)\(defn-?\s+([A-Za-z_*!?+.-]+)",
+        "fsharp" | "ocaml" => r"(?m)^\s*let\s+(?:rec\s+)?([A-Za-z_][A-Za-z0-9_']*)",
+        "nim" => r"(?m)^\s*(?:proc|func|iterator)\s+([A-Za-z_][A-Za-z0-9_]*)",
+        "perl" => r"(?m)^\s*sub\s+([A-Za-z_][A-Za-z0-9_]*)",
+        "fortran" => r"(?mi)^\s*(?:program|subroutine|function)\s+([A-Za-z_][A-Za-z0-9_]*)",
+        "ada" => r"(?mi)^\s*(?:procedure|function)\s+([A-Za-z_][A-Za-z0-9_]*)",
+        _ => return Vec::new(),
+    };
+    names(source, pattern)
 }
 
 fn constant_names(source: &str, language: &str) -> Vec<String> {
@@ -375,6 +394,129 @@ fn add_language_categories(language: &str, source: &str, payload: &mut Map<Strin
                 pattern_summary(&names(
                     source,
                     r"(?m)^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*\)",
+                )),
+            );
+        }
+        "html" | "vue" | "svelte" | "astro" => {
+            payload.insert(
+                "elements".into(),
+                pattern_summary(&names(source, r"(?m)<([A-Za-z][A-Za-z0-9:-]*)\b")),
+            );
+            payload.insert(
+                "ids".into(),
+                pattern_summary(&names(
+                    source,
+                    r#"(?m)\bid=["']([A-Za-z_][A-Za-z0-9_-]*)["']"#,
+                )),
+            );
+            payload.insert(
+                "components".into(),
+                pattern_summary(&names(source, r"(?m)<([A-Z][A-Za-z0-9_]*)\b")),
+            );
+        }
+        "css" | "sass" | "less" => {
+            payload.insert(
+                "selectors".into(),
+                pattern_summary(&names(
+                    source,
+                    r"(?m)^\s*\.([A-Za-z_][A-Za-z0-9_-]*)\s*[,{]",
+                )),
+            );
+            payload.insert(
+                "variables".into(),
+                pattern_summary(&names(
+                    source,
+                    r"(?m)(?:--|@|\$)([A-Za-z_][A-Za-z0-9_-]*)\s*:",
+                )),
+            );
+            payload.insert(
+                "mixins".into(),
+                pattern_summary(&names(
+                    source,
+                    r"(?m)@(?:mixin|include)\s+([A-Za-z_][A-Za-z0-9_-]*)",
+                )),
+            );
+        }
+        "sql" => {
+            payload.insert(
+                "tables".into(),
+                pattern_summary(&names(source, r"(?mi)\bcreate\s+(?:temporary\s+)?table\s+(?:if\s+not\s+exists\s+)?([A-Za-z_][A-Za-z0-9_]*)")),
+            );
+            payload.insert(
+                "views".into(),
+                pattern_summary(&names(
+                    source,
+                    r"(?mi)\bcreate\s+view\s+([A-Za-z_][A-Za-z0-9_]*)",
+                )),
+            );
+            payload.insert(
+                "routines".into(),
+                pattern_summary(&names(source, r"(?mi)\bcreate\s+(?:or\s+replace\s+)?(?:function|procedure)\s+([A-Za-z_][A-Za-z0-9_]*)")),
+            );
+        }
+        "graphql" => {
+            payload.insert(
+                "operations".into(),
+                pattern_summary(&names(
+                    source,
+                    r"(?m)\b(?:query|mutation|subscription)\s+([A-Za-z_][A-Za-z0-9_]*)",
+                )),
+            );
+            payload.insert(
+                "schema_types".into(),
+                pattern_summary(&names(
+                    source,
+                    r"(?m)\b(?:type|input|interface|enum|scalar|union)\s+([A-Za-z_][A-Za-z0-9_]*)",
+                )),
+            );
+            payload.insert(
+                "fragments".into(),
+                pattern_summary(&names(source, r"(?m)\bfragment\s+([A-Za-z_][A-Za-z0-9_]*)")),
+            );
+        }
+        "protobuf" => {
+            payload.insert(
+                "messages".into(),
+                pattern_summary(&names(source, r"(?m)\bmessage\s+([A-Za-z_][A-Za-z0-9_]*)")),
+            );
+            payload.insert(
+                "services".into(),
+                pattern_summary(&names(source, r"(?m)\bservice\s+([A-Za-z_][A-Za-z0-9_]*)")),
+            );
+            payload.insert(
+                "enums".into(),
+                pattern_summary(&names(source, r"(?m)\benum\s+([A-Za-z_][A-Za-z0-9_]*)")),
+            );
+        }
+        "hcl" | "nix" | "dockerfile" | "make" | "cmake" | "starlark" => {
+            payload.insert(
+                "resources_or_targets".into(),
+                pattern_summary(&names(source, r#"(?m)^\s*(?:resource|data|target|task|rule|stage|service|module|load)\s+["']?([A-Za-z_][A-Za-z0-9_./:-]*)"#)),
+            );
+            payload.insert(
+                "variables".into(),
+                pattern_summary(&names(
+                    source,
+                    r#"(?m)^\s*(?:variable|locals?|set|export)\s*["']?([A-Za-z_][A-Za-z0-9_-]*)"#,
+                )),
+            );
+        }
+        "markdown" => {
+            payload.insert(
+                "headings".into(),
+                pattern_summary(&names(source, r"(?m)^#{1,6}\s+(.+?)\s*$")),
+            );
+            payload.insert(
+                "links".into(),
+                pattern_summary(&names(source, r"(?m)!?\[[^]]*\]\(([^)]+)\)")),
+            );
+        }
+        "yaml" | "json" | "toml" | "xml" => {
+            payload.insert(
+                "keys_or_elements".into(),
+                pattern_summary(&names(
+                    source,
+                    r#"(?m)^\s*["']?([A-Za-z_][A-Za-z0-9_.:-]*)["']?\s*[:=]"#,
                 )),
             );
         }

@@ -1,18 +1,22 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use agentskill_core::document::{Document, Section, merge, parse, serialize};
 use agentskill_core::error::{AgentskillError, error_payload, validate_repo};
 use agentskill_core::fs::{collect_files, line_count, read_text};
-use agentskill_core::language::{LANGUAGES, is_test_path, language_by_id, language_for_path};
+use agentskill_core::language::{
+    LANGUAGES, LanguageKind, LanguageRole, is_test_path, language_by_id, language_for_content,
+    language_for_file, language_for_path, language_kind, language_role,
+};
 use agentskill_core::output::{pretty_json, validate_out_path, write_value};
-use agentskill_core::reference::validate_references;
+use agentskill_core::reference::{load_reference_documents, validate_references};
 use serde_json::json;
 use tempfile::tempdir;
 
 #[test]
 fn preserves_supported_language_matrix() {
-    assert_eq!(LANGUAGES.len(), 15);
+    assert_eq!(LANGUAGES.len(), 60);
 
     assert_eq!(
         language_by_id("python").map(|item| item.display_name),
@@ -27,6 +31,46 @@ fn preserves_supported_language_matrix() {
     assert_eq!(
         language_for_path(Path::new("src/index.tsx")).map(|item| item.id),
         Some("typescript")
+    );
+
+    assert_eq!(language_kind("hcl"), Some(LanguageKind::Infrastructure));
+    assert_eq!(language_role("markdown"), Some(LanguageRole::Auxiliary));
+    assert_eq!(LanguageKind::Stylesheet.as_str(), "stylesheet");
+    assert_eq!(
+        language_for_path(Path::new("Dockerfile")).map(|item| item.id),
+        Some("dockerfile")
+    );
+
+    let directory = tempdir().unwrap();
+    let objc = directory.path().join("App.m");
+    fs::write(&objc, "int run(void) { return 0; }\n").unwrap();
+    assert_eq!(
+        language_for_file(&objc, Some(directory.path())).map(|item| item.id),
+        Some("objectivec")
+    );
+
+    let matlab = directory.path().join("compute.m");
+    fs::write(&matlab, "function result = compute()\nresult = 1;\nend\n").unwrap();
+    assert_eq!(
+        language_for_file(&matlab, Some(directory.path())).map(|item| item.id),
+        Some("matlab")
+    );
+
+    let marker_free = directory.path().join("plain.m");
+    fs::write(&marker_free, "value = 1;\n").unwrap();
+    assert_eq!(
+        language_for_file(&marker_free, Some(directory.path())).map(|item| item.id),
+        Some("objectivec")
+    );
+
+    assert_eq!(
+        language_for_content(
+            Path::new("provided.m"),
+            "function result = provided()\nresult = 1;\nend\n",
+            None,
+        )
+        .map(|item| item.id),
+        Some("matlab")
     );
 }
 
@@ -176,6 +220,136 @@ fn validates_references_and_serializes_output() {
     assert_eq!(fs::read_to_string(&output).unwrap(), "{\"ok\":true}\n");
     fs::remove_file(output).unwrap();
     assert_eq!(error_payload("bad", "scan")["script"], "scan");
+}
+
+#[test]
+fn loads_local_references_and_reports_reference_validation_failures() {
+    let reference = tempdir().unwrap();
+    fs::write(reference.path().join("AGENTS.md"), "# Reference\n\nRule.\n").unwrap();
+    let reference_path = reference.path().to_string_lossy().into_owned();
+
+    let documents = load_reference_documents(std::slice::from_ref(&reference_path)).unwrap();
+    assert_eq!(documents.len(), 1);
+    assert_eq!(documents[0].source.kind, "local");
+    assert_eq!(documents[0].source.value, reference_path);
+    assert_eq!(documents[0].content, "# Reference\n\nRule.\n");
+    assert_eq!(documents[0].source_path, "AGENTS.md");
+    assert!(documents[0].commit_sha.is_none());
+
+    let file = reference.path().join("not-a-directory");
+    fs::write(&file, "content").unwrap();
+    let file_path = file.to_string_lossy().into_owned();
+    assert!(matches!(
+        validate_references(&[file_path]),
+        Err(AgentskillError::InvalidPath(_))
+    ));
+
+    let missing_document = tempdir().unwrap();
+    let missing_path = missing_document.path().to_string_lossy().into_owned();
+    assert!(matches!(
+        validate_references(&[missing_path]),
+        Err(AgentskillError::InvalidPath(_))
+    ));
+}
+
+#[test]
+fn rejects_unreachable_remote_references_without_external_network() {
+    let directory = tempdir().unwrap();
+    let remote = format!("file://{}", directory.path().join("missing.git").display());
+    let result = load_reference_documents(&[remote]);
+
+    assert!(matches!(result, Err(AgentskillError::InvalidPath(_))));
+}
+
+#[cfg(unix)]
+#[test]
+fn loads_file_url_references_and_records_commit_sha() {
+    let repository = tempdir().unwrap();
+    let repository_path = repository.path().to_str().unwrap();
+
+    for args in [
+        vec!["init", "--quiet", repository_path],
+        vec![
+            "-C",
+            repository_path,
+            "config",
+            "user.email",
+            "test@example.com",
+        ],
+        vec![
+            "-C",
+            repository_path,
+            "config",
+            "user.name",
+            "agentskill tests",
+        ],
+    ] {
+        assert!(Command::new("git").args(args).status().unwrap().success());
+    }
+
+    fs::write(
+        repository.path().join("AGENTS.md"),
+        "# Remote reference\n\nRule.\n",
+    )
+    .unwrap();
+    assert!(
+        Command::new("git")
+            .args(["-C", repository_path, "add", "AGENTS.md"])
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        Command::new("git")
+            .args([
+                "-C",
+                repository_path,
+                "-c",
+                "commit.gpgSign=false",
+                "commit",
+                "--quiet",
+                "-m",
+                "reference"
+            ])
+            .status()
+            .unwrap()
+            .success()
+    );
+
+    let reference = format!("file://{repository_path}");
+    let documents = load_reference_documents(std::slice::from_ref(&reference)).unwrap();
+
+    assert_eq!(documents.len(), 1);
+    assert_eq!(documents[0].source.kind, "remote");
+    assert_eq!(documents[0].source.value, reference);
+    assert_eq!(documents[0].content, "# Remote reference\n\nRule.\n");
+    assert_eq!(documents[0].source_path, "AGENTS.md");
+    assert!(
+        documents[0]
+            .commit_sha
+            .as_deref()
+            .is_some_and(|sha| sha.len() == 40)
+    );
+}
+
+#[test]
+fn formats_and_converts_all_error_variants() {
+    let io = AgentskillError::from(std::io::Error::other("io failure"));
+    assert_eq!(io.to_string(), "io failure");
+
+    let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+    let json = AgentskillError::from(json_error);
+    assert!(!json.to_string().is_empty());
+
+    assert_eq!(
+        AgentskillError::InvalidPath("bad path".into()).to_string(),
+        "bad path"
+    );
+    assert_eq!(
+        AgentskillError::InvalidArgument("bad argument".into()).to_string(),
+        "bad argument"
+    );
+    assert_eq!(AgentskillError::Other("other".into()).to_string(), "other");
 }
 
 #[test]

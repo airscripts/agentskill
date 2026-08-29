@@ -1,0 +1,2 @@
+filegroup(name = "all", srcs = [])
+

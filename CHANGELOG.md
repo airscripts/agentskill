@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added a concise root `Makefile` for local verification and release checks.
+- Added 45 language families (40 primary and 5 auxiliary), typed language
+  kinds, extensionless filename detection, and shebang detection.
+- Added expanded language-family graph, symbol, configuration, and test
+  conventions with a complete extended fixture and contract coverage.
 
 ## [2.0.0] - 2026-08-27
 

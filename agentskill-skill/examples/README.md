@@ -1,6 +1,8 @@
 # Language Examples
 
 This directory contains compact static fixtures for every supported language.
+The registry covers 60 language families; YAML, JSON, TOML, XML, and
+Markdown are auxiliary formats exercised through the analyzer auxiliary output.
 
 They are analyzer fixtures, not runnable projects. They intentionally avoid
 dependency installs, build outputs, vendored code, and generated files.
@@ -15,6 +17,9 @@ The per-language directories are the release-grade verification backbone for:
 
 The `mixed/` fixture validates multi-language behavior across several analyzers
 in one repository shape.
+
+The `extended/` fixture validates the complete expanded registry, including
+primary language kinds and the auxiliary format bucket.
 
 Available example repos:
 
@@ -33,6 +38,7 @@ Available example repos:
 - `swift/`
 - `objectivec/`
 - `bash/`
+- `extended/`
 - `mixed/`
 
 ## Typical Commands

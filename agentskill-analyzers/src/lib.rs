@@ -1,5 +1,3 @@
-//! Analyzer implementations and aggregate execution.
-
 mod common;
 pub mod config;
 pub mod git;

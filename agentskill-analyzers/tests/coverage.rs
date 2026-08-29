@@ -2,6 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use agentskill_analyzers::{run_all, run_many, run_one};
+use agentskill_core::language::{LANGUAGES, LanguageRole, language_role};
 use tempfile::tempdir;
 
 fn examples_root() -> PathBuf {
@@ -28,6 +29,7 @@ fn exercises_all_analyzers_across_supported_fixtures() {
         "swift",
         "objectivec",
         "bash",
+        "extended",
         "mixed",
     ];
 
@@ -276,6 +278,198 @@ fn preserves_configuration_settings_and_project_markers() {
             .iter()
             .any(|item| item == "Example.csproj")
     );
+}
+
+#[test]
+fn extended_fixture_covers_new_language_kinds_and_auxiliary_output() {
+    let root = examples_root().join("extended");
+    let repo = root.to_string_lossy();
+    let output = run_one("scan", &repo, None);
+
+    assert_eq!(
+        output["summary"]["by_language"].as_object().unwrap().len(),
+        40
+    );
+    assert_eq!(
+        output["auxiliary"]["summary"]["by_language"]
+            .as_object()
+            .unwrap()
+            .len(),
+        5
+    );
+    assert_eq!(
+        output["summary"]["by_kind"]["programming"]["file_count"],
+        38
+    );
+    assert_eq!(output["summary"]["by_kind"]["markup"]["file_count"], 4);
+    assert_eq!(output["summary"]["by_kind"]["stylesheet"]["file_count"], 3);
+    assert_eq!(output["summary"]["by_kind"]["query"]["file_count"], 2);
+    assert_eq!(output["summary"]["by_kind"]["schema"]["file_count"], 1);
+    assert_eq!(
+        output["summary"]["by_kind"]["infrastructure"]["file_count"],
+        2
+    );
+    assert_eq!(output["summary"]["by_kind"]["build"]["file_count"], 4);
+
+    let auxiliary = run_one("symbols", &repo, None);
+    assert!(
+        auxiliary["auxiliary"]["markdown"]["headings"]["total"]
+            .as_u64()
+            .unwrap()
+            > 0
+    );
+
+    let config = run_one("config", &repo, None);
+    assert!(config["auxiliary"]["yaml"].is_object());
+    assert!(config["auxiliary"]["toml"].is_object());
+}
+
+#[test]
+fn extended_fixture_has_contract_output_for_every_new_language() {
+    const PRIMARY: &[&str] = &[
+        "dart",
+        "scala",
+        "elixir",
+        "erlang",
+        "lua",
+        "r",
+        "julia",
+        "haskell",
+        "clojure",
+        "fsharp",
+        "groovy",
+        "powershell",
+        "visualbasic",
+        "zig",
+        "d",
+        "nim",
+        "crystal",
+        "ocaml",
+        "perl",
+        "matlab",
+        "fortran",
+        "ada",
+        "gdscript",
+        "solidity",
+        "html",
+        "vue",
+        "svelte",
+        "astro",
+        "css",
+        "sass",
+        "less",
+        "sql",
+        "graphql",
+        "protobuf",
+        "hcl",
+        "nix",
+        "dockerfile",
+        "make",
+        "cmake",
+        "starlark",
+    ];
+    const AUXILIARY: &[&str] = &["yaml", "json", "toml", "xml", "markdown"];
+
+    let registered_primary = LANGUAGES
+        .iter()
+        .filter(|language| language_role(language.id) == Some(LanguageRole::Primary))
+        .map(|language| language.id)
+        .collect::<Vec<_>>();
+    let registered_auxiliary = LANGUAGES
+        .iter()
+        .filter(|language| language_role(language.id) == Some(LanguageRole::Auxiliary))
+        .map(|language| language.id)
+        .collect::<Vec<_>>();
+    assert!(
+        PRIMARY
+            .iter()
+            .all(|language| registered_primary.contains(language))
+    );
+    assert_eq!(registered_auxiliary, AUXILIARY);
+
+    let repo = examples_root().join("extended");
+    let repo = repo.to_string_lossy();
+    let outputs = [
+        ("scan", run_one("scan", &repo, None)),
+        ("measure", run_one("measure", &repo, None)),
+        ("config", run_one("config", &repo, None)),
+        ("graph", run_one("graph", &repo, None)),
+        ("symbols", run_one("symbols", &repo, None)),
+        ("tests", run_one("tests", &repo, None)),
+    ];
+
+    for language in PRIMARY.iter().chain(AUXILIARY.iter()) {
+        for (analyzer, output) in &outputs {
+            let section = if *analyzer == "scan" {
+                if AUXILIARY.contains(language) {
+                    &output["auxiliary"]["summary"]["by_language"][*language]
+                } else {
+                    &output["summary"]["by_language"][*language]
+                }
+            } else if AUXILIARY.contains(language) {
+                &output["auxiliary"][*language]
+            } else {
+                &output[*language]
+            };
+            assert!(
+                section.is_object(),
+                "{analyzer} has no contract payload for {language}: {output}"
+            );
+        }
+    }
+
+    let primary_scan = outputs[0].1["summary"]["by_language"].as_object().unwrap();
+    assert_eq!(primary_scan.len(), PRIMARY.len());
+    for language in PRIMARY {
+        assert!(
+            primary_scan.contains_key(*language),
+            "missing scan language {language}"
+        );
+    }
+
+    let auxiliary_scan = outputs[0].1["auxiliary"]["summary"]["by_language"]
+        .as_object()
+        .unwrap();
+    assert_eq!(auxiliary_scan.len(), AUXILIARY.len());
+    for language in AUXILIARY {
+        assert!(
+            auxiliary_scan.contains_key(*language),
+            "missing auxiliary scan language {language}"
+        );
+    }
+}
+
+#[test]
+fn does_not_invent_new_language_test_commands_without_evidence() {
+    let directory = tempdir().unwrap();
+    fs::write(
+        directory.path().join("main.dart"),
+        "String run() => 'ok';\n",
+    )
+    .unwrap();
+
+    let repo = directory.path().to_string_lossy();
+    let output = run_one("tests", &repo, None);
+
+    assert_eq!(output["dart"]["framework"], "unknown");
+    assert_eq!(output["dart"]["run_command"], serde_json::Value::Null);
+}
+
+#[test]
+fn does_not_assign_tool_specific_commands_without_tool_markers() {
+    let directory = tempdir().unwrap();
+    fs::write(directory.path().join("migration_test.sql"), "select 1;\n").unwrap();
+    fs::write(
+        directory.path().join("schema_test.proto"),
+        "syntax = \"proto3\";\n",
+    )
+    .unwrap();
+
+    let repo = directory.path().to_string_lossy();
+    let output = run_one("tests", &repo, None);
+
+    assert_eq!(output["sql"]["run_command"], serde_json::Value::Null);
+    assert_eq!(output["protobuf"]["run_command"], serde_json::Value::Null);
 }
 
 #[test]

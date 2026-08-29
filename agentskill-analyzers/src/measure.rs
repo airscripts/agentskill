@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use agentskill_core::Result;
 use serde_json::{Map, Value, json};
 
-use crate::common::{percentile, repo_files, text};
+use crate::common::{insert_language_result, percentile, repo_files, text};
 
 pub fn run(repo: &str, lang: Option<&str>) -> Result<Value> {
     let (_root, files) = repo_files(repo, lang)?;
@@ -19,8 +19,9 @@ pub fn run(repo: &str, lang: Option<&str>) -> Result<Value> {
     }
 
     for (language, language_files) in by_language {
-        result.insert(
-            language.to_string(),
+        insert_language_result(
+            &mut result,
+            language,
             measure_language(language, &language_files),
         );
     }

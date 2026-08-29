@@ -5,7 +5,7 @@ use agentskill_core::Result;
 use regex::Regex;
 use serde_json::{Value, json};
 
-use crate::common::{repo_files, text};
+use crate::common::{is_auxiliary, repo_files, text};
 
 const MAX_EDGES: usize = 200;
 const MAX_CYCLES: usize = 20;
@@ -16,6 +16,7 @@ pub fn run(repo: &str, lang: Option<&str>) -> Result<Value> {
     let (root, files) = repo_files(repo, lang)?;
 
     let mut result = BTreeMap::new();
+    let mut auxiliary = BTreeMap::new();
 
     for language in agentskill_core::language::LANGUAGES
         .iter()
@@ -77,19 +78,24 @@ pub fn run(repo: &str, lang: Option<&str>) -> Result<Value> {
         let most_depended = most_depended_on(&edges);
         let edges = edges.into_iter().take(MAX_EDGES).collect::<Vec<_>>();
 
-        result.insert(
-            language.id,
-            json!({
-                "modules": modules,
-                "edges": edges,
-                "circular_dependencies": circular_dependencies,
-                "most_depended_on": most_depended,
-                "boundary_violations": [],
-                "parse_errors": parse_errors,
-            }),
-        );
+        let payload = json!({
+            "modules": modules,
+            "edges": edges,
+            "circular_dependencies": circular_dependencies,
+            "most_depended_on": most_depended,
+            "boundary_violations": [],
+            "parse_errors": parse_errors,
+        });
+        if is_auxiliary(language.id) {
+            auxiliary.insert(language.id, payload);
+        } else {
+            result.insert(language.id, payload);
+        }
     }
 
+    if !auxiliary.is_empty() {
+        result.insert("auxiliary", json!(auxiliary));
+    }
     result.insert("monorepo_boundaries", detect_monorepo_boundaries(&root));
 
     Ok(json!(result))
@@ -186,6 +192,37 @@ fn imports_for(language: &str, line: &str) -> Vec<String> {
         "php" => &[r"^\s*use\s+([^;]+);"],
         "swift" => &[r"^\s*(?:@testable\s+)?import\s+([^\s]+)"],
         "bash" => &[r#"^\s*(?:source|\.)\s+["']?([^"'\s]+)"#],
+        "dart" => &[r#"^\s*(?:import|export|part)\s+["']([^"']+)["']"#],
+        "scala" => &[r"^\s*import\s+([^\s]+)"],
+        "elixir" => &[r"^\s*(?:alias|import|require)\s+([A-Za-z0-9_.]+)"],
+        "erlang" => &[r#"^\s*-include(?:_lib)?\s*\(["']([^"']+)["']\)"#],
+        "lua" => &[r#"(?:require|dofile)\s*\(?\s*["']([^"']+)["']"#],
+        "r" => &[r#"^\s*source\s*\(\s*["']([^"']+)["']"#],
+        "julia" => &[r#"^\s*(?:include|using|import)\s*\(?\s*["']?([^"')\s]+)"#],
+        "haskell" => &[r"^\s*import\s+(?:qualified\s+)?([A-Za-z0-9_.]+)"],
+        "clojure" => &[r#"\(require\s+'?\[?([A-Za-z0-9_.-]+)"#],
+        "fsharp" => &[
+            r#"^\s*#?load\s+["']([^"']+)["']"#,
+            r"^\s*open\s+([A-Za-z0-9_.]+)",
+        ],
+        "groovy" => &[r"^\s*import\s+([^\s;]+)"],
+        "powershell" => &[r#"^\s*(?:Import-Module|\.\s*)["']?([^"'\s]+)"#],
+        "ocaml" => &[r#"^\s*#use\s+["']([^"']+)["']"#],
+        "perl" => &[r#"^\s*(?:use|require)\s+["']?([^"';\s]+)"#],
+        "fortran" => &[r#"^\s*(?:use|include)\s+["']?([^"'\s]+)"#],
+        "ada" => &[r"^\s*with\s+([A-Za-z0-9_.]+)"],
+        "solidity" => &[r#"^\s*import\s+["']([^"']+)["']"#],
+        "css" | "sass" | "less" => &[r#"^\s*@(?:import|use|forward)\s+["']([^"']+)["']"#],
+        "graphql" => &[r#"^\s*#\s*import\s+["']([^"']+)["']"#],
+        "protobuf" => &[r#"^\s*import\s+["']([^"']+)["'];"#],
+        "nix" => &[r#"^\s*(?:import|builtins\.readFile)\s+["']?([^"'\s]+)"#],
+        "make" => &[r"^\s*include\s+([^\s]+)"],
+        "cmake" => &[r#"^\s*(?:include|add_subdirectory)\s*\(?\s*["']?([^"')\s]+)"#],
+        "starlark" => &[r#"^\s*load\s*\(\s*["']([^"']+)["']"#],
+        "markdown" => &[r"!?(?:\[[^]]*\])\(([^)#]+)"],
+        "yaml" | "json" | "toml" | "xml" => {
+            &[r#"["']?\$?(?:ref|include)["']?\s*[:=]\s*["']([^"']+)["']"#]
+        }
         _ => &[],
     };
     patterns
@@ -270,7 +307,10 @@ fn resolve_target(
                 .or_else(|| index.get(&format!("{path}.rs")))
                 .map(|value| value.to_string())
         }
-        "java" | "kotlin" | "csharp" | "php" => index.get(import).map(|value| value.to_string()),
+        "java" | "kotlin" | "csharp" | "php" | "elixir" | "erlang" | "scala" | "haskell"
+        | "clojure" | "fsharp" | "groovy" | "ada" => {
+            index.get(import).map(|value| value.to_string())
+        }
         "c" | "cpp" | "objectivec" | "bash" | "ruby" => {
             let parent = Path::new(source).parent().unwrap_or_else(|| Path::new(""));
 
@@ -291,6 +331,16 @@ fn resolve_target(
             None
         }
         "swift" => index.get(import).map(|value| value.to_string()),
+        "dart" | "lua" | "r" | "julia" | "ocaml" | "perl" | "fortran" | "solidity" | "css"
+        | "sass" | "less" | "graphql" | "protobuf" | "nix" | "make" | "cmake" | "starlark"
+        | "markdown" | "yaml" | "json" | "toml" | "xml" => {
+            let parent = Path::new(source).parent().unwrap_or_else(|| Path::new(""));
+            let path = normalize_path(&parent.join(import));
+            index
+                .get(&path)
+                .or_else(|| index.get(import))
+                .map(|value| value.to_string())
+        }
         _ => None,
     }
 }

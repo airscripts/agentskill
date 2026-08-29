@@ -1,5 +1,3 @@
-//! Shared domain types and tolerant repository utilities.
-
 pub mod document;
 pub mod error;
 pub mod fs;

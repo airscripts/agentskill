@@ -106,16 +106,158 @@ pub fn run(repo: &str) -> Result<Value> {
     add_csharp(&root, &files, &mut result, &editor_sections);
     add_c_family(&root, &files, &mut result, "c", &editor_sections);
     add_c_family(&root, &files, &mut result, "cpp", &editor_sections);
+    add_dotnet_language(
+        &root,
+        &files,
+        &mut result,
+        "fsharp",
+        &[".fsproj", ".sln"],
+        &editor_sections,
+    );
+    add_dotnet_language(
+        &root,
+        &files,
+        &mut result,
+        "visualbasic",
+        &[".vbproj", ".sln"],
+        &editor_sections,
+    );
     add_ruby(&root, &files, &mut result, &editor_sections);
     add_php(&root, &files, &mut result, &editor_sections);
     add_apple(&root, &files, &mut result, "swift", &editor_sections);
     add_apple(&root, &files, &mut result, "objectivec", &editor_sections);
+    add_extended_languages(&root, &files, &mut result, &editor_sections);
+    add_auxiliary_formats(&root, &files, &mut result, &editor_sections);
 
     if !editor_sections.is_empty() {
         result.insert("editorconfig".into(), json!(editor_sections));
     }
 
     Ok(Value::Object(result))
+}
+
+fn add_extended_languages(
+    root: &Path,
+    files: &[agentskill_core::fs::RepoFile],
+    result: &mut Map<String, Value>,
+    sections: &Map<String, Value>,
+) {
+    let profiles: &[(&str, &[&str], &str)] = &[
+        ("dart", &["pubspec.yaml", "analysis_options.yaml"], "pub"),
+        ("scala", &["build.sbt", "project/build.properties"], "sbt"),
+        ("elixir", &["mix.exs", ".formatter.exs"], "mix"),
+        ("erlang", &["rebar.config", "rebar.lock"], "rebar3"),
+        ("lua", &[".luacheckrc", ".stylua.toml"], "lua tooling"),
+        ("r", &["DESCRIPTION", "renv.lock", ".lintr"], "R tooling"),
+        ("julia", &["Project.toml", "Manifest.toml"], "Julia Pkg"),
+        ("haskell", &["stack.yaml", "cabal.project"], "cabal/stack"),
+        ("clojure", &["deps.edn", "project.clj"], "Clojure CLI"),
+        ("groovy", &["build.gradle", "build.gradle.groovy"], "Gradle"),
+        (
+            "powershell",
+            &["PSScriptAnalyzerSettings.psd1"],
+            "PowerShell",
+        ),
+        ("zig", &["build.zig", "build.zig.zon"], "zig build"),
+        ("d", &["dub.json", "dub.sdl"], "dub"),
+        ("nim", &[".nimble"], "Nimble"),
+        ("crystal", &["shard.yml", "shard.lock"], "Shards"),
+        ("ocaml", &["dune-project", "dune-workspace"], "Dune"),
+        (
+            "perl",
+            &["cpanfile", "Build.PL", "Makefile.PL"],
+            "Perl tooling",
+        ),
+        ("matlab", &[], "MATLAB"),
+        ("fortran", &["fpm.toml"], "fpm"),
+        ("ada", &["alire.toml"], "Alire"),
+        ("gdscript", &["project.godot"], "Godot"),
+        (
+            "solidity",
+            &["foundry.toml", "hardhat.config.js"],
+            "Foundry/Hardhat",
+        ),
+        ("html", &[], "web tooling"),
+        ("vue", &[], "web tooling"),
+        ("svelte", &[], "web tooling"),
+        ("astro", &[], "web tooling"),
+        ("css", &[".stylelintrc", "stylelint.config.js"], "stylelint"),
+        (
+            "sass",
+            &[".stylelintrc", "stylelint.config.js"],
+            "stylelint",
+        ),
+        (
+            "less",
+            &[".stylelintrc", "stylelint.config.js"],
+            "stylelint",
+        ),
+        ("sql", &[".sqlfluff", "dbt_project.yml"], "SQL tooling"),
+        ("graphql", &[".graphqlrc", "codegen.yml"], "GraphQL tooling"),
+        ("protobuf", &["buf.yaml", "buf.gen.yaml"], "buf"),
+        (
+            "hcl",
+            &[".terraform.lock.hcl", "terraform.tfstate"],
+            "Terraform",
+        ),
+        ("nix", &["flake.nix", "flake.lock"], "Nix flakes"),
+        ("dockerfile", &[], "Docker"),
+        ("make", &["Makefile", "makefile", "GNUmakefile"], "make"),
+        ("cmake", &["CMakeLists.txt"], "CMake"),
+        ("starlark", &["WORKSPACE", "WORKSPACE.bazel"], "Bazel"),
+    ];
+
+    for (language, marker_names, build_tool) in profiles {
+        let markers = existing_markers(root, marker_names);
+        add_language_project(files, result, sections, language, markers, build_tool);
+    }
+}
+
+fn add_auxiliary_formats(
+    root: &Path,
+    files: &[agentskill_core::fs::RepoFile],
+    result: &mut Map<String, Value>,
+    sections: &Map<String, Value>,
+) {
+    let profiles: &[(&str, &[&str])] = &[
+        ("yaml", &[".yamllint", ".yamllint.yml", ".yamllint.yaml"]),
+        (
+            "json",
+            &[".jsonlintrc", ".jsonlintrc.json", ".jsonlintignore"],
+        ),
+        ("toml", &[".taplo.toml", "taplo.toml"]),
+        ("xml", &[".xmllintrc"]),
+        (
+            "markdown",
+            &[
+                ".markdownlint.json",
+                ".markdownlint.yml",
+                ".markdownlint.yaml",
+            ],
+        ),
+    ];
+    let mut auxiliary = Map::new();
+
+    for (language, marker_names) in profiles {
+        if !language_present(files, language) {
+            continue;
+        }
+        let markers = existing_markers(root, marker_names);
+        let config = attach_editorconfig(
+            if markers.is_empty() {
+                Map::new()
+            } else {
+                project_value(&markers, "format/lint tooling")
+            },
+            sections,
+            language,
+        );
+        auxiliary.insert((*language).into(), json!(config));
+    }
+
+    if !auxiliary.is_empty() {
+        result.insert("auxiliary".into(), Value::Object(auxiliary));
+    }
 }
 
 fn detect_python(root: &Path) -> Map<String, Value> {
@@ -334,6 +476,19 @@ fn add_csharp(
     let mut markers = existing_markers(root, &["Directory.Build.props", "Directory.Build.targets"]);
     markers.extend(root_files_matching(root, &[".sln", ".csproj"]));
     add_language_project(files, result, sections, "csharp", markers, "msbuild");
+}
+
+fn add_dotnet_language(
+    root: &Path,
+    files: &[agentskill_core::fs::RepoFile],
+    result: &mut Map<String, Value>,
+    language: &str,
+    suffixes: &[&str],
+    sections: &Map<String, Value>,
+) {
+    let mut markers = existing_markers(root, &["Directory.Build.props", "Directory.Build.targets"]);
+    markers.extend(root_files_matching(root, suffixes));
+    add_language_project(files, result, sections, language, markers, "msbuild");
 }
 
 fn add_c_family(
@@ -667,6 +822,47 @@ fn editorconfig_for_language(sections: &Map<String, Value>, language: &str) -> M
         "bash" => &["*.sh", "*.bash"],
         "swift" => &["*.swift"],
         "objectivec" => &["*.m", "*.mm", "*.h"],
+        "dart" => &["*.dart"],
+        "scala" => &["*.scala", "*.sc"],
+        "elixir" => &["*.ex", "*.exs"],
+        "erlang" => &["*.erl", "*.hrl"],
+        "lua" => &["*.lua"],
+        "r" => &["*.r", "*.R"],
+        "julia" => &["*.jl"],
+        "haskell" => &["*.hs", "*.lhs"],
+        "clojure" => &["*.clj", "*.cljs", "*.cljc"],
+        "fsharp" => &["*.fs", "*.fsi", "*.fsx"],
+        "groovy" => &["*.groovy", "*.gvy", "*.gradle"],
+        "powershell" => &["*.ps1", "*.psm1", "*.psd1"],
+        "visualbasic" => &["*.vb"],
+        "zig" => &["*.zig"],
+        "d" => &["*.d", "*.di"],
+        "nim" => &["*.nim", "*.nims"],
+        "crystal" => &["*.cr"],
+        "ocaml" => &["*.ml", "*.mli"],
+        "perl" => &["*.pl", "*.pm", "*.t"],
+        "matlab" => &["*.m"],
+        "fortran" => &["*.f", "*.for", "*.f77", "*.f90", "*.f95", "*.f03", "*.f08"],
+        "ada" => &["*.ada", "*.adb", "*.ads"],
+        "gdscript" => &["*.gd"],
+        "solidity" => &["*.sol"],
+        "html" => &["*.html", "*.htm"],
+        "vue" => &["*.vue"],
+        "svelte" => &["*.svelte"],
+        "astro" => &["*.astro"],
+        "css" => &["*.css"],
+        "sass" => &["*.scss", "*.sass"],
+        "less" => &["*.less"],
+        "sql" => &["*.sql"],
+        "graphql" => &["*.graphql", "*.gql"],
+        "protobuf" => &["*.proto"],
+        "hcl" => &["*.hcl", "*.tf", "*.tfvars"],
+        "nix" => &["*.nix"],
+        "yaml" => &["*.yaml", "*.yml"],
+        "json" => &["*.json", "*.jsonc"],
+        "toml" => &["*.toml"],
+        "xml" => &["*.xml"],
+        "markdown" => &["*.md", "*.markdown", "*.mdx"],
         _ => &[],
     };
 

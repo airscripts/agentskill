@@ -27,7 +27,8 @@ pub fn validate_references(references: &[String]) -> Result<()> {
     let mut seen = HashSet::new();
 
     for reference in references {
-        let is_remote = reference.starts_with("http://")
+        let is_remote = reference.starts_with("file://")
+            || reference.starts_with("http://")
             || reference.starts_with("https://")
             || reference.starts_with("ssh://")
             || reference.starts_with("git@");
@@ -109,7 +110,7 @@ pub fn load_reference_documents(references: &[String]) -> Result<Vec<ReferenceDo
 }
 
 fn is_remote(reference: &str) -> bool {
-    ["http://", "https://", "ssh://", "git@"]
+    ["file://", "http://", "https://", "ssh://", "git@"]
         .iter()
         .any(|prefix| reference.starts_with(prefix))
 }

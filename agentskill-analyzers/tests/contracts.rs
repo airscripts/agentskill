@@ -1,3 +1,6 @@
+use std::fs;
+use std::path::PathBuf;
+
 use agentskill_core::output::ANALYZER_NAMES;
 use serde_json::Value;
 
@@ -42,4 +45,60 @@ fn language_filter_limits_scan() {
     let languages = output["summary"]["by_language"].as_object().unwrap();
 
     assert_eq!(languages.keys().collect::<Vec<_>>(), vec!["go"]);
+}
+
+#[test]
+fn compatibility_scan_contract_fixtures_are_exercised() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixtures = [
+        ("scan_python.json", "python", "scan"),
+        ("analyze_mixed.json", "mixed", "scan"),
+    ];
+
+    for (fixture, example, analyzer) in fixtures {
+        let schema_path = root.join("../agentskill-tests/contracts").join(fixture);
+        let schema: Value = serde_json::from_str(
+            &fs::read_to_string(&schema_path).expect("contract fixture must be readable"),
+        )
+        .expect("contract fixture must be valid JSON");
+        let schema = schema.get(analyzer).unwrap_or(&schema);
+        let example = root.join("../agentskill-skill/examples").join(example);
+        let output = agentskill_analyzers::run_one(analyzer, example.to_str().unwrap(), None);
+
+        assert_contract_schema(&output, schema, fixture);
+    }
+}
+
+fn assert_contract_schema(actual: &Value, schema: &Value, path: &str) {
+    match schema {
+        Value::Object(expected) => {
+            let actual = actual
+                .as_object()
+                .unwrap_or_else(|| panic!("{path} must be an object"));
+            for (key, expected_value) in expected {
+                let actual_value = actual
+                    .get(key)
+                    .unwrap_or_else(|| panic!("missing contract key {path}.{key}"));
+                assert_contract_schema(actual_value, expected_value, &format!("{path}.{key}"));
+            }
+        }
+        Value::Array(expected_items) => {
+            let actual = actual
+                .as_array()
+                .unwrap_or_else(|| panic!("{path} must be an array"));
+            if let Some(expected_item) = expected_items.first() {
+                for (index, actual_item) in actual.iter().enumerate() {
+                    assert_contract_schema(actual_item, expected_item, &format!("{path}[{index}]"));
+                }
+            }
+        }
+        Value::String(kind) => match kind.as_str() {
+            "str" => assert!(actual.is_string(), "{path} must be a string: {actual}"),
+            "number" => assert!(actual.is_number(), "{path} must be a number: {actual}"),
+            "bool" => assert!(actual.is_boolean(), "{path} must be a boolean: {actual}"),
+            "null" => assert!(actual.is_null(), "{path} must be null: {actual}"),
+            other => panic!("unknown contract type {other} at {path}"),
+        },
+        other => panic!("unsupported contract schema value at {path}: {other}"),
+    }
 }

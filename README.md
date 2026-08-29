@@ -79,7 +79,7 @@ workspace can safely do so.
 
 ## Supported Languages
 
-The analyzer matrix and the example fixtures cover:
+The analyzer matrix and the example fixtures cover 60 language families:
 
 - Python
 - TypeScript
@@ -96,6 +96,54 @@ The analyzer matrix and the example fixtures cover:
 - Swift
 - Objective-C
 - Shell / Bash
+- Dart
+- Scala
+- Elixir
+- Erlang
+- Lua
+- R
+- Julia
+- Haskell
+- Clojure
+- F#
+- Groovy
+- PowerShell
+- Visual Basic .NET
+- Zig
+- D
+- Nim
+- Crystal
+- OCaml
+- Perl
+- MATLAB
+- Fortran
+- Ada
+- GDScript
+- Solidity
+- HTML
+- Vue
+- Svelte
+- Astro
+- CSS
+- Sass / SCSS
+- Less
+- SQL
+- GraphQL
+- Protocol Buffers
+- HCL / Terraform
+- Nix
+- Dockerfile
+- Make
+- CMake
+- Starlark
+
+YAML, JSON, TOML, XML, and Markdown are detected as auxiliary formats. They
+appear under the analyzer `auxiliary` object and are excluded from dominant
+language summaries and generated language guidance.
+
+The `.m` extension is ambiguous between MATLAB and Objective-C. Content and
+repository markers are used when available; otherwise static detection favors
+Objective-C. Use `--lang matlab` when analyzing marker-free MATLAB files.
 
 These are target languages. agentskill itself is implemented and shipped
 entirely in Rust. The fixtures under

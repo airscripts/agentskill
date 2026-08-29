@@ -1,0 +1,2 @@
+{ description = "extended"; outputs = { self }: {}; }
+

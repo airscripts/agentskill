@@ -2,7 +2,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use crate::language::{LanguageSpec, language_by_id, language_for_path};
+use crate::language::{LanguageSpec, language_for_content};
 
 const SKIP_DIRS: &[&str] = &[
     ".git",
@@ -106,13 +106,7 @@ fn collect_into(repo: &Path, current: &Path, files: &mut Vec<RepoFile>) {
             .replace('\\', "/");
 
         let text = read_text(&path);
-        let language = if path.extension().and_then(|value| value.to_str()) == Some("h")
-            && text.contains("@interface")
-        {
-            language_by_id("objectivec")
-        } else {
-            language_for_path(Path::new(&name))
-        };
+        let language = language_for_content(&path, &text, Some(repo));
         let lines = line_count(&path);
         files.push(RepoFile {
             path,

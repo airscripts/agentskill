@@ -4,20 +4,30 @@
   ],
   "summary": {
     "avg_depth": "number",
-    "by_language": {
-      "python": {
-        "file_count": "number",
-        "total_lines": "number"
-      }
-    },
+      "by_language": {
+        "python": {
+          "file_count": "number",
+          "kind": "str",
+          "role": "str",
+          "total_lines": "number"
+        }
+      },
+      "by_kind": {
+        "programming": {
+          "file_count": "number",
+          "total_lines": "number"
+        }
+      },
     "max_depth": "number",
     "total_files": "number"
   },
   "tree": [
     {
-      "depth": "number",
-      "language": "str",
-      "line_count": "number",
+        "depth": "number",
+        "language": "str",
+        "language_kind": "str",
+        "language_role": "str",
+        "line_count": "number",
       "path": "str",
       "size_bytes": "number",
       "type": "str"

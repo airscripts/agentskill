@@ -1,15 +1,16 @@
-use std::collections::BTreeMap;
 use std::path::Path;
 
 use agentskill_core::{Result, error::validate_repo, fs::RepoFile, language::is_test_path};
 use regex::Regex;
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
+
+use crate::common::insert_language_result;
 
 pub fn run(repo: &str) -> Result<Value> {
     let root = validate_repo(repo)?;
 
     let files = agentskill_core::fs::collect_files(&root);
-    let mut result = BTreeMap::new();
+    let mut result = Map::new();
 
     for language in agentskill_core::language::LANGUAGES {
         let language_files: Vec<_> = files
@@ -49,10 +50,11 @@ pub fn run(repo: &str) -> Result<Value> {
             .map(|file| test_file_pattern(language.id, &file.relative));
 
         let fixture_info = fixture_data(language.id, &language_files);
-        let run_command = run_command(language.id, &root, framework);
+        let run_command = run_command(language.id, &root, framework, !tests.is_empty());
 
         let representative_test = tests.first().map(|file| file.relative.clone());
-        result.insert(
+        insert_language_result(
+            &mut result,
             language.id,
             json!({
                 "framework": framework,
@@ -119,11 +121,38 @@ fn detect_framework(language: &str, root: &Path, content: &str) -> &'static str 
         "php" if content.contains("PHPUnit") => "phpunit",
         "swift" | "objectivec" if content.contains("XCTest") => "xctest",
         "bash" if content.contains("@test") || content.contains("bats") => "bats",
+        "dart" if content.contains("package:test") => "dart test",
+        "scala" if content.contains("ScalaTest") || content.contains("org.scalatest") => {
+            "scalatest"
+        }
+        "elixir" if content.contains("ExUnit") => "exunit",
+        "erlang" if content.contains("common_test") || content.contains("ct.hrl") => "common test",
+        "lua" if content.contains("busted") => "busted",
+        "r" if content.contains("testthat") => "testthat",
+        "julia" if content.contains("using Test") => "julia Test",
+        "haskell" if content.contains("hspec") || content.contains("Test.Hspec") => "hspec",
+        "clojure" if content.contains("clojure.test") => "clojure.test",
+        "fsharp" if content.contains("Expecto") => "expecto",
+        "groovy" if content.contains("spock.lang") => "spock",
+        "powershell" if content.contains("Pester") || content.contains("Describe ") => "pester",
+        "zig" if content.contains("std.testing") => "zig test",
+        "d" if content.contains("unittest") => "d unittest",
+        "nim" if content.contains("unittest") => "nim unittest",
+        "crystal" if content.contains("describe ") => "crystal spec",
+        "ocaml" if content.contains("Alcotest") => "alcotest",
+        "perl" if content.contains("Test::More") => "test::more",
+        "matlab" if content.contains("matlab.unittest") => "matlab.unittest",
+        "fortran" if content.contains("pFUnit") => "pfunit",
+        "ada" if content.contains("AUnit") => "aunit",
+        "gdscript" if content.contains("GutTest") || content.contains("GUT") => "gut",
+        "solidity" if content.contains("forge-std") => "foundry",
+        "sql" if content.contains("dbt") => "dbt",
+        "protobuf" if content.contains("buf") => "buf",
         _ => "unknown",
     }
 }
 
-fn run_command(language: &str, root: &Path, framework: &str) -> Option<String> {
+fn run_command(language: &str, root: &Path, framework: &str, has_tests: bool) -> Option<String> {
     if let Ok(regex) = Regex::new(r"(?m)^(?:test|test-all|tests)\s*:.*\n\t+(.+)") {
         for name in ["Makefile", "makefile", "GNUmakefile"] {
             let makefile = agentskill_core::fs::read_text(&root.join(name));
@@ -142,6 +171,14 @@ fn run_command(language: &str, root: &Path, framework: &str) -> Option<String> {
         return Some(command.to_string());
     }
 
+    if requires_project_evidence(language) && !has_tests && !has_project_evidence(language, root) {
+        return None;
+    }
+
+    if requires_tool_marker(language) && !has_project_evidence(language, root) {
+        return None;
+    }
+
     if framework == "pytest" {
         return Some("pytest".into());
     }
@@ -155,8 +192,131 @@ fn run_command(language: &str, root: &Path, framework: &str) -> Option<String> {
         "php" => Some("vendor/bin/phpunit".into()),
         "swift" | "objectivec" => Some("swift test".into()),
         "bash" => Some("bats tests".into()),
+        "dart" => Some("dart test".into()),
+        "scala" | "groovy" => Some("./gradlew test".into()),
+        "elixir" => Some("mix test".into()),
+        "erlang" => Some("rebar3 ct".into()),
+        "lua" => Some("busted".into()),
+        "r" => Some("Rscript -e 'testthat::test_dir(\"tests\")'".into()),
+        "julia" => Some("julia --project -e 'using Pkg; Pkg.test()'".into()),
+        "haskell" => Some("cabal test".into()),
+        "clojure" => Some("clojure -X:test".into()),
+        "fsharp" | "visualbasic" => Some("dotnet test".into()),
+        "powershell" => Some("Invoke-Pester".into()),
+        "zig" => Some("zig build test".into()),
+        "d" => Some("dub test".into()),
+        "nim" => Some("nimble test".into()),
+        "crystal" => Some("crystal spec".into()),
+        "ocaml" => Some("dune runtest".into()),
+        "perl" => Some("prove".into()),
+        "matlab" => Some("matlab -batch \"results = runtests; assertSuccess(results)\"".into()),
+        "fortran" => Some("ctest".into()),
+        "ada" => Some("alr test".into()),
+        "solidity" => Some("forge test".into()),
+        "sql" => Some("dbt test".into()),
+        "protobuf" => Some("buf lint".into()),
+        "hcl" => Some("terraform validate".into()),
+        "nix" => Some("nix flake check".into()),
+        "make" => Some("make test".into()),
+        "cmake" => Some("ctest --test-dir build".into()),
+        "starlark" => Some("bazel test //...".into()),
         _ => None,
     }
+}
+
+fn requires_project_evidence(language: &str) -> bool {
+    matches!(
+        language,
+        "dart"
+            | "scala"
+            | "elixir"
+            | "erlang"
+            | "lua"
+            | "r"
+            | "julia"
+            | "haskell"
+            | "clojure"
+            | "fsharp"
+            | "groovy"
+            | "powershell"
+            | "visualbasic"
+            | "zig"
+            | "d"
+            | "nim"
+            | "crystal"
+            | "ocaml"
+            | "perl"
+            | "matlab"
+            | "fortran"
+            | "ada"
+            | "gdscript"
+            | "solidity"
+            | "sql"
+            | "protobuf"
+            | "hcl"
+            | "nix"
+            | "make"
+            | "cmake"
+            | "starlark"
+    )
+}
+
+fn requires_tool_marker(language: &str) -> bool {
+    matches!(language, "sql" | "protobuf" | "nix" | "starlark")
+}
+
+fn has_project_evidence(language: &str, root: &Path) -> bool {
+    let markers: &[&str] = match language {
+        "dart" => &["pubspec.yaml"],
+        "scala" => &["build.sbt"],
+        "elixir" => &["mix.exs"],
+        "erlang" => &["rebar.config"],
+        "lua" => &[".luacheckrc", ".stylua.toml"],
+        "r" => &["DESCRIPTION", "renv.lock", ".lintr"],
+        "julia" => &["Project.toml", "Manifest.toml"],
+        "haskell" => &["stack.yaml", "cabal.project"],
+        "clojure" => &["deps.edn", "project.clj"],
+        "fsharp" => &[],
+        "groovy" => &["build.gradle", "build.gradle.groovy"],
+        "powershell" => &["PSScriptAnalyzerSettings.psd1"],
+        "visualbasic" => &[],
+        "zig" => &["build.zig", "build.zig.zon"],
+        "d" => &["dub.json", "dub.sdl"],
+        "nim" => &[],
+        "crystal" => &["shard.yml", "shard.lock"],
+        "ocaml" => &["dune-project", "dune-workspace"],
+        "perl" => &["cpanfile", "Build.PL", "Makefile.PL"],
+        "matlab" => &[],
+        "fortran" => &["fpm.toml"],
+        "ada" => &["alire.toml"],
+        "gdscript" => &["project.godot"],
+        "solidity" => &["foundry.toml", "hardhat.config.js"],
+        "sql" => &["dbt_project.yml"],
+        "protobuf" => &["buf.yaml", "buf.gen.yaml"],
+        "hcl" => &[".terraform.lock.hcl"],
+        "nix" => &["flake.nix", "flake.lock"],
+        "make" => &["Makefile", "makefile", "GNUmakefile"],
+        "cmake" => &["CMakeLists.txt"],
+        "starlark" => &["WORKSPACE", "WORKSPACE.bazel", "BUILD", "BUILD.bazel"],
+        _ => return false,
+    };
+
+    markers.iter().any(|marker| root.join(marker).exists())
+        || matches!(language, "fsharp" | "visualbasic") && root_has_suffix(root, ".fsproj")
+        || matches!(language, "fsharp" | "visualbasic") && root_has_suffix(root, ".vbproj")
+        || language == "nim" && root_has_suffix(root, ".nimble")
+        || language == "matlab"
+            && (root_has_suffix(root, ".prj") || root_has_suffix(root, ".mlproj"))
+        || language == "sql" && root_has_suffix(root, ".sqlfluff")
+        || language == "hcl" && root_has_suffix(root, ".tf")
+}
+
+fn root_has_suffix(root: &Path, suffix: &str) -> bool {
+    root.read_dir().ok().is_some_and(|entries| {
+        entries
+            .flatten()
+            .any(|entry| entry.file_name().to_string_lossy().ends_with(suffix))
+    })
 }
 
 fn map_tests(sources: &[&RepoFile], tests: &[&RepoFile]) -> Value {
@@ -257,6 +417,19 @@ fn test_file_pattern(language: &str, path: &str) -> String {
         "rust" => "<module>_test.rs".into(),
         "ruby" if path.contains("spec/") => "<module>_spec.rb".into(),
         "ruby" => "test_<module>.rb".into(),
+        "dart" => "<module>_test.dart".into(),
+        "elixir" => "<module>_test.exs".into(),
+        "erlang" => "<module>_test.erl".into(),
+        "lua" => "<module>_spec.lua".into(),
+        "r" => "test-<module>.R".into(),
+        "julia" => "runtests.jl".into(),
+        "haskell" => "<module>Spec.hs".into(),
+        "clojure" => "<module>_test.clj".into(),
+        "powershell" => "<module>.Tests.ps1".into(),
+        "zig" => "<module>_test.zig".into(),
+        "crystal" => "<module>_spec.cr".into(),
+        "perl" => "<module>.t".into(),
+        "solidity" => "<module>.t.sol".into(),
         _ => format!("<module>Test.{extension}"),
     }
 }
@@ -266,6 +439,11 @@ fn function_pattern(language: &str) -> Option<&'static str> {
         "python" => Some("test_<description>"),
         "go" => Some("Test<Description>"),
         "rust" => Some("<description>"),
+        "elixir" => Some("test <description>"),
+        "erlang" => Some("<description>_test"),
+        "julia" => Some("@test <description>"),
+        "haskell" => Some("it \"<description>\""),
+        "zig" => Some("test \"<description>\""),
         _ => None,
     }
 }

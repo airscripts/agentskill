@@ -9,8 +9,16 @@
     }
   },
   "git": {
-    "error": "str",
-    "script": "str"
+    "branches": {},
+    "commits": {
+      "examples": {},
+      "prefixes": {},
+      "total": "number"
+    },
+    "merge_strategy": {
+      "evidence": "str",
+      "strategy": "str"
+    }
   },
   "graph": {
     "monorepo_boundaries": {

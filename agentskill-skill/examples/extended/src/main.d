@@ -1,0 +1,3 @@
+module main;
+void run() {}
+

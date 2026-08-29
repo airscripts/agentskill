@@ -1,0 +1,2 @@
+proc run*(): string = "ok"
+

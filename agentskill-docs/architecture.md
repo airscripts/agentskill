@@ -16,7 +16,13 @@ the supported target-language matrix:
 
 ```text
 Python · TypeScript · JavaScript · Go · Rust · Java · Kotlin · C# · C
-C++ · Ruby · PHP · Swift · Objective-C · Bash
+C++ · Ruby · PHP · Swift · Objective-C · Bash · Dart · Scala · Elixir · Erlang
+Lua · R · Julia · Haskell · Clojure · F# · Groovy · PowerShell · Visual Basic
+.NET · Zig · D · Nim · Crystal · OCaml · Perl · MATLAB · Fortran · Ada
+GDScript · Solidity · HTML · Vue · Svelte · Astro · CSS · Sass · Less · SQL
+GraphQL · Protocol Buffers · HCL · Nix · Dockerfile · Make · CMake · Starlark
+
+YAML · JSON · TOML · XML · Markdown are auxiliary formats.
 ```
 
 The implementation has four runtime crates and four repository-support areas:
@@ -596,15 +602,24 @@ supported form.
 
 ### Adding A Language
 
-1. Add one `LanguageSpec` entry to the core registry.
+1. Add one typed registry entry with its kind, role, extensions, filenames,
+   interpreters, and test patterns.
 2. Add representative files under `agentskill-skill/examples/<language>`.
-3. Extend analyzer-specific parsing only where the language needs it.
+3. Extend the appropriate analyzer-family profile only where the language
+   needs behavior beyond the generic conventions.
 4. Add contract coverage for scan, measure, config, graph, symbols, and tests
    behavior that applies to the language.
 5. Update the supported-language documentation and release matrix test.
 
 The registry should remain the source of truth; do not duplicate extension or
-test-path lists inside individual analyzers.
+test-path lists inside individual analyzers. Each entry also has a typed kind
+and primary/auxiliary role. Auxiliary results are kept separate so repository
+metadata and prose do not dominate source-language guidance.
+
+The `.m` extension cannot be resolved perfectly from a path alone. Detection
+uses MATLAB/Objective-C content and project markers, then favors Objective-C
+for marker-free files; callers can use the language filter for an explicit
+MATLAB interpretation.
 
 ### Adding An Analyzer
 

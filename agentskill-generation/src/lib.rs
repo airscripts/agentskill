@@ -1,5 +1,3 @@
-//! Deterministic AGENTS.md rendering and update workflows.
-
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::{self, BufRead, Write};
@@ -776,7 +774,10 @@ fn commands_body(analysis: &Value) -> String {
     let mut commands = Vec::new();
 
     if let Some(items) = analysis["tests"].as_object() {
-        for value in items.values() {
+        for (language, value) in items {
+            if language == "auxiliary" {
+                continue;
+            }
             if let Some(command) = value["run_command"].as_str()
                 && !command.is_empty()
                 && !commands.iter().any(|item| item == command)
@@ -801,7 +802,7 @@ fn formatting_body(analysis: &Value) -> String {
 
     if let Some(languages) = analysis["config"].as_object() {
         for (language, config) in languages {
-            if language == "editorconfig" {
+            if language == "editorconfig" || language == "auxiliary" {
                 continue;
             }
 
@@ -836,6 +837,9 @@ fn naming_body(analysis: &Value) -> String {
 
     if let Some(languages) = analysis["symbols"].as_object() {
         for (language, symbols) in languages {
+            if language == "auxiliary" {
+                continue;
+            }
             let mut patterns = Vec::new();
 
             for kind in ["functions", "classes", "constants"] {
@@ -866,6 +870,9 @@ fn testing_body(analysis: &Value, language_count: usize) -> String {
 
     if let Some(items) = analysis["tests"].as_object() {
         for (language, value) in items {
+            if language == "auxiliary" {
+                continue;
+            }
             let framework = value["framework"].as_str().unwrap_or("unknown");
 
             let command = value["run_command"].as_str().unwrap_or("unknown");
@@ -918,6 +925,7 @@ fn section(heading: &str, body: impl Into<String>) -> Section {
 fn companion_path(primary: &Path) -> PathBuf {
     primary.with_file_name("AGENTS.reference.md")
 }
+
 fn write_or_print(path: Option<PathBuf>, text: String) -> Result<()> {
     match path {
         Some(path) => write_file(&path, text),
@@ -928,6 +936,7 @@ fn write_or_print(path: Option<PathBuf>, text: String) -> Result<()> {
         }
     }
 }
+
 fn write_file(path: &Path, text: String) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
