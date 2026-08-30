@@ -117,7 +117,9 @@ The repository also provides reusable GitHub Actions in
 release, runs the advisory `drift` check, writes a job summary, and exposes the
 JSON report path and stale status. The `validate` Action runs strict document
 validation and exposes its JSON report path. Caller workflows under
-`.github/workflows/` are responsible for triggers and artifact uploads.
+`.github/workflows/` are responsible for triggers and artifact uploads. The
+Actions install a pinned release by default and support source mode when a
+repository workflow needs to test the checked-out CLI.
 
 ## LLM Document Contract
 

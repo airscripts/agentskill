@@ -66,16 +66,20 @@ Repositories can run document checks in CI with the reusable GitHub Actions in
     version: 2.1.0
 ```
 
-Use `agentskill-actions/validate` for strict validation. Both Actions require a
-checked-out repository and a pinned release. The caller can upload the JSON
-report using the Action's `report-path` output; drift remains advisory, while
-validate fails when the documents are invalid.
+Use `agentskill-actions/validate` for strict validation. Release mode requires a
+checked-out repository and a pinned release; source mode uses the CLI built from
+the checked-out source. The caller can upload the JSON report using the Action's
+`report-path` output; drift remains advisory, while validate fails when the
+documents are invalid.
 
 ```yaml
 - uses: airscripts/agentskill/agentskill-actions/validate@<commit-sha>
   with:
     version: 2.1.0
 ```
+
+Repository workflows can set `source: "true"` after building the checked-out
+CLI. This skips release installation and tests the current source.
 
 ## Exit Status And Output
 
