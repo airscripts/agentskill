@@ -26,6 +26,23 @@ Python or Python package-manager tooling. Python fixtures under
 `agentskill-skill/examples/` are retained because Python is a supported target
 language for analysis.
 
+## Repository Scopes
+
+In this repository, a commit scope identifies an owning submodule. Use the
+submodule name without the common `agentskill-` prefix: `core`, `analyzers`,
+`generation`, `cli`, `skill`, `docs`, `actions`, `tests`, `scripts`, `assets`,
+or `specs`. Route implementation, tests, and documentation changes to the
+submodule that owns the behavior. Omit the scope for root-level or
+cross-submodule changes.
+
+Guidance is a product area, not a commit scope. Use “guidance” to describe the
+managed `AGENTS.md` feature, but use the owning submodule name in commit
+subjects.
+
+Documentation-only changes use the `docs:` conventional commit without a
+scope, including changes under `agentskill-docs/`. For example, use
+`docs: document guidance actions`, not `docs(docs): document guidance actions`.
+
 ## Tests And Contracts
 
 Add Rust unit tests beside the owning crate or integration tests under that

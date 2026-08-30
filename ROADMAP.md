@@ -116,8 +116,8 @@ establishes task-aware context boundaries.
 ## Milestone Exit Criteria
 
 - **Guidance:** Managed documents, `## Free Region`, signatures,
-  provenance, validation, drift, skill workflows, and the advisory composite
-  GitHub Action are covered by tests and locked verification passes.
+  provenance, validation, drift, skill workflows, and the advisory reusable
+  GitHub Actions are covered by tests and locked verification passes.
 - **Task Context:** Repeatable benchmark tasks demonstrate that generated
   context selects relevant files, rules, commands, tests, hazards, ownership,
   and uncertainty with evidence.
