@@ -1,0 +1,37 @@
+name: Drift
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches: [main]
+
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    name: Agentskill Drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
+
+      - id: agentskill
+        uses: ./agentskill-action
+        name: Check Guidance Drift
+
+        with:
+          version: 2.1.0
+
+      - uses: actions/upload-artifact@v7
+        name: Upload Drift Report
+        with:
+          name: agentskill-drift-report
+          path: ${{ steps.agentskill.outputs.report-path }}
+          if-no-files-found: error
