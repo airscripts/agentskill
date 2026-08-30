@@ -1,13 +1,14 @@
 name: Drift
 
 on:
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+        default: ""
+
   workflow_dispatch:
-
-  push:
-    branches: [main]
-
-  pull_request:
-    branches: [main]
 
 permissions:
   contents: read
@@ -18,20 +19,41 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    container:
+      image: rust:1.89-bookworm
+
     steps:
       - uses: actions/checkout@v7
         name: Checkout Code
 
-      - id: agentskill
-        uses: ./agentskill-action
-        name: Check Guidance Drift
-
         with:
-          version: 2.1.0
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Install Git
+        run: |
+          apt-get update
+          apt-get install --no-install-recommends --yes git
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Check Guidance Drift
+        run: |
+          set -euo pipefail
+
+          cargo run --locked --bin agentskill -- drift "$GITHUB_WORKSPACE" --signature auto --pretty > drift.json
+
+      - name: Write Drift Summary
+        run: |
+          {
+            echo '### Agentskill Report'
+            echo
+            echo 'Agentskill completed an advisory drift check for this repository.'
+            echo
+            echo 'The check does not block the workflow; any findings are included in the uploaded JSON report.'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7
         name: Upload Drift Report
         with:
           name: agentskill-drift-report
-          path: ${{ steps.agentskill.outputs.report-path }}
+          path: drift.json
           if-no-files-found: error

@@ -55,21 +55,54 @@ fn drift_action_and_workflow_keep_the_release_contract() {
     )
     .unwrap();
 
-    assert!(workflow["on"]["workflow_dispatch"].is_null());
-    assert_eq!(workflow["on"]["push"]["branches"][0], "main");
-    assert_eq!(workflow["on"]["pull_request"]["branches"][0], "main");
+    assert!(workflow["on"]["workflow_call"].is_mapping());
     assert_eq!(
-        workflow["jobs"]["drift"]["steps"][1]["uses"],
-        "./agentskill-action"
+        workflow["on"]["workflow_call"]["inputs"]["ref"]["default"],
+        ""
     );
+
+    assert!(workflow["on"]["workflow_dispatch"].is_null());
     assert_eq!(
-        workflow["jobs"]["drift"]["steps"][2]["uses"],
+        workflow["jobs"]["drift"]["container"]["image"],
+        "rust:1.89-bookworm"
+    );
+
+    assert_eq!(
+        workflow["jobs"]["drift"]["steps"][2]["name"],
+        "Check Guidance Drift"
+    );
+
+    assert!(
+        workflow["jobs"]["drift"]["steps"][2]["run"]
+            .as_str()
+            .unwrap()
+            .contains("cargo run --locked --bin agentskill -- drift")
+    );
+
+    assert_eq!(
+        workflow["jobs"]["drift"]["steps"][4]["uses"],
         "actions/upload-artifact@v7"
     );
+
     assert_eq!(
-        workflow["jobs"]["drift"]["steps"][2]["with"]["if-no-files-found"],
+        workflow["jobs"]["drift"]["steps"][4]["with"]["path"],
+        "drift.json"
+    );
+
+    assert_eq!(
+        workflow["jobs"]["drift"]["steps"][4]["with"]["if-no-files-found"],
         "error"
     );
+
+    let main: Value =
+        serde_yaml::from_str(&fs::read_to_string(root.join(".github/workflows/main.yml")).unwrap())
+            .unwrap();
+
+    assert_eq!(
+        main["jobs"]["drift"]["uses"],
+        "./.github/workflows/drift.yml"
+    );
+    assert_eq!(main["jobs"]["drift"]["needs"], "test");
 }
 
 #[test]

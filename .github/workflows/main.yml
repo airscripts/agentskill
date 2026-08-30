@@ -31,6 +31,11 @@ jobs:
     needs: build
     uses: ./.github/workflows/test.yml
 
+  drift:
+    name: Drift
+    needs: test
+    uses: ./.github/workflows/drift.yml
+
   security:
     name: Security
     uses: ./.github/workflows/security.yml
