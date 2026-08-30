@@ -51,8 +51,11 @@ fn language_filter_limits_scan() {
 fn aggregate_language_filter_preserves_repository_wide_analyzers() {
     let directory = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(directory.path().join("src")).unwrap();
+
     std::fs::create_dir_all(directory.path().join("tests")).unwrap();
+
     std::fs::write(directory.path().join("src/main.rs"), "fn main() {}\n").unwrap();
+
     std::fs::write(
         directory.path().join("src/tool.py"),
         "def tool():\n    return True\n",
@@ -63,6 +66,7 @@ fn aggregate_language_filter_preserves_repository_wide_analyzers() {
         "def test_tool():\n    assert True\n",
     )
     .unwrap();
+
     std::fs::write(
         directory.path().join("pyproject.toml"),
         "[tool.ruff]\nline-length = 88\n",
@@ -87,14 +91,57 @@ fn evidence_bundle_contains_scoped_facts_and_provenance() {
     let output = agentskill_analyzers::run_evidence(&example, None).unwrap();
     assert_eq!(output["schema_version"], 3);
     assert!(output["repository"]["root"].is_string());
+    assert!(output["repository"]["dirty"].is_boolean());
     let facts = output["facts"].as_array().unwrap();
     assert!(!facts.is_empty());
+    assert!(output["repository"]["configuration"]["valid"].is_boolean());
+    assert!(output["repository"]["configuration"]["signature"].is_boolean());
+    assert!(
+        facts
+            .iter()
+            .any(|fact| fact["id"] == "configuration.signature")
+    );
     for fact in facts {
         assert!(fact["id"].is_string());
         assert!(fact["scope"].is_string());
         assert!(fact["confidence"].is_string());
         assert!(fact["evidence"].is_array());
     }
+    let ids = output["facts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|fact| fact["id"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    let mut sorted_ids = ids.clone();
+    sorted_ids.sort_unstable();
+    assert_eq!(ids, sorted_ids);
+}
+
+#[test]
+fn evidence_reports_malformed_agentskill_configuration_safely() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::write(directory.path().join("main.rs"), "fn main() {}\n").unwrap();
+    fs::write(
+        directory.path().join("agentskill.toml"),
+        "signature = false\nunknown = true\n",
+    )
+    .unwrap();
+
+    let output =
+        agentskill_analyzers::run_evidence(directory.path().to_str().unwrap(), None).unwrap();
+
+    assert_eq!(output["repository"]["configuration"]["valid"], false);
+    assert_eq!(output["repository"]["configuration"]["signature"], true);
+    let fact = output["facts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|fact| fact["id"] == "configuration.signature")
+        .unwrap();
+
+    assert_eq!(fact["confidence"], "uncertain");
+    assert_eq!(fact["value"]["enabled"], true);
 }
 
 #[test]

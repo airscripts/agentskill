@@ -8,7 +8,7 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-description = "Repository analyzers for agentskill"
+description = "Repository analyzers for agentskill."
 
 [dependencies]
 agentskill-core.workspace = true

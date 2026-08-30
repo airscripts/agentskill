@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::process::Command;
 
+use agentskill_core::config::{ConfigSource, RepositoryConfig, load as load_config};
 use agentskill_core::fs::FileRole;
 use serde_json::{Value, json};
 
@@ -13,22 +14,25 @@ pub(crate) fn run_snapshot(snapshot: &RepoSnapshot, lang: Option<&str>) -> Resul
     let root = &snapshot.root;
     let files = &snapshot.files;
     let analysis = crate::run_all_snapshot(snapshot, lang);
+    let configuration = load_config(root);
 
     let mut facts = Vec::new();
     add_inventory_facts(&mut facts, files);
     add_config_facts(&mut facts, &analysis);
     add_test_facts(&mut facts, &analysis, root);
     add_boundary_facts(&mut facts, &analysis);
+    add_repository_config_fact(&mut facts, &configuration);
+    facts.sort_by(|left, right| left["id"].as_str().cmp(&right["id"].as_str()));
 
     Ok(json!({
         "schema_version": 3,
-        "repository": repository_metadata(root),
+        "repository": repository_metadata(root, &configuration),
         "facts": facts,
         "analyzers": analysis,
     }))
 }
 
-fn repository_metadata(root: &Path) -> Value {
+fn repository_metadata(root: &Path, configuration: &RepositoryConfig) -> Value {
     let revision = Command::new("git")
         .args(["rev-parse", "HEAD"])
         .current_dir(root)
@@ -36,6 +40,7 @@ fn repository_metadata(root: &Path) -> Value {
         .ok()
         .filter(|output| output.status.success())
         .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string());
+
     let dirty = Command::new("git")
         .args(["status", "--porcelain"])
         .current_dir(root)
@@ -48,7 +53,41 @@ fn repository_metadata(root: &Path) -> Value {
         "root": root,
         "revision": revision,
         "dirty": dirty,
+        "configuration": {
+            "valid": configuration.valid,
+            "signature": configuration.signature,
+            "source": configuration.source.as_str(),
+            "error": configuration.error,
+        },
     })
+}
+
+fn add_repository_config_fact(facts: &mut Vec<Value>, configuration: &RepositoryConfig) {
+    let confidence = if configuration.valid {
+        "verified"
+    } else {
+        "uncertain"
+    };
+
+    let evidence = if configuration.source == ConfigSource::File {
+        vec![evidence_path("agentskill.toml")]
+    } else {
+        Vec::new()
+    };
+
+    facts.push(fact(
+        "configuration.signature",
+        "configuration",
+        "repository",
+        json!({
+            "enabled": configuration.signature,
+            "source": configuration.source.as_str(),
+            "valid": configuration.valid,
+            "error": configuration.error,
+        }),
+        confidence,
+        evidence,
+    ));
 }
 
 fn add_inventory_facts(facts: &mut Vec<Value>, files: &[agentskill_core::fs::RepoFile]) {
@@ -97,17 +136,21 @@ fn add_config_facts(facts: &mut Vec<Value>, analysis: &Value) {
         if language == "auxiliary" || language == "editorconfig" {
             continue;
         }
+
         for kind in ["formatter", "linter", "type_checker"] {
             let Some(tool) = values[kind].as_object() else {
                 continue;
             };
+
             let Some(name) = tool["name"].as_str() else {
                 continue;
             };
+
             let (confidence, evidence) = tool["config_file"]
                 .as_str()
                 .map(|path| ("verified", vec![evidence_path(path)]))
                 .unwrap_or(("inferred", Vec::new()));
+
             facts.push(fact(
                 format!("tool.{language}.{kind}"),
                 "tool",
@@ -124,12 +167,14 @@ fn add_test_facts(facts: &mut Vec<Value>, analysis: &Value, root: &Path) {
     let Some(tests) = analysis["tests"].as_object() else {
         return;
     };
+
     let mut commands = BTreeSet::new();
 
     for (language, values) in tests {
         if language == "auxiliary" {
             continue;
         }
+
         if let Some(command) = values["run_command"].as_str()
             && !command.is_empty()
             && command != "unknown"
@@ -167,6 +212,7 @@ fn add_boundary_facts(facts: &mut Vec<Value>, analysis: &Value) {
     if !boundary["detected"].as_bool().unwrap_or(false) {
         return;
     }
+
     facts.push(fact(
         "architecture.monorepo_boundaries",
         "boundary",
@@ -202,12 +248,14 @@ fn command_evidence(root: &Path, command: &str) -> Vec<Value> {
             return vec![evidence_path(name)];
         }
     }
+
     if std::fs::read_to_string(root.join("package.json"))
         .ok()
         .is_some_and(|content| content.contains(command))
     {
         return vec![evidence_path("package.json")];
     }
+
     Vec::new()
 }
 
