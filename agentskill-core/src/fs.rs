@@ -209,6 +209,7 @@ fn classify_role(relative: &str, path: &Path, language: Option<&'static Language
         if is_test_path(path, language) {
             return FileRole::Test;
         }
+
         if language_role(language.id) == Some(LanguageRole::Auxiliary) {
             return FileRole::Auxiliary;
         }

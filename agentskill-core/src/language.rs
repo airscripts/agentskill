@@ -252,6 +252,7 @@ fn language_for_path_with_content(
             if metadata.id == "c" && extension == ".h" && content.contains("@interface") {
                 return language_by_id("objectivec");
             }
+
             return language_by_id(metadata.id);
         }
 
@@ -277,6 +278,7 @@ fn language_for_path_with_content(
             return language_by_id(metadata.id);
         }
     }
+
     None
 }
 
@@ -288,6 +290,7 @@ fn read_detection_content(path: &Path) -> String {
     let Ok(file) = std::fs::File::open(path) else {
         return String::new();
     };
+
     let mut bytes = Vec::new();
     if file
         .take(MAX_DETECTION_BYTES as u64)
@@ -296,6 +299,7 @@ fn read_detection_content(path: &Path) -> String {
     {
         return String::new();
     }
+
     String::from_utf8_lossy(&bytes).into_owned()
 }
 

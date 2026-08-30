@@ -73,6 +73,7 @@ fn run_with_data(
                     ) else {
                         continue;
                     };
+
                     edges.push(json!({
                         "from": source_module(language.id, &file.relative),
                         "to": target,
@@ -86,6 +87,7 @@ fn run_with_data(
             .into_iter()
             .take(MAX_CYCLES)
             .collect::<Vec<_>>();
+
         let most_depended = most_depended_on(&edges);
         let edges = edges.into_iter().take(MAX_EDGES).collect::<Vec<_>>();
 
@@ -97,6 +99,7 @@ fn run_with_data(
             "boundary_violations": [],
             "parse_errors": parse_errors,
         });
+
         if is_auxiliary(language.id) {
             auxiliary.insert(language.id, payload);
         } else {
@@ -107,6 +110,7 @@ fn run_with_data(
     if !auxiliary.is_empty() {
         result.insert("auxiliary", json!(auxiliary));
     }
+
     result.insert("monorepo_boundaries", detect_monorepo_boundaries(root));
 
     Ok(json!(result))
@@ -236,6 +240,7 @@ fn imports_for(language: &str, line: &str) -> Vec<String> {
         }
         _ => &[],
     };
+
     patterns
         .iter()
         .filter_map(|pattern| Regex::new(pattern).ok())
@@ -371,6 +376,7 @@ fn source_module(language: &str, path: &str) -> String {
             .unwrap_or(path)
             .replace('/', ".");
     }
+
     path.to_string()
 }
 
@@ -387,6 +393,7 @@ fn normalize_path(path: &Path) -> String {
             _ => {}
         }
     }
+
     components.join("/")
 }
 
@@ -425,6 +432,7 @@ fn find_cycles(edges: &[Value]) -> Vec<Vec<String>> {
         let Some(to) = edge["to"].as_str() else {
             continue;
         };
+
         graph.entry(from.into()).or_default().push(to.into());
     }
 
@@ -443,6 +451,7 @@ fn find_cycles(edges: &[Value]) -> Vec<Vec<String>> {
             &mut cycles,
         );
     }
+
     cycles.sort();
     cycles.dedup();
     cycles
@@ -473,6 +482,7 @@ fn visit_cycle(
             visit_cycle(next, graph, stack, visited, active, cycles);
         }
     }
+
     stack.pop();
     active.remove(current);
 }
@@ -485,6 +495,7 @@ fn most_depended_on(edges: &[Value]) -> Vec<Value> {
             *counts.entry(to.to_string()).or_default() += 1;
         }
     }
+
     let mut counts = counts.into_iter().collect::<Vec<_>>();
     counts.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
 

@@ -157,6 +157,7 @@ fn drift_action_and_workflow_keep_the_release_contract() {
         main["jobs"]["agentskill"]["uses"],
         "./.github/workflows/agentskill.yml"
     );
+
     assert_eq!(main["jobs"]["agentskill"]["needs"], "test");
 
     let validate_action: Value = serde_yaml::from_str(

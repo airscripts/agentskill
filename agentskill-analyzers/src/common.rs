@@ -72,6 +72,7 @@ pub fn percentile(values: &mut [usize], percent: usize) -> usize {
     if values.is_empty() {
         return 0;
     }
+
     values.sort_unstable();
 
     let index = ((values.len() * percent) / 100)

@@ -117,6 +117,7 @@ fn run_with_data(root: &Path, files: &[agentskill_core::fs::RepoFile]) -> Result
         &[".fsproj", ".sln"],
         &editor_sections,
     );
+
     add_dotnet_language(
         root,
         files,
@@ -125,6 +126,7 @@ fn run_with_data(root: &Path, files: &[agentskill_core::fs::RepoFile]) -> Result
         &[".vbproj", ".sln"],
         &editor_sections,
     );
+
     add_ruby(root, files, &mut result, &editor_sections);
     add_php(root, files, &mut result, &editor_sections);
     add_apple(root, files, &mut result, "swift", &editor_sections);
@@ -246,6 +248,7 @@ fn add_auxiliary_formats(
             continue;
         }
         let markers = existing_markers(root, marker_names);
+
         let config = attach_editorconfig(
             if markers.is_empty() {
                 Map::new()
@@ -382,6 +385,7 @@ fn detect_javascript(root: &Path, package: &Value, typescript: bool) -> Map<Stri
     {
         result.insert("scripts".into(), scripts.clone());
     }
+
     result
 }
 
@@ -403,6 +407,7 @@ fn detect_go(root: &Path) -> Map<String, Value> {
             tool("golangci-lint", &name, parse_config(root, &name)),
         );
     }
+
     result
 }
 
@@ -422,6 +427,7 @@ fn detect_rust(root: &Path) -> Map<String, Value> {
             tool("clippy", &name, parse_toml(&read(root, &name))),
         );
     }
+
     result
 }
 
@@ -448,6 +454,7 @@ fn add_java(
     } else {
         "gradle"
     };
+
     add_language_project(files, result, sections, "java", markers, build_tool);
 }
 
@@ -467,6 +474,7 @@ fn add_kotlin(
         ],
     );
     markers.extend(source_roots(root, &["src/main/kotlin", "src/test/kotlin"]));
+
     add_language_project(files, result, sections, "kotlin", markers, "gradle");
 }
 
@@ -515,6 +523,7 @@ fn add_c_family(
     } else {
         "make"
     };
+
     add_language_project(files, result, sections, language, markers, build_tool);
 }
 
@@ -555,6 +564,7 @@ fn add_php(
     if composer.pointer("/require-dev/phpunit/phpunit").is_some() {
         config.insert("test_framework".into(), json!("phpunit"));
     }
+
     result.insert(
         "php".into(),
         json!(attach_editorconfig(config, sections, "php")),
@@ -591,6 +601,7 @@ fn add_apple(
     } else {
         "xcode"
     };
+
     add_language_project(files, result, sections, language, markers, build_tool);
 }
 
@@ -623,6 +634,7 @@ fn add_language_project(
         );
         config.insert("project_markers".into(), json!(markers));
     }
+
     result.insert(
         language.into(),
         json!(attach_editorconfig(config, sections, language)),
@@ -646,6 +658,7 @@ fn attach_editorconfig(
     if !settings.is_empty() {
         value.insert("editorconfig".into(), json!(settings));
     }
+
     value
 }
 
@@ -747,6 +760,7 @@ fn parse_config(root: &Path, name: &str) -> Value {
     if name.ends_with(".yml") || name.ends_with(".yaml") {
         return serde_yaml::from_str(&content).unwrap_or_else(|_| json!({}));
     }
+
     parse_json(&content)
 }
 
@@ -774,6 +788,7 @@ fn parse_ini_section(content: &str, section: &str) -> Map<String, Value> {
             result.insert(key.trim().into(), json!(value.trim()));
         }
     }
+
     result
 }
 
@@ -792,6 +807,7 @@ fn parse_editorconfig(content: &str) -> Map<String, Value> {
             if !section.is_empty() {
                 result.insert(section.clone(), json!(values));
             }
+
             section = line.into();
             values = Map::new();
         } else if let Some((key, value)) = line.split_once('=') {
@@ -805,6 +821,7 @@ fn parse_editorconfig(content: &str) -> Map<String, Value> {
     if !section.is_empty() {
         result.insert(section, json!(values));
     }
+
     result
 }
 
@@ -882,5 +899,6 @@ fn editorconfig_for_language(sections: &Map<String, Value>, language: &str) -> M
             result.extend(values.clone());
         }
     }
+
     result
 }

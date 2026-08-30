@@ -46,6 +46,7 @@ fn run_with_files(files: &[agentskill_core::fs::RepoFile], lang: Option<&str>) -
                     .trim_end_matches(".spec")
                     .to_string();
             }
+
             file_names.push(file_name);
             source.push_str(&text(&file.path));
             source.push('\n');
@@ -94,6 +95,7 @@ fn run_with_files(files: &[agentskill_core::fs::RepoFile], lang: Option<&str>) -
             payload.remove("classes");
             payload.remove("types");
         }
+
         insert_language_result(&mut result, language.id, Value::Object(payload));
     }
 
@@ -123,6 +125,7 @@ fn language_functions(language: &str, source: &str) -> Vec<String> {
         "ada" => r"(?mi)^\s*(?:procedure|function)\s+([A-Za-z_][A-Za-z0-9_]*)",
         _ => return Vec::new(),
     };
+
     names(source, pattern)
 }
 
@@ -148,6 +151,7 @@ fn constant_names(source: &str, language: &str) -> Vec<String> {
     if matches!(language, "c" | "cpp") {
         values.extend(names(source, r"(?m)^\s*#define\s+([A-Za-z_][A-Za-z0-9_]*)"));
     }
+
     values
 }
 
@@ -586,6 +590,7 @@ fn go_constants(source: &str) -> Vec<String> {
             values.push(name.to_string());
         }
     }
+
     values
 }
 

@@ -67,6 +67,7 @@ pub fn reconcile_signature(content: &str, enabled: bool) -> String {
     } else {
         "\n"
     };
+
     let windows_signature = CANONICAL_SIGNATURE.replace('\n', "\r\n");
     let without_signature = content
         .replace(CANONICAL_SIGNATURE, "")

@@ -290,6 +290,7 @@ fn extended_fixture_covers_new_language_kinds_and_auxiliary_output() {
         output["summary"]["by_language"].as_object().unwrap().len(),
         40
     );
+
     assert_eq!(
         output["auxiliary"]["summary"]["by_language"]
             .as_object()
@@ -297,10 +298,12 @@ fn extended_fixture_covers_new_language_kinds_and_auxiliary_output() {
             .len(),
         5
     );
+
     assert_eq!(
         output["summary"]["by_kind"]["programming"]["file_count"],
         38
     );
+
     assert_eq!(output["summary"]["by_kind"]["markup"]["file_count"], 4);
     assert_eq!(output["summary"]["by_kind"]["stylesheet"]["file_count"], 3);
     assert_eq!(output["summary"]["by_kind"]["query"]["file_count"], 2);
@@ -309,6 +312,7 @@ fn extended_fixture_covers_new_language_kinds_and_auxiliary_output() {
         output["summary"]["by_kind"]["infrastructure"]["file_count"],
         2
     );
+
     assert_eq!(output["summary"]["by_kind"]["build"]["file_count"], 4);
 
     let auxiliary = run_one("symbols", &repo, None);
@@ -385,6 +389,7 @@ fn extended_fixture_has_contract_output_for_every_new_language() {
             .iter()
             .all(|language| registered_primary.contains(language))
     );
+
     assert_eq!(registered_auxiliary, AUXILIARY);
 
     let repo = examples_root().join("extended");

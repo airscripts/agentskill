@@ -131,6 +131,7 @@ fn common_indent(values: &[usize]) -> usize {
     for value in values {
         *counts.entry(*value).or_insert(0usize) += 1;
     }
+
     counts
         .into_iter()
         .max_by_key(|(value, count)| (*count, std::cmp::Reverse(*value)))
@@ -141,6 +142,7 @@ fn line_length(lengths: &mut [usize]) -> Value {
     if lengths.len() < 5 {
         return json!({});
     }
+
     json!({
         "p50": percentile(lengths, 50),
         "p75": percentile(lengths, 75),
@@ -199,6 +201,7 @@ fn python_blank_lines(files: &[&agentskill_core::fs::RepoFile]) -> Value {
             }
         }
     }
+
     json!({
         "after_imports": distribution(after_imports),
         "between_methods": distribution(between_methods),
@@ -227,6 +230,7 @@ fn generic_blank_lines(files: &[&agentskill_core::fs::RepoFile]) -> Value {
             values.push(blank_run(&lines, window[0] + 1));
         }
     }
+
     json!({"between_top_level_defs": distribution(values)})
 }
 

@@ -26,6 +26,7 @@ pub fn run_one(name: &str, repo: &str, lang: Option<&str>) -> Value {
             "unknown analyzer: {name}"
         ))),
     };
+
     result.unwrap_or_else(|error| error_payload(error, name))
 }
 
@@ -40,6 +41,7 @@ pub fn run_all(repo: &str, lang: Option<&str>) -> Value {
             return Value::Object(map);
         }
     };
+
     run_all_snapshot(&snapshot, lang)
 }
 
@@ -71,6 +73,7 @@ pub(crate) fn run_all_snapshot(snapshot: &common::RepoSnapshot, lang: Option<&st
     for (name, value) in values {
         map.insert(name.to_string(), value);
     }
+
     Value::Object(map)
 }
 
@@ -84,6 +87,7 @@ pub fn run_many(repos: &[String], lang: Option<&str>) -> Value {
     for repo in repos {
         map.insert(repo.clone(), run_all(repo, lang));
     }
+
     Value::Object(map)
 }
 

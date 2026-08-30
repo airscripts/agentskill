@@ -101,12 +101,14 @@ fn evidence_bundle_contains_scoped_facts_and_provenance() {
             .iter()
             .any(|fact| fact["id"] == "configuration.signature")
     );
+
     for fact in facts {
         assert!(fact["id"].is_string());
         assert!(fact["scope"].is_string());
         assert!(fact["confidence"].is_string());
         assert!(fact["evidence"].is_array());
     }
+
     let ids = output["facts"]
         .as_array()
         .unwrap()
