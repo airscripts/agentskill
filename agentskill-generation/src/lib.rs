@@ -15,6 +15,12 @@ const OPERATIONAL_TOKEN_TARGET: usize = 1_000;
 const OPERATIONAL_TOKEN_HARD_LIMIT: usize = 1_500;
 const PROVENANCE_FIELDS: &[(&str, &str, &str, &str)] = &[
     (
+        "agentskill version:",
+        "missing_provenance_version",
+        "agentskill.version",
+        "Agentskill version is missing from provenance",
+    ),
+    (
         "evidence schema version:",
         "missing_provenance_schema",
         "evidence.schema_version",
@@ -312,33 +318,62 @@ pub fn drift_with_mode(repo: &str, mode: SignatureMode) -> Result<Value> {
     }
 
     let reference = root.join("AGENTS.reference.md");
+    let mut reference_version = None;
+    let mut reference_revision = None;
 
     if reference.is_file() {
-        match provenance_revision(&read_document(&reference)?) {
-            Some(revision)
-                if Some(revision.clone())
-                    != evidence["repository"]["revision"]
-                        .as_str()
-                        .map(str::to_string) =>
-            {
-                issues.push(json!({
-                    "kind": "stale_revision",
-                    "severity": "warning",
-                    "document": "AGENTS.reference.md",
-                    "fact": "repository.revision",
-                    "message": format!("reference revision {revision} differs from current repository revision"),
-                }));
-            }
-            _ => {}
+        let reference_content = read_document(&reference)?;
+        reference_version = provenance_field(&reference_content, "agentskill version:");
+        reference_revision = provenance_field(&reference_content, "repository revision:");
+
+        if let Some(version) = reference_version.as_deref()
+            && Some(version) != evidence["agentskill_version"].as_str()
+        {
+            issues.push(json!({
+                "kind": "stale_version",
+                "severity": "warning",
+                "document": "AGENTS.reference.md",
+                "fact": "agentskill.version",
+                "message": format!(
+                    "reference was generated with Agentskill version {version}, current version is {}",
+                    evidence["agentskill_version"].as_str().unwrap_or("unknown")
+                ),
+            }));
+        }
+
+        if let Some(revision) = reference_revision.as_deref()
+            && let Some(current) = evidence["repository"]["revision"].as_str()
+            && revision != current
+        {
+            issues.push(json!({
+                "kind": "changed_revision",
+                "severity": "info",
+                "document": "AGENTS.reference.md",
+                "fact": "repository.revision",
+                "message": format!(concat!(
+                    "reference revision {} differs from current repository revision; ",
+                    "refresh provenance when guidance changes"
+                ), revision),
+            }));
         }
     }
 
+    let stale = issues.iter().any(|issue| issue["severity"] != "info");
+    let revision_changed = reference_revision
+        .as_deref()
+        .zip(evidence["repository"]["revision"].as_str())
+        .is_some_and(|(reference, current)| reference != current);
+
     Ok(json!({
         "analysis_complete": true,
-        "stale": !issues.is_empty(),
+        "stale": stale,
         "issues": issues,
         "configuration": configuration_value(&configuration, mode),
+        "agentskill_version": evidence["agentskill_version"],
         "repository_revision": evidence["repository"]["revision"],
+        "reference_version": reference_version,
+        "reference_revision": reference_revision,
+        "revision_changed": revision_changed,
         "referenced_paths": referenced,
     }))
 }
@@ -641,14 +676,6 @@ fn finding(
     }
 
     Value::Object(value)
-}
-
-fn provenance_revision(content: &str) -> Option<String> {
-    let document = parse(content);
-    let section = document.sections.iter().find(|section| {
-        section.level == 2 && normalize_section_name(&section.heading) == "provenance and decisions"
-    })?;
-    provenance_field(&section.body, "repository revision:")
 }
 
 fn is_optional_reference(root: &Path, path: &str) -> bool {

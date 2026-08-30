@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 
 use agentskill_core::config::SignatureMode;
 use agentskill_core::document::parse;
@@ -22,7 +23,7 @@ fn validates_operational_and_reference_documents() {
 
     fs::write(
         directory.path().join("AGENTS.reference.md"),
-        "# AGENTS Reference\n\n## Provenance And Decisions\n\n- Evidence Schema Version: `3`\n- Repository Revision: `unknown`\n- Configuration: default signature enabled.\n- Maintainer-Confirmed Decisions: None recorded.\n- Unresolved Uncertainty: None recorded.\n\nDetailed context.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
+        "# AGENTS Reference\n\n## Provenance And Decisions\n\n- Agentskill Version: `2.0.0`\n- Evidence Schema Version: `3`\n- Repository Revision: `unknown`\n- Configuration: default signature enabled.\n- Maintainer-Confirmed Decisions: None recorded.\n- Unresolved Uncertainty: None recorded.\n\nDetailed context.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
     )
     .unwrap();
 
@@ -79,6 +80,8 @@ fn drift_is_read_only_and_reports_repository_revision() {
 
     let result = drift(directory.path().to_string_lossy().as_ref()).unwrap();
     assert_eq!(result["stale"], false);
+    assert_eq!(result["agentskill_version"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(result["revision_changed"], false);
     assert!(result.get("repository_revision").is_some());
 }
 
@@ -162,7 +165,7 @@ fn rejects_duplicate_free_regions_and_reports_signature_findings() {
 }
 
 #[test]
-fn detects_stale_reference_provenance_without_blocking_drift() {
+fn reports_changed_reference_revision_without_marking_drift_stale() {
     let directory = tempdir().unwrap();
 
     fs::write(
@@ -173,7 +176,61 @@ fn detects_stale_reference_provenance_without_blocking_drift() {
 
     fs::write(
         directory.path().join("AGENTS.reference.md"),
-        "# Reference\n\n## Provenance And Decisions\n\n- Evidence Schema Version: `3`\n- Repository Revision: `old-revision`\n- Configuration: default signature enabled.\n- Maintainer-Confirmed Decisions: None recorded.\n- Unresolved Uncertainty: None recorded.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
+        "# Reference\n\n## Provenance And Decisions\n\n- Agentskill Version: `2.0.0`\n- Evidence Schema Version: `3`\n- Repository Revision: `old-revision`\n- Configuration: default signature enabled.\n- Maintainer-Confirmed Decisions: None recorded.\n- Unresolved Uncertainty: None recorded.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
+    )
+    .unwrap();
+
+    Command::new("git")
+        .args(["init", "--quiet"])
+        .current_dir(directory.path())
+        .status()
+        .unwrap();
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(directory.path())
+        .status()
+        .unwrap();
+    Command::new("git")
+        .args([
+            "-c",
+            "user.name=Agentskill Tests",
+            "-c",
+            "user.email=tests@agentskill.invalid",
+            "-c",
+            "commit.gpgSign=false",
+            "commit",
+            "--quiet",
+            "-m",
+            "fixture",
+        ])
+        .current_dir(directory.path())
+        .status()
+        .unwrap();
+
+    let result = drift(directory.path().to_string_lossy().as_ref()).unwrap();
+    assert_eq!(result["stale"], false);
+    assert_eq!(result["revision_changed"], true);
+    assert!(
+        result["issues"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|issue| { issue["kind"] == "changed_revision" && issue["severity"] == "info" })
+    );
+}
+
+#[test]
+fn reports_stale_reference_version() {
+    let directory = tempdir().unwrap();
+
+    fs::write(
+        directory.path().join("AGENTS.md"),
+        "# AGENTS.md\n\n## Free Region\n\nCustom instructions.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("AGENTS.reference.md"),
+        "# Reference\n\n## Provenance And Decisions\n\n- Agentskill Version: `1.9.0`\n- Evidence Schema Version: `3`\n- Repository Revision: `old-revision`\n- Configuration: default signature enabled.\n- Maintainer-Confirmed Decisions: None recorded.\n- Unresolved Uncertainty: None recorded.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
     )
     .unwrap();
 
@@ -184,7 +241,7 @@ fn detects_stale_reference_provenance_without_blocking_drift() {
             .as_array()
             .unwrap()
             .iter()
-            .any(|issue| { issue["kind"] == "stale_revision" })
+            .any(|issue| issue["kind"] == "stale_version")
     );
 }
 
@@ -250,7 +307,7 @@ fn reports_unsupported_and_uncertain_fact_references() {
 
     fs::write(
         directory.path().join("AGENTS.reference.md"),
-        "# Reference\n\n## Provenance And Decisions\n\n- Evidence Schema Version: `3`\n- Repository Revision: `current`\n- Configuration: invalid configuration is uncertain.\n- Maintainer-Confirmed Decisions: None recorded.\n- Unresolved Uncertainty: None recorded.\n\nThe `configuration.signature` fact is uncertain.\nThe `test.command.999` fact is unsupported.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
+        "# Reference\n\n## Provenance And Decisions\n\n- Agentskill Version: `2.0.0`\n- Evidence Schema Version: `3`\n- Repository Revision: `current`\n- Configuration: invalid configuration is uncertain.\n- Maintainer-Confirmed Decisions: None recorded.\n- Unresolved Uncertainty: None recorded.\n\nThe `configuration.signature` fact is uncertain.\nThe `test.command.999` fact is unsupported.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
     )
     .unwrap();
 
