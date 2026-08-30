@@ -8,7 +8,7 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-description = "Turn any codebase into an AGENTS.md playbook AI coding agents can actually follow"
+description = "Turn any codebase into an AGENTS.md playbook that AI coding agents can actually follow."
 
 [[bin]]
 name = "agentskill"
@@ -26,4 +26,5 @@ clap.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+serde_yaml.workspace = true
 tempfile.workspace = true

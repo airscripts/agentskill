@@ -1,4 +1,5 @@
-use clap::{Args, Parser, Subcommand};
+use agentskill_core::config::SignatureMode;
+use clap::{Args, Parser, Subcommand, ValueEnum};
 
 use agentskill_core::output::{ANALYZER_NAMES, write_value};
 use serde_json::Value;
@@ -7,16 +8,16 @@ use serde_json::Value;
 #[command(
     name = "agentskill",
     version,
-    about = "Collect repository evidence for LLM-authored AGENTS.md files"
+    about = "Collect repository evidence for LLM-authored AGENTS.md files."
 )]
 pub struct Cli {
-    #[arg(long, global = true, help = "Pretty-print JSON output")]
+    #[arg(long, global = true, help = "Pretty-print JSON output.")]
     pretty: bool,
     #[arg(
         long,
         global = true,
         value_name = "FILE",
-        help = "Write output to a file instead of stdout"
+        help = "Write output to a file instead of stdout."
     )]
     out: Option<String>,
     #[command(subcommand)]
@@ -25,28 +26,28 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    #[command(about = "Run all analyzers and merge output")]
+    #[command(about = "Run all analyzers and merge output.")]
     Analyze(AnalyzeArgs),
-    #[command(about = "Build normalized evidence for the LLM skill")]
+    #[command(about = "Build normalized evidence for the LLM skill.")]
     Evidence(RepoLangArgs),
-    #[command(about = "Directory tree and file inventory")]
+    #[command(about = "Directory tree and file inventory.")]
     Scan(RepoLangArgs),
-    #[command(about = "Exact formatting metrics")]
+    #[command(about = "Exact formatting metrics.")]
     Measure(RepoLangArgs),
-    #[command(about = "Formatter, linter, and type-checker detection")]
+    #[command(about = "Formatter, linter, and type-checker detection.")]
     Config(RepoArgs),
-    #[command(about = "Commit log and branch analysis")]
+    #[command(about = "Commit log and branch analysis.")]
     Git(RepoArgs),
-    #[command(about = "Internal import graph")]
+    #[command(about = "Internal import graph.")]
     Graph(RepoLangArgs),
-    #[command(about = "Symbol name extraction and pattern clustering")]
+    #[command(about = "Symbol name extraction and pattern clustering.")]
     Symbols(RepoLangArgs),
-    #[command(about = "Test-to-source mapping and framework detection")]
+    #[command(about = "Test-to-source mapping and framework detection.")]
     Tests(RepoArgs),
-    #[command(about = "Validate LLM-authored AGENTS.md files without writing")]
-    Validate(RepoArgs),
-    #[command(about = "Report stale AGENTS.md references without writing")]
-    Drift(RepoArgs),
+    #[command(about = "Validate LLM-authored AGENTS.md files without writing.")]
+    Validate(ValidationArgs),
+    #[command(about = "Report stale AGENTS.md references without writing.")]
+    Drift(ValidationArgs),
 }
 
 #[derive(Args)]
@@ -67,6 +68,35 @@ struct AnalyzeArgs {
     repos: Vec<String>,
     #[arg(long)]
     lang: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum SignatureArg {
+    Auto,
+    On,
+    Off,
+}
+
+impl From<SignatureArg> for SignatureMode {
+    fn from(value: SignatureArg) -> Self {
+        match value {
+            SignatureArg::Auto => Self::Auto,
+            SignatureArg::On => Self::On,
+            SignatureArg::Off => Self::Off,
+        }
+    }
+}
+
+#[derive(Args)]
+struct ValidationArgs {
+    repo: String,
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = SignatureArg::Auto,
+        help = "Signature mode used when checking managed document footers."
+    )]
+    signature: SignatureArg,
 }
 
 pub fn run() -> i32 {
@@ -112,16 +142,16 @@ fn dispatch(cli: Cli) -> agentskill_core::Result<bool> {
         }
         Commands::Tests(args) => write_analyzer("tests", &args.repo, None, pretty, out),
         Commands::Validate(args) => write_validation(
-            agentskill_validation::validate(&args.repo),
+            agentskill_validation::validate_with_mode(&args.repo, args.signature.into()),
             pretty,
             out,
             |value| value["valid"] != true,
         ),
         Commands::Drift(args) => write_validation(
-            agentskill_validation::drift(&args.repo),
+            agentskill_validation::drift_with_mode(&args.repo, args.signature.into()),
             pretty,
             out,
-            |value| value["stale"] == true,
+            |_| false,
         ),
     }
 }
@@ -193,6 +223,7 @@ mod unit_tests {
 
     use super::{Cli, dispatch};
     use clap::Parser;
+    use serde_json::Value;
     use tempfile::tempdir;
 
     #[test]
@@ -260,5 +291,33 @@ mod unit_tests {
         let cli = Cli::try_parse_from(["agentskill", "analyze", &repo]).unwrap();
 
         assert!(!dispatch(cli).unwrap());
+    }
+
+    #[test]
+    fn keeps_advisory_drift_findings_successful_and_accepts_signature_modes() {
+        let directory = tempdir().unwrap();
+        fs::write(
+            directory.path().join("AGENTS.md"),
+            "# AGENTS.md\n\n## Free Region\n\nCustom instructions.\n",
+        )
+        .unwrap();
+        let repo = directory.path().to_string_lossy().into_owned();
+        let output = format!("target/agentskill-drift-test-{}.json", std::process::id());
+        let cli = Cli::try_parse_from([
+            "agentskill",
+            "--out",
+            &output,
+            "drift",
+            "--signature",
+            "off",
+            &repo,
+        ])
+        .unwrap();
+
+        assert!(!dispatch(cli).unwrap());
+        let report: Value = serde_json::from_str(&fs::read_to_string(&output).unwrap()).unwrap();
+        assert_eq!(report["configuration"]["mode"], "off");
+        assert_eq!(report["stale"], false);
+        fs::remove_file(output).unwrap();
     }
 }
