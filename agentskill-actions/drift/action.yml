@@ -22,7 +22,7 @@ outputs:
     value: ${{ steps.drift-unix.outputs.report_path || steps.drift-windows.outputs.report_path }}
 
   stale:
-    description: Whether the report contains stale provenance.
+    description: Whether the report contains guidance that needs refreshing.
     value: ${{ steps.drift-unix.outputs.stale || steps.drift-windows.outputs.stale }}
 
 runs:
