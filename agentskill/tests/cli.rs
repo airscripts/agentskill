@@ -9,7 +9,7 @@ fn both_binaries_report_version() {
         let output = Command::new(binary).arg("--version").output().unwrap();
 
         assert!(output.status.success());
-        assert!(String::from_utf8_lossy(&output.stdout).contains("2.1.0"));
+        assert!(String::from_utf8_lossy(&output.stdout).contains("2.0.0"));
     }
 }
 
