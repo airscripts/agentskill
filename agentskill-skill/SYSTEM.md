@@ -49,8 +49,11 @@ ownership, workflows, testing topology, rationale, evidence, examples, history,
 and uncertainty. It may be larger than the operational document, but large
 repositories must split it into topic files and load only relevant context.
 When it exists, its root-level `## Provenance And Decisions` section must show
-the evidence schema version, repository revision, configuration source,
-maintainer-confirmed decisions, and unresolved uncertainty.
+the Agentskill version, evidence schema version, repository revision,
+configuration source, maintainer-confirmed decisions, and unresolved
+uncertainty. The Agentskill version determines freshness; the repository
+revision records exact source provenance and may change without making
+guidance stale.
 
 ## Generation Modes
 

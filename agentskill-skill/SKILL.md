@@ -60,9 +60,11 @@ Collect evidence, inspect representative files, ask one small batch of
 unresolved high-impact questions, and create the canonical managed documents.
 Use `## Free Region` for maintainer customs, add the managed signature unless
 the resolved mode is `off`, and record provenance and decisions in the
-reference document. Include the evidence schema version, repository revision,
-configuration source, maintainer decisions, and unresolved uncertainty in its
-`## Provenance And Decisions` section.
+reference document. Include the Agentskill version, evidence schema version,
+repository revision, configuration source, maintainer decisions, and
+unresolved uncertainty in its `## Provenance And Decisions` section. The
+Agentskill version controls freshness; the repository revision records exact
+provenance and may change without making guidance stale.
 
 ### `update`
 
@@ -74,10 +76,12 @@ mode, and show a semantic diff.
 
 ### `audit`
 
-Make no document changes. Report stale revisions, unsupported or low-confidence
-rules, contradictions, broken references, malformed signatures, configuration
-problems, and unresolved uncertainty with their evidence paths and fact IDs.
-Treat unsupported facts as errors and inferred or uncertain facts as warnings.
+Make no document changes. Report stale Agentskill versions, changed repository
+revisions, unsupported or low-confidence rules, contradictions, broken
+references, malformed signatures, configuration problems, and unresolved
+uncertainty with their evidence paths and fact IDs. A changed repository
+revision is informational unless the Agentskill version is stale. Treat
+unsupported facts as errors and inferred or uncertain facts as warnings.
 
 ### `explain`
 
