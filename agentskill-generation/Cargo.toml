@@ -8,7 +8,7 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-description = "AGENTS.md validation and drift detection for agentskill"
+description = "AGENTS.md validation and drift detection for agentskill."
 
 [dependencies]
 agentskill-analyzers.workspace = true
