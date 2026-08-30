@@ -3,7 +3,9 @@
 agentskill is a Rust evidence tool and an LLM skill. The Rust side discovers
 facts that tools can verify; the skill turns those facts, source inspection, and
 maintainer answers into useful repository guidance. The Rust CLI never writes
-semantic Markdown.
+semantic Markdown. Generated documents are managed by the LLM skill;
+maintainers place custom instructions in the root-level `## Free Region`,
+which is preserved verbatim.
 
 ## System Boundary
 
@@ -102,13 +104,23 @@ normalized facts without changing the established analyzer keys.
 
 `agentskill-validation` does not infer or render repository rules. `validate`
 checks that the LLM-authored documents exist, have unique headings, contain
-valid local references, end cleanly, and keep the operational file within its
-budget. `drift` reruns evidence, captures the current revision, and reports
-broken paths in both documents. Both operations are read-only.
+valid local references and provenance, end cleanly, and keep the operational
+file within its budget. It also reports unsupported facts, low-confidence facts,
+and commands without repository support when those checks are possible from
+static files. `drift` reruns evidence, captures the current revision, and
+reports broken paths and stale provenance in both documents. Both operations
+are read-only. `drift` is advisory and returns success when analysis completes,
+even when findings exist.
+
+The repository also provides `agentskill-action/action.yml`, a reusable GitHub
+Action that installs a specified Agentskill release, runs `drift`, writes a job
+summary, and exposes the JSON report path and stale status. A caller workflow
+under `.github/workflows/` is responsible for triggers and artifact uploads.
 
 ## LLM Document Contract
 
-The skill owns `init`, `enrich`, `scope`, `context`, `update`, and `audit`.
+The skill owns `init`, `enrich`, `scope`, `context`, `update`, `audit`, and
+`explain`.
 `operational` and `reference` are depth views of one understanding, not two
 independent generations.
 
@@ -125,8 +137,9 @@ and evidence details. The skill should load it selectively; very large context
 may be split into topic files while keeping the root index compact.
 
 There are no Rust-side profiles, layouts, reference loaders, interactive
-prompts, or feedback sidecars. The LLM decides whether to create or update the root and
-reference views after comparing evidence with direct source inspection.
+prompts, or feedback sidecars. The LLM decides whether to create or update the
+root and reference views after comparing evidence with direct source
+inspection.
 
 ## CLI Contracts
 
@@ -144,9 +157,11 @@ with a failed status; invalid arguments and unusable paths are process errors.
 
 Changes to analyzer keys, evidence fields, language detection, roles, command
 flags, or validation semantics require contract tests and documentation.
-Fixtures under `agentskill-skill/examples/` cover target languages and document
-shapes. Keep analyzer logic in `agentskill-analyzers`, shared behavior in core,
-validation in its owning crate, and the CLI entrypoint thin.
+Fixtures under `agentskill-skill/examples/` cover target languages, while
+`agentskill-tests/fixtures/guidance/` covers document ownership,
+signatures, provenance, and declined questions. Keep analyzer logic in
+`agentskill-analyzers`, shared behavior in core, validation in its owning crate,
+and the CLI entrypoint thin.
 
 Adding a language updates the registry, representative fixture, applicable
 analyzer tests, documentation, and release matrix coverage. Adding an analyzer

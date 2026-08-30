@@ -246,9 +246,8 @@ agentskill tests <repo> --pretty
 # Save analyzer JSON.
 agentskill --out report.json analyze <repo>
 
-# Validate and inspect LLM-authored documents.
-agentskill validate <repo>
-agentskill drift <repo>
+agentskill validate <repo> --signature auto
+agentskill drift <repo> --signature auto
 ```
 
 Use `agsk` in place of `agentskill` for every command. Run
@@ -265,7 +264,15 @@ Use `evidence` when an LLM needs normalized facts with scope, confidence, and
 provenance. Use an individual analyzer when a focused static signal is needed.
 
 Use the installed skill for `init`, `enrich`, `scope`, `context`, `update`, and
-`audit`. Use `validate` and `drift` after the skill writes or updates documents.
+`audit`, and `explain` a rule with its evidence. Use `validate` and `drift` after
+the skill writes or updates documents. Custom maintainer instructions belong in
+the root-level `## Free Region`; other document content is managed by
+Agentskill.
+
+For CI integration, use the reusable GitHub Action in `agentskill-action/` from a
+caller workflow after checking out the repository. It runs advisory drift
+checks, writes a job summary, and exposes a JSON report path for artifact
+upload.
 
 ## AGENTS.md Output
 
@@ -284,10 +291,14 @@ testing, and only the most useful playbooks. It should state verified facts as
 rules, avoid raw analyzer dumps, and omit uncertain conventions. The reference
 document can preserve depth without spending every agent's context window.
 
+When a reference document exists, it must include visible provenance and
+decision fields so drift checks can compare its evidence revision with the
+current repository.
+
 The LLM skill is responsible for `init`, `enrich`, `scope`, `context`, `update`,
-and `audit`. The CLI remains deterministic and read-only: `evidence` supplies
-facts, while `validate` and `drift` check the documents after the skill writes
-them.
+`audit`, and `explain`. The CLI remains deterministic and read-only: `evidence`
+supplies facts, while `validate` and `drift` check the documents after the skill
+writes them.
 
 ## Maintainer Context
 
@@ -308,11 +319,11 @@ agentskill-core/          # shared types, filesystem, language registry
 agentskill-analyzers/     # seven analyzers and aggregate execution
 agentskill-generation/    # validation and evidence/document drift checks
 agentskill/               # Clap CLI and agentskill/agsk binaries
-agentskill-skill/         # skill instructions, references, and fixtures
+agentskill-skill/         # skill instructions, references, and examples
 agentskill-scripts/       # release and archive verification helpers
 agentskill-docs/          # CLI and architecture references
 agentskill-assets/        # repository artwork
-agentskill-tests/         # compatibility contract fixtures
+agentskill-tests/         # compatibility and guidance fixtures
 .github/                  # CI, release workflows, and issue templates
 ```
 
@@ -328,8 +339,8 @@ agentskill-tests/         # compatibility contract fixtures
   crates and expose both binaries from `agentskill/`.
 - Keep `agentskill-scripts/` limited to release, archive, and operator helpers;
   do not put analyzer or validation logic there.
-- Keep target-language fixtures under `agentskill-skill/examples/` and contract
-  fixtures under `agentskill-tests/`.
+- Keep target-language fixtures under `agentskill-skill/examples/` and Rust
+  contract or guidance fixtures under `agentskill-tests/`.
 
 Do not reintroduce Python runtime code, package setup, or Python CI workflows.
 Python fixtures remain supported because Python is one of the analyzed target

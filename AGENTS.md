@@ -64,6 +64,19 @@ dispatch only in `agentskill/`. Update `agentskill-skill/SYSTEM.md` and
 `agentskill-skill/SKILL.md` when the LLM document contract changes. Update user-facing docs and
 `CHANGELOG.md` for public behavior changes.
 
+## Free Region
+
+Maintainer custom instructions belong here. Agentskill preserves this section
+verbatim while managing the rest of this file.
+
+Read the whole edited file before making changes. Add blank lines between
+logical code blocks so the code can breathe, especially after multiline
+expressions and before adjacent statements.
+
+Perform two full check rounds after editing: reread the complete edited file
+and diff, then rerun formatting and relevant tests each time because the first
+pass can miss something.
+
 ## Testing And Release
 
 Run the owning crate tests while iterating, then the locked workspace checks.
@@ -72,3 +85,8 @@ version. Archives must contain both binaries and `LICENSE`, plus `SHA256SUMS`.
 
 For deeper architecture, evidence semantics, workflows, and rationale, read
 [`AGENTS.reference.md`](AGENTS.reference.md) selectively.
+
+---
+
+> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).
+> Do not touch this file. It is automatically managed by Agentskill.

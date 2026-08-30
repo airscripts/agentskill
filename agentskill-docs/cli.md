@@ -43,9 +43,31 @@ agentskill drift <repo> --pretty
 ```
 
 `validate` checks document presence, duplicate headings, local references,
-trailing newlines, and the operational token budget. `drift` records the current
-repository revision and reports broken paths referenced by the documents. Both
-commands are read-only and return a non-zero status when their check fails.
+trailing newlines, provenance, supported commands, and the operational token
+budget. `drift` records the current repository revision and reports broken
+paths, stale provenance, unsupported facts, low-confidence facts, and commands
+without repository support. Both commands are read-only. `validate` returns a
+non-zero status for invalid documents; `drift` is advisory and returns zero when
+analysis completes, even when it reports findings. Both commands accept
+`--signature auto|on|off`.
+
+Signatures are enabled by default. Set `signature = false` in the root
+`agentskill.toml` to disable them for the repository, or pass `--signature on`
+or `--signature off` for one check without changing the file. Commands are
+checked only when their repository support can be confirmed from static files;
+the checks never run commands.
+
+Repositories can run drift checks in CI with the reusable GitHub Action in
+`agentskill-action/`:
+
+```yaml
+- uses: airscripts/agentskill/agentskill-action@<commit-sha>
+  with:
+    version: 2.1.0
+```
+
+The caller must check out the repository first and can upload the Action's JSON
+report using its `report-path` output.
 
 ## Exit Status And Output
 

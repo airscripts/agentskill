@@ -34,14 +34,14 @@ agentskill/
   Clap parsing, command dispatch, output and process exit status,
   the agentskill and agsk binaries
 agentskill-skill/
-  LLM workflow instructions, output contract, synthesis gotchas, fixtures,
-  and context examples
+  LLM workflow instructions, output contract, synthesis gotchas, and context
+  examples
 agentskill-docs/
   detailed CLI and architecture documentation
 agentskill-scripts/
   release-note extraction, archive verification, and filtered pre-commit checks
 agentskill-tests/
-  analyzer compatibility fixtures and contract schemas
+  analyzer compatibility fixtures, guidance fixtures, and contract schemas
 ```
 
 Keep dependencies pointed toward stable lower layers. `agentskill/src/main.rs`
@@ -221,3 +221,16 @@ can be ambiguous for extensions such as `.m`, and fixture-heavy repositories
 can dominate raw statistics. Inspect representative production files and CI
 before asserting conventions. When evidence conflicts or is insufficient,
 surface the uncertainty or ask a focused maintainer question.
+
+## Provenance And Decisions
+
+- Evidence Schema Version: `3`
+- Repository Revision: `b9cee616e1bc27469459210e2305db82dd2b6ed9`
+- Configuration: signature enabled by root `agentskill.toml`.
+- Maintainer-Confirmed Decisions: None recorded.
+- Unresolved Uncertainty: None recorded.
+
+---
+
+> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).
+> Do not touch this file. It is automatically managed by Agentskill.
