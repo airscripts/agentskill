@@ -1,0 +1,94 @@
+name: Agentskill Drift
+description: Run Agentskill drift checks and publish an advisory report.
+
+inputs:
+  version:
+    description: Agentskill release tag to install, for example 2.1.0.
+    required: true
+
+  signature:
+    description: Signature mode passed to agentskill drift.
+    required: false
+    default: auto
+
+outputs:
+  report-path:
+    description: Path to the JSON drift report.
+    value: ${{ steps.drift-unix.outputs.report_path || steps.drift-windows.outputs.report_path }}
+
+  stale:
+    description: Whether the report contains stale provenance.
+    value: ${{ steps.drift-unix.outputs.stale || steps.drift-windows.outputs.stale }}
+
+runs:
+  using: composite
+
+  steps:
+    - id: install-unix
+      name: Install Agentskill On Unix
+      if: runner.os != 'Windows'
+      shell: bash
+
+      env:
+        AGENTSKILL_VERSION: ${{ inputs.version }}
+
+      run: bash "$GITHUB_ACTION_PATH/../shared/install-unix.sh"
+
+    - id: install-windows
+      name: Install Agentskill On Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+
+      env:
+        AGENTSKILL_VERSION: ${{ inputs.version }}
+
+      run: '& "$env:GITHUB_ACTION_PATH/../shared/install-windows.ps1"'
+
+    - id: drift-unix
+      name: Run Agentskill Drift On Unix
+      if: runner.os != 'Windows'
+      shell: bash
+
+      env:
+        AGENTSKILL_SIGNATURE: ${{ inputs.signature }}
+
+      run: |
+        set -euo pipefail
+
+        report="${RUNNER_TEMP}/agentskill-drift/drift.json"
+        mkdir -p "$(dirname "$report")"
+        agentskill drift "$GITHUB_WORKSPACE" --signature "$AGENTSKILL_SIGNATURE" --pretty > "$report"
+        stale="$(jq -r '.stale' "$report")"
+        echo "report_path=$report" >> "$GITHUB_OUTPUT"
+        echo "stale=$stale" >> "$GITHUB_OUTPUT"
+        {
+          echo '### Agentskill Report'
+          echo
+          echo 'Agentskill completed an advisory drift check for this repository.'
+          echo
+          echo "The check does not block the workflow; any findings are included in the full JSON report, available at \`$report\`."
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - id: drift-windows
+      name: Run Agentskill Drift On Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+
+      env:
+        AGENTSKILL_SIGNATURE: ${{ inputs.signature }}
+
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $report = Join-Path $env:RUNNER_TEMP 'agentskill-drift/drift.json'
+        New-Item -ItemType Directory -Force -Path (Split-Path $report) | Out-Null
+        & agentskill drift $env:GITHUB_WORKSPACE --signature $env:AGENTSKILL_SIGNATURE --pretty | Out-File -FilePath $report -Encoding utf8NoBOM
+        $payload = Get-Content -Raw $report | ConvertFrom-Json
+        "report_path=$report" >> $env:GITHUB_OUTPUT
+        "stale=$($payload.stale.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+        @"
+        ### Agentskill Report
+
+        Agentskill completed an advisory drift check for this repository.
+
+        The check does not block the workflow; any findings are included in the full JSON report, available at ``$report``.
+        "@ >> $env:GITHUB_STEP_SUMMARY

@@ -1,11 +1,11 @@
 # Agentskill Drift Action
 
 This reusable GitHub Action installs a specified Agentskill release, verifies
-its checksum, and runs the `drift` check against the checked-out repository.
-The check reports problems without failing the job when the analysis completes.
+its checksum, and runs the advisory `drift` check against the checked-out
+repository.
 
 ```yaml
-name: Drift
+name: Agentskill
 
 on:
   pull_request:
@@ -19,11 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
       - id: agentskill
-        uses: airscripts/agentskill/agentskill-action@<commit-sha>
+        uses: airscripts/agentskill/agentskill-actions/drift@<commit-sha>
         with:
           version: 2.1.0
+
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: agentskill-drift-report
           path: ${{ steps.agentskill.outputs.report-path }}

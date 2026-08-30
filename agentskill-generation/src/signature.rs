@@ -32,9 +32,10 @@ impl SignatureIssue {
 }
 
 pub(crate) fn issues(content: &str, enabled: bool) -> Vec<SignatureIssue> {
-    let count = content.matches(CANONICAL_SIGNATURE).count();
-    let marker_present = content.contains("Generated and maintained by [Agentskill]")
-        || content.contains("automatically managed by Agentskill");
+    let normalized = content.replace("\r\n", "\n");
+    let count = normalized.matches(CANONICAL_SIGNATURE).count();
+    let marker_present = normalized.contains("Generated and maintained by [Agentskill]")
+        || normalized.contains("automatically managed by Agentskill");
     let mut issues = Vec::new();
 
     if count > 1 {
@@ -45,7 +46,7 @@ pub(crate) fn issues(content: &str, enabled: bool) -> Vec<SignatureIssue> {
         issues.push(SignatureIssue::Malformed);
     }
 
-    if count == 1 && !content.trim_end().ends_with(CANONICAL_SIGNATURE) {
+    if count == 1 && !normalized.trim_end().ends_with(CANONICAL_SIGNATURE) {
         issues.push(SignatureIssue::NonTerminal);
     }
 
@@ -61,13 +62,22 @@ pub(crate) fn issues(content: &str, enabled: bool) -> Vec<SignatureIssue> {
 }
 
 pub fn reconcile_signature(content: &str, enabled: bool) -> String {
-    let without_signature = content.replace(CANONICAL_SIGNATURE, "");
+    let newline = if content.contains("\r\n") {
+        "\r\n"
+    } else {
+        "\n"
+    };
+    let windows_signature = CANONICAL_SIGNATURE.replace('\n', "\r\n");
+    let without_signature = content
+        .replace(CANONICAL_SIGNATURE, "")
+        .replace(&windows_signature, "");
     let without_signature = without_signature.trim_end_matches(['\n', '\r']);
 
     if enabled {
-        format!("{without_signature}\n\n{CANONICAL_SIGNATURE}\n")
+        let signature = CANONICAL_SIGNATURE.replace('\n', newline);
+        format!("{without_signature}{newline}{newline}{signature}{newline}")
     } else {
-        format!("{without_signature}\n")
+        format!("{without_signature}{newline}")
     }
 }
 
@@ -104,5 +114,18 @@ mod tests {
             issues(&format!("{content}\nMore text\n"), true).contains(&SignatureIssue::NonTerminal)
         );
         assert!(issues(&content, false).contains(&SignatureIssue::Unexpected));
+    }
+
+    #[test]
+    fn accepts_and_preserves_windows_line_endings() {
+        let content = format!("# AGENTS.md\n\n{CANONICAL_SIGNATURE}\n");
+        let windows_content = content.replace('\n', "\r\n");
+
+        assert!(issues(&windows_content, true).is_empty());
+        assert_eq!(reconcile_signature(&windows_content, true), windows_content);
+        assert_eq!(
+            reconcile_signature(&windows_content, false),
+            "# AGENTS.md\r\n"
+        );
     }
 }

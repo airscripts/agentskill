@@ -112,10 +112,12 @@ reports broken paths and stale provenance in both documents. Both operations
 are read-only. `drift` is advisory and returns success when analysis completes,
 even when findings exist.
 
-The repository also provides `agentskill-action/action.yml`, a reusable GitHub
-Action that installs a specified Agentskill release, runs `drift`, writes a job
-summary, and exposes the JSON report path and stale status. A caller workflow
-under `.github/workflows/` is responsible for triggers and artifact uploads.
+The repository also provides reusable GitHub Actions in
+`agentskill-actions/`. The `drift` Action installs a specified Agentskill
+release, runs the advisory `drift` check, writes a job summary, and exposes the
+JSON report path and stale status. The `validate` Action runs strict document
+validation and exposes its JSON report path. Caller workflows under
+`.github/workflows/` are responsible for triggers and artifact uploads.
 
 ## LLM Document Contract
 

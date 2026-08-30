@@ -143,13 +143,15 @@ Use this exact canonical footer, with a trailing newline:
 - Add an `auto | on | off` signature option to validation checks. `auto` uses
   repository configuration; `on` and `off` are ephemeral workflow/check
   overrides and do not write configuration.
-- Add a composite GitHub Action in `agentskill-action/action.yml`. It accepts a
-  pinned Agentskill release and signature mode, installs the matching binary,
-  runs `agentskill drift`, writes a concise job summary, and exposes the JSON
-  report path and stale status.
-- Add a caller workflow under `.github/workflows` for pull requests, pushes to
-  `main`, and manual dispatch. It invokes the composite Action and uploads the
-  JSON report, then document the invocation for adopter repositories.
+- Add reusable GitHub Actions in `agentskill-actions/drift/` and
+  `agentskill-actions/validate/`. They accept a pinned Agentskill release and
+  signature mode, install the matching binary, write a concise job summary, and
+  expose a JSON report path. Drift is advisory; validate fails on invalid
+  documents.
+- Add the caller workflow in `.github/workflows/agentskill.yml` for the main
+  workflow and manual dispatch. It runs the checked-out source for drift and
+  validation, uploads both reports, and documents the reusable Actions for
+  adopter repositories.
 
 ### LLM Skill Workflows
 
@@ -181,9 +183,9 @@ The workflows remain LLM operations, not Rust CLI subcommands.
   current behavior through `auto`.
 - Change drift’s finding exit behavior to advisory success while retaining
   process errors for invalid paths, missing `AGENTS.md`, and failed analysis.
-- Add the `agentskill-action` composite Action and caller workflow; their inputs,
-  outputs, JSON report, and advisory exit behavior are part of the release
-  contract.
+- Add the reusable `agentskill-actions/drift/` and
+  `agentskill-actions/validate/` Actions and caller workflow; their inputs,
+  outputs, JSON reports, and exit behavior are part of the release contract.
 - Update CLI help, `agentskill-docs/cli.md`,
   `agentskill-docs/architecture.md`, `README.md`, and `CHANGELOG.md` for the
   configuration, signature, evidence, and drift contracts.

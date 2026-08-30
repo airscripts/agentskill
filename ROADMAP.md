@@ -72,9 +72,9 @@ Deliverables:
 - Validation and advisory drift findings for broken references, stale
   evidence, contradictions, signatures, configuration, and unsupported rules.
 - Formalized LLM workflows for `init`, `update`, `audit`, and `explain`.
-- A composite GitHub Action in `agentskill-action/` plus a caller workflow that
-  publishes human-readable findings and machine-readable output without
-  blocking CI by default.
+- Reusable GitHub Actions in `agentskill-actions/drift/` and
+  `agentskill-actions/validate/`, plus a caller workflow that publishes
+  human-readable findings and machine-readable output.
 
 Implementation plan: [`PLAN.md`](./PLAN.md).
 

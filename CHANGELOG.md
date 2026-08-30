@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added a concise root `Makefile` for local verification and release checks.
 - Added repository signature configuration, managed-document ownership with a
-  preserved `## Free Region`, and the `agentskill-action` composite Action for
-  advisory drift checks with release checksum verification.
+  preserved `## Free Region`, and reusable `drift` and `validate` Actions with
+  release checksum verification.
 - Added 45 language families (40 primary and 5 auxiliary), typed language
   kinds, extensionless filename detection, and shebang detection.
 - Added expanded language-family graph, symbol, configuration, and test

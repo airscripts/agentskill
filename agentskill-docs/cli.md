@@ -57,17 +57,25 @@ or `--signature off` for one check without changing the file. Commands are
 checked only when their repository support can be confirmed from static files;
 the checks never run commands.
 
-Repositories can run drift checks in CI with the reusable GitHub Action in
-`agentskill-action/`:
+Repositories can run document checks in CI with the reusable GitHub Actions in
+`agentskill-actions/`:
 
 ```yaml
-- uses: airscripts/agentskill/agentskill-action@<commit-sha>
+- uses: airscripts/agentskill/agentskill-actions/drift@<commit-sha>
   with:
     version: 2.1.0
 ```
 
-The caller must check out the repository first and can upload the Action's JSON
-report using its `report-path` output.
+Use `agentskill-actions/validate` for strict validation. Both Actions require a
+checked-out repository and a pinned release. The caller can upload the JSON
+report using the Action's `report-path` output; drift remains advisory, while
+validate fails when the documents are invalid.
+
+```yaml
+- uses: airscripts/agentskill/agentskill-actions/validate@<commit-sha>
+  with:
+    version: 2.1.0
+```
 
 ## Exit Status And Output
 

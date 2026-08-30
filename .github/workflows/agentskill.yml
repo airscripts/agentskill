@@ -1,4 +1,4 @@
-name: Drift
+name: Agentskill
 
 on:
   workflow_call:
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   drift:
-    name: Agentskill Drift
+    name: Drift
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -56,4 +56,48 @@ jobs:
         with:
           name: agentskill-drift-report
           path: drift.json
+          if-no-files-found: error
+
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    container:
+      image: rust:1.89-bookworm
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
+
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Install Git
+        run: |
+          apt-get update
+          apt-get install --no-install-recommends --yes git
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Check Guidance Validation
+        run: |
+          set +e
+
+          cargo run --locked --bin agentskill -- validate "$GITHUB_WORKSPACE" --signature auto --pretty > validate.json
+          status=$?
+          {
+            echo '### Agentskill Report'
+            echo
+            echo 'Agentskill completed document validation for this repository.'
+            echo
+            echo 'The full JSON report is included in the uploaded artifact.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
+      - uses: actions/upload-artifact@v7
+        name: Upload Validation Report
+        if: always()
+        with:
+          name: agentskill-validation-report
+          path: validate.json
           if-no-files-found: error

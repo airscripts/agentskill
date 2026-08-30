@@ -1,0 +1,90 @@
+name: Agentskill Validate
+description: Run Agentskill document validation and publish a validation report.
+
+inputs:
+  version:
+    description: Agentskill release tag to install, for example 2.1.0.
+    required: true
+
+  signature:
+    description: Signature mode passed to agentskill validate.
+    required: false
+    default: auto
+
+outputs:
+  report-path:
+    description: Path to the JSON validation report.
+    value: ${{ steps.validate-unix.outputs.report_path || steps.validate-windows.outputs.report_path }}
+
+runs:
+  using: composite
+
+  steps:
+    - id: install-unix
+      name: Install Agentskill On Unix
+      if: runner.os != 'Windows'
+      shell: bash
+
+      env:
+        AGENTSKILL_VERSION: ${{ inputs.version }}
+
+      run: bash "$GITHUB_ACTION_PATH/../shared/install-unix.sh"
+
+    - id: install-windows
+      name: Install Agentskill On Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+
+      env:
+        AGENTSKILL_VERSION: ${{ inputs.version }}
+
+      run: '& "$env:GITHUB_ACTION_PATH/../shared/install-windows.ps1"'
+
+    - id: validate-unix
+      name: Validate Agentskill Documents On Unix
+      if: runner.os != 'Windows'
+      shell: bash
+
+      env:
+        AGENTSKILL_SIGNATURE: ${{ inputs.signature }}
+
+      run: |
+        set +e
+
+        report="${RUNNER_TEMP}/agentskill-validate/validate.json"
+        mkdir -p "$(dirname "$report")"
+        agentskill validate "$GITHUB_WORKSPACE" --signature "$AGENTSKILL_SIGNATURE" --pretty > "$report"
+        status=$?
+        echo "report_path=$report" >> "$GITHUB_OUTPUT"
+        {
+          echo '### Agentskill Report'
+          echo
+          echo 'Agentskill completed document validation for this repository.'
+          echo
+          echo "The full JSON report is available at \`$report\`."
+        } >> "$GITHUB_STEP_SUMMARY"
+        exit "$status"
+
+    - id: validate-windows
+      name: Validate Agentskill Documents On Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+
+      env:
+        AGENTSKILL_SIGNATURE: ${{ inputs.signature }}
+
+      run: |
+        $ErrorActionPreference = 'Continue'
+        $report = Join-Path $env:RUNNER_TEMP 'agentskill-validate/validate.json'
+        New-Item -ItemType Directory -Force -Path (Split-Path $report) | Out-Null
+        & agentskill validate $env:GITHUB_WORKSPACE --signature $env:AGENTSKILL_SIGNATURE --pretty | Out-File -FilePath $report -Encoding utf8NoBOM
+        $status = $LASTEXITCODE
+        "report_path=$report" >> $env:GITHUB_OUTPUT
+        @"
+        ### Agentskill Report
+
+        Agentskill completed document validation for this repository.
+
+        The full JSON report is available at ``$report``.
+        "@ >> $env:GITHUB_STEP_SUMMARY
+        exit $status

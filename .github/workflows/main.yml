@@ -34,7 +34,7 @@ jobs:
   drift:
     name: Drift
     needs: test
-    uses: ./.github/workflows/drift.yml
+    uses: ./.github/workflows/agentskill.yml
 
   security:
     name: Security

@@ -269,10 +269,10 @@ the skill writes or updates documents. Custom maintainer instructions belong in
 the root-level `## Free Region`; other document content is managed by
 Agentskill.
 
-For CI integration, use the reusable GitHub Action in `agentskill-action/` from a
-caller workflow after checking out the repository. It runs advisory drift
-checks, writes a job summary, and exposes a JSON report path for artifact
-upload.
+For CI integration, use the reusable GitHub Actions in `agentskill-actions/`
+from a caller workflow after checking out the repository. Use `drift` for
+advisory checks or `validate` for strict document validation. Both write a job
+summary and expose a JSON report path for artifact upload.
 
 ## AGENTS.md Output
 
