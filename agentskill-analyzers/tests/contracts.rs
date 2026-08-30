@@ -90,6 +90,7 @@ fn evidence_bundle_contains_scoped_facts_and_provenance() {
 
     let output = agentskill_analyzers::run_evidence(&example, None).unwrap();
     assert_eq!(output["schema_version"], 3);
+    assert_eq!(output["agentskill_version"], env!("CARGO_PKG_VERSION"));
     assert!(output["repository"]["root"].is_string());
     assert!(output["repository"]["dirty"].is_boolean());
     let facts = output["facts"].as_array().unwrap();

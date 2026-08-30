@@ -26,6 +26,7 @@ pub(crate) fn run_snapshot(snapshot: &RepoSnapshot, lang: Option<&str>) -> Resul
 
     Ok(json!({
         "schema_version": 3,
+        "agentskill_version": env!("CARGO_PKG_VERSION"),
         "repository": repository_metadata(root, &configuration),
         "facts": facts,
         "analyzers": analysis,
