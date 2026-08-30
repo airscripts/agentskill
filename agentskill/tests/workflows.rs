@@ -21,8 +21,15 @@ fn drift_action_and_workflow_keep_the_release_contract() {
 
     assert_eq!(action["name"], "Agentskill Drift");
     assert_eq!(action["runs"]["using"], "composite");
-    assert_eq!(action["inputs"]["version"]["required"], true);
+    assert_eq!(action["inputs"]["version"]["required"], false);
+    assert_eq!(action["inputs"]["source"]["default"], "false");
     assert_eq!(action["inputs"]["signature"]["default"], "auto");
+
+    assert_eq!(
+        action["runs"]["steps"][0]["if"],
+        "runner.os != 'Windows' && inputs.source != 'true'"
+    );
+
     assert!(action["outputs"]["report-path"]["value"].is_string());
     assert!(action["outputs"]["stale"]["value"].is_string());
     assert!(
@@ -41,14 +48,16 @@ fn drift_action_and_workflow_keep_the_release_contract() {
         action["runs"]["steps"][2]["run"]
             .as_str()
             .unwrap()
-            .contains("### Agentskill Report")
+            .contains("### Agentskill Drift")
     );
+
     assert!(
         action["runs"]["steps"][3]["run"]
             .as_str()
             .unwrap()
-            .contains("### Agentskill Report")
+            .contains("### Agentskill Drift")
     );
+
     assert!(
         fs::read_to_string(root.join("agentskill-actions/shared/install-unix.sh"))
             .unwrap()
@@ -80,23 +89,44 @@ fn drift_action_and_workflow_keep_the_release_contract() {
         "rust:1.89-bookworm"
     );
 
+    assert!(
+        workflow["jobs"]["drift"]["steps"][1]["run"]
+            .as_str()
+            .unwrap()
+            .contains("git jq")
+    );
+
     assert_eq!(
         workflow["jobs"]["drift"]["steps"][2]["name"],
-        "Check Guidance Drift"
+        "Build Agentskill"
+    );
+
+    assert_eq!(workflow["jobs"]["drift"]["steps"][2]["shell"], "bash");
+    assert_eq!(
+        workflow["jobs"]["drift"]["steps"][3]["uses"],
+        "./agentskill-actions/drift"
+    );
+
+    assert_eq!(
+        workflow["jobs"]["drift"]["steps"][3]["with"]["source"],
+        "true"
+    );
+    assert_eq!(
+        workflow["jobs"]["validate"]["steps"][3]["uses"],
+        "./agentskill-actions/validate"
+    );
+
+    assert_eq!(workflow["jobs"]["validate"]["steps"][2]["shell"], "bash");
+    assert_eq!(
+        workflow["jobs"]["validate"]["steps"][3]["with"]["source"],
+        "true"
     );
 
     assert!(
-        workflow["jobs"]["drift"]["steps"][2]["run"]
+        workflow["jobs"]["validate"]["steps"][1]["run"]
             .as_str()
             .unwrap()
-            .contains("cargo run --locked --bin agentskill -- drift")
-    );
-
-    assert!(
-        workflow["jobs"]["validate"]["steps"][2]["run"]
-            .as_str()
-            .unwrap()
-            .contains("cargo run --locked --bin agentskill -- validate")
+            .contains("git jq")
     );
 
     assert_eq!(
@@ -106,7 +136,7 @@ fn drift_action_and_workflow_keep_the_release_contract() {
 
     assert_eq!(
         workflow["jobs"]["drift"]["steps"][4]["with"]["path"],
-        "drift.json"
+        "${{ steps.agentskill.outputs.report-path }}"
     );
 
     assert_eq!(
@@ -114,15 +144,20 @@ fn drift_action_and_workflow_keep_the_release_contract() {
         "error"
     );
 
+    assert_eq!(
+        workflow["jobs"]["validate"]["steps"][4]["with"]["path"],
+        "${{ steps.agentskill.outputs.report-path }}"
+    );
+
     let main: Value =
         serde_yaml::from_str(&fs::read_to_string(root.join(".github/workflows/main.yml")).unwrap())
             .unwrap();
 
     assert_eq!(
-        main["jobs"]["drift"]["uses"],
+        main["jobs"]["agentskill"]["uses"],
         "./.github/workflows/agentskill.yml"
     );
-    assert_eq!(main["jobs"]["drift"]["needs"], "test");
+    assert_eq!(main["jobs"]["agentskill"]["needs"], "test");
 
     let validate_action: Value = serde_yaml::from_str(
         &fs::read_to_string(root.join("agentskill-actions/validate/action.yml")).unwrap(),
@@ -131,8 +166,15 @@ fn drift_action_and_workflow_keep_the_release_contract() {
 
     assert_eq!(validate_action["name"], "Agentskill Validate");
     assert_eq!(validate_action["runs"]["using"], "composite");
-    assert_eq!(validate_action["inputs"]["version"]["required"], true);
+    assert_eq!(validate_action["inputs"]["version"]["required"], false);
+    assert_eq!(validate_action["inputs"]["source"]["default"], "false");
     assert_eq!(validate_action["inputs"]["signature"]["default"], "auto");
+
+    assert_eq!(
+        validate_action["runs"]["steps"][0]["if"],
+        "runner.os != 'Windows' && inputs.source != 'true'"
+    );
+
     assert!(validate_action["outputs"]["report-path"]["value"].is_string());
     assert!(
         validate_action["runs"]["steps"][2]["run"]
@@ -144,7 +186,7 @@ fn drift_action_and_workflow_keep_the_release_contract() {
         validate_action["runs"]["steps"][3]["run"]
             .as_str()
             .unwrap()
-            .contains("agentskill validate")
+            .contains("### Agentskill Validate")
     );
 }
 

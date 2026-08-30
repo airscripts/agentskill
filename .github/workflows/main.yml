@@ -31,8 +31,8 @@ jobs:
     needs: build
     uses: ./.github/workflows/test.yml
 
-  drift:
-    name: Drift
+  agentskill:
+    name: Agentskill
     needs: test
     uses: ./.github/workflows/agentskill.yml
 

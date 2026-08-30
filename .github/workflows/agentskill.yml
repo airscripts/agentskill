@@ -30,32 +30,35 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Install Git
+        shell: bash
+
         run: |
           apt-get update
-          apt-get install --no-install-recommends --yes git
+          apt-get install --no-install-recommends --yes git jq
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Check Guidance Drift
+      - name: Build Agentskill
+        shell: bash
+
         run: |
           set -euo pipefail
 
-          cargo run --locked --bin agentskill -- drift "$GITHUB_WORKSPACE" --signature auto --pretty > drift.json
+          cargo build --locked --bin agentskill
+          echo "$GITHUB_WORKSPACE/target/debug" >> "$GITHUB_PATH"
 
-      - name: Write Drift Summary
-        run: |
-          {
-            echo '### Agentskill Report'
-            echo
-            echo 'Agentskill completed an advisory drift check for this repository.'
-            echo
-            echo 'The check does not block the workflow; any findings are included in the uploaded JSON report.'
-          } >> "$GITHUB_STEP_SUMMARY"
+      - id: agentskill
+        name: Check Guidance Drift
+        uses: ./agentskill-actions/drift
+
+        with:
+          source: "true"
+          signature: auto
 
       - uses: actions/upload-artifact@v7
         name: Upload Drift Report
         with:
           name: agentskill-drift-report
-          path: drift.json
+          path: ${{ steps.agentskill.outputs.report-path }}
           if-no-files-found: error
 
   validate:
@@ -74,30 +77,34 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Install Git
+        shell: bash
+
         run: |
           apt-get update
-          apt-get install --no-install-recommends --yes git
+          apt-get install --no-install-recommends --yes git jq
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Check Guidance Validation
-        run: |
-          set +e
+      - name: Build Agentskill
+        shell: bash
 
-          cargo run --locked --bin agentskill -- validate "$GITHUB_WORKSPACE" --signature auto --pretty > validate.json
-          status=$?
-          {
-            echo '### Agentskill Report'
-            echo
-            echo 'Agentskill completed document validation for this repository.'
-            echo
-            echo 'The full JSON report is included in the uploaded artifact.'
-          } >> "$GITHUB_STEP_SUMMARY"
-          exit "$status"
+        run: |
+          set -euo pipefail
+
+          cargo build --locked --bin agentskill
+          echo "$GITHUB_WORKSPACE/target/debug" >> "$GITHUB_PATH"
+
+      - id: agentskill
+        name: Check Guidance Validation
+        uses: ./agentskill-actions/validate
+
+        with:
+          source: "true"
+          signature: auto
 
       - uses: actions/upload-artifact@v7
         name: Upload Validation Report
         if: always()
         with:
           name: agentskill-validation-report
-          path: validate.json
+          path: ${{ steps.agentskill.outputs.report-path }}
           if-no-files-found: error
