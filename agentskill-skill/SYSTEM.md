@@ -4,6 +4,10 @@ This document is the behavioral source of truth for generated `AGENTS.md`
 files. Generated guidance must be grounded in repository evidence and must
 allow an agent to produce code consistent with the analyzed repository.
 
+Agentskill manages generated guidance. Maintainers must put custom
+instructions in the exact root-level `## Free Region` section; content outside
+that section is managed and may be reconciled during updates.
+
 ## Output Contract
 
 The LLM is the only author of semantic `AGENTS.md` content. The Rust CLI
@@ -22,7 +26,8 @@ agent decisions:
 7. Implementation conventions
 8. Testing and validation
 9. Common change playbooks
-10. Further context
+10. Free Region
+11. Further context
 
 Target 500–1,000 tokens and warn above 1,500 tokens. Omit sections that have no
 useful evidence. Scope every rule to the repository, package, service, or
@@ -34,29 +39,56 @@ maintainer answer. Preserve concrete examples when they are necessary to make
 a rule operational, but do not include raw analyzer statistics or duplicated
 rationale.
 
-`AGENTS.md` must reference `AGENTS.reference.md` when that file exists. The
-operational document must remain safe and useful if the reference is not read.
+`AGENTS.md` must contain exactly one root-level `## Free Region` section and
+must reference `AGENTS.reference.md` when that file exists. The operational
+document must remain safe and useful if the reference is not read.
 
-`AGENTS.reference.md` contains detailed architecture, ownership, workflows,
-testing topology, rationale, evidence, examples, history, and uncertainty. It
-may be larger than the operational document, but large repositories must split
-it into topic files and load only relevant context.
+Generated workflows create or update `AGENTS.reference.md` when provenance or
+maintainer decisions need to be recorded. It contains detailed architecture,
+ownership, workflows, testing topology, rationale, evidence, examples, history,
+and uncertainty. It may be larger than the operational document, but large
+repositories must split it into topic files and load only relevant context.
+When it exists, its root-level `## Provenance And Decisions` section must show
+the evidence schema version, repository revision, configuration source,
+maintainer-confirmed decisions, and unresolved uncertainty.
 
 ## Generation Modes
 
 The packaged skill provides the complete LLM workflow. The model reads the
 evidence bundle, representative source files, configuration, tests, Git
-history, and this specification before writing the final document.
+history, and this specification before writing the final document. It must
+preserve `## Free Region` verbatim and must not ask maintainers to edit managed
+sections directly.
 
-The skill supports `init`, `enrich`, `scope`, `context`, `update`, and `audit`
-workflows. `operational` and `reference` are depth views over one repository
-understanding, not competing sources of truth.
+The skill supports `init`, `enrich`, `scope`, `context`, `update`, `audit`, and
+`explain` workflows. `operational` and `reference` are depth views over one
+repository understanding, not competing sources of truth. Milestone 1
+formalizes `init`, `update`, `audit`, and `explain`; the other workflows remain
+compatible but are not expanded here.
+
+## Managed Signature
+
+Generated documents use this exact final footer by default:
+
+```markdown
+---
+
+> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).
+> Do not touch this file. It is automatically managed by Agentskill.
+```
+
+The repository may set `signature = false` in root `agentskill.toml`. Each
+workflow accepts an ephemeral `signature` mode of `auto`, `on`, or `off`; an
+explicit mode overrides repository configuration for that run and never edits
+the configuration file. Custom instructions belong in `## Free Region`, not in
+the managed footer or other managed sections.
 
 ## Quality Requirements
 
 - Never invent commands, tools, file paths, or conventions.
 - Prefer source-backed rules over analyzer statistics.
-- Surface unresolved ambiguity or preserve existing manual text.
+- Surface unresolved ambiguity and preserve only the complete `## Free Region`
+  verbatim. Content outside that section is managed by Agentskill.
 - Keep the root document self-sufficient and within its token budget.
 - Use reference context for rationale instead of duplicating it in the root.
 - Keep markdown headings, links, code fences, and trailing newline behavior

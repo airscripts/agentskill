@@ -17,8 +17,13 @@ finished document.
    configuration files directly.
 4. Read `SYSTEM.md` fully before drafting or updating documents.
 5. Ask only high-impact questions that evidence cannot resolve.
-6. Write compact `AGENTS.md` guidance and optional reference context.
-7. Run `agentskill validate <repo>` and show the semantic diff.
+6. Write compact managed `AGENTS.md` guidance and reference context when
+   provenance or decisions require it. Include exactly one root-level
+   `## Free Region` section and tell maintainers to place custom instructions
+   there.
+7. Run `agentskill validate <repo> --signature <mode>` and show the semantic
+   diff. Use `auto` unless the workflow request explicitly selects `on` or
+   `off`.
 
 Use individual analyzers when a focused signal is needed:
 
@@ -46,8 +51,39 @@ agentskill validate <repo>
 agentskill drift <repo>
 ```
 
-The LLM skill owns `init`, `enrich`, `scope`, `context`, `update`, and `audit`.
-The Rust CLI never writes semantic Markdown.
+The LLM skill owns `init`, `enrich`, `scope`, `context`, `update`, `audit`, and
+`explain`. The Rust CLI never writes semantic Markdown.
+
+### `init`
+
+Collect evidence, inspect representative files, ask one small batch of
+unresolved high-impact questions, and create the canonical managed documents.
+Use `## Free Region` for maintainer customs, add the managed signature unless
+the resolved mode is `off`, and record provenance and decisions in the
+reference document. Include the evidence schema version, repository revision,
+configuration source, maintainer decisions, and unresolved uncertainty in its
+`## Provenance And Decisions` section.
+
+### `update`
+
+Compare current evidence with the managed documents, identify affected
+canonical sections, and update only Agentskill-owned content. Preserve the
+complete `## Free Region` body verbatim. Reconcile the exact managed signature,
+refresh the visible provenance fields, run validation with the same signature
+mode, and show a semantic diff.
+
+### `audit`
+
+Make no document changes. Report stale revisions, unsupported or low-confidence
+rules, contradictions, broken references, malformed signatures, configuration
+problems, and unresolved uncertainty with their evidence paths and fact IDs.
+Treat unsupported facts as errors and inferred or uncertain facts as warnings.
+
+### `explain`
+
+Make no document changes. Given a selected rule, explain its supporting fact
+IDs, source paths, confidence, repository revision, and maintainer decision or
+uncertainty.
 
 ## Evidence Rules
 
