@@ -44,10 +44,13 @@ the locked workspace checks.
   effective signature setting and its source (`default` or `agentskill.toml`).
 - Keep stable fact identifiers, scope, confidence, repository revision, and
   evidence paths. Add signature configuration as a repository-scoped fact.
+- Include the running Agentskill version in the evidence bundle and visible
+  reference provenance. Use the version to determine staleness and retain the
+  repository revision for exact provenance.
 - Do not add a JSON sidecar or hidden Markdown metadata.
 - Require generated reference context to contain a visible `Provenance And
-  Decisions` section with the evidence schema version, repository revision,
-  configuration source, and maintainer-confirmed decisions.
+  Decisions` section with the Agentskill version, evidence schema version,
+  repository revision, configuration source, and maintainer-confirmed decisions.
 - Record a declined or unanswered high-impact question as uncertainty rather
   than as a maintainer decision.
 
@@ -128,8 +131,10 @@ Use this exact canonical footer, with a trailing newline:
   check `agentskill.toml` syntax.
 - Verify referenced local commands and configuration files only when safely
   possible from static repository contents; never execute referenced commands.
-- Read visible provenance from the reference document and report when its
-  repository revision differs from the current revision.
+- Read visible provenance from the reference document and report a stale
+  Agentskill version as a warning that contributes to `stale`.
+- Report a changed repository revision as informational provenance; it must not
+  make drift stale by itself.
 - Report contradictions between document signature claims and current
   `agentskill.toml`, plus unsupported or low-confidence rules when provenance
   identifies them.
@@ -211,8 +216,8 @@ The workflows remain LLM operations, not Rust CLI subcommands.
   migration of unknown/manual content outside it, reference-link preservation,
   token-budget preservation, and avoiding unnecessary footer rewrites.
 - Validation tests cover broken paths, referenced commands/configuration files,
-  stale revisions, contradictory configuration, unsupported/low-confidence
-  provenance, and malformed configuration.
+  stale versions, changed revisions, contradictory configuration,
+  unsupported/low-confidence provenance, and malformed configuration.
 - CLI tests cover `--signature auto|on|off`, both binary names, JSON output, and
   drift returning success when advisory findings exist.
 - Workflow checks cover pull-request and manual drift execution, pinned binary

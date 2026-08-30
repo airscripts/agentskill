@@ -23,7 +23,7 @@ jobs:
       - id: agentskill
         uses: airscripts/agentskill/agentskill-actions/validate@<commit-sha>
         with:
-          version: 2.1.0
+          version: 2.0.0
 
       - uses: actions/upload-artifact@v7
         if: always()

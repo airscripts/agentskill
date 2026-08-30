@@ -28,10 +28,11 @@ authors or updates semantic Markdown.
 agentskill evidence <repo> --pretty
 ```
 
-It returns a versioned bundle containing repository revision metadata,
-normalized facts, confidence, evidence paths, and the complete analyzer output.
-Facts are intentionally compact and suitable for synthesis; source files and
-maintainer decisions still need to be inspected by the skill.
+It returns a versioned bundle containing the Agentskill version, repository
+revision metadata, normalized facts, confidence, evidence paths, and the
+complete analyzer output. Facts are intentionally compact and suitable for
+synthesis; source files and maintainer decisions still need to be inspected by
+the skill.
 
 ## Document Checks
 
@@ -44,11 +45,13 @@ agentskill drift <repo> --pretty
 
 `validate` checks document presence, duplicate headings, local references,
 trailing newlines, provenance, supported commands, and the operational token
-budget. `drift` records the current repository revision and reports broken
-paths, stale provenance, unsupported facts, low-confidence facts, and commands
-without repository support. Both commands are read-only. `validate` returns a
-non-zero status for invalid documents; `drift` is advisory and returns zero when
-analysis completes, even when it reports findings. Both commands accept
+budget. `drift` records the current Agentskill version and repository revision
+and reports broken paths, stale versions, changed revisions, unsupported facts,
+low-confidence facts, and commands without repository support. Version findings
+make the report stale; revision findings are informational. Both commands are
+read-only. `validate` returns a non-zero status for invalid documents; `drift`
+is advisory and returns zero when analysis completes, even when it reports
+findings. Both commands accept
 `--signature auto|on|off`.
 
 Signatures are enabled by default. Set `signature = false` in the root
@@ -63,7 +66,7 @@ Repositories can run document checks in CI with the reusable GitHub Actions in
 ```yaml
 - uses: airscripts/agentskill/agentskill-actions/drift@<commit-sha>
   with:
-    version: 2.1.0
+    version: 2.0.0
 ```
 
 Use `agentskill-actions/validate` for strict validation. Release mode requires a
@@ -75,7 +78,7 @@ documents are invalid.
 ```yaml
 - uses: airscripts/agentskill/agentskill-actions/validate@<commit-sha>
   with:
-    version: 2.1.0
+    version: 2.0.0
 ```
 
 Repository workflows can set `source: "true"` after building the checked-out

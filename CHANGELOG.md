@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now emits evidence and performs read-only validation and drift checks.
 - Added normalized evidence facts with scope, confidence, repository revision,
   and source-path provenance for reliable LLM synthesis.
+- Made guidance freshness depend on the Agentskill version while retaining
+  repository revisions for exact provenance and informational change reporting.
 - Removed static CLI generation, update, profile, layout, reference, and
   feedback workflows from the user-facing command surface.
 
