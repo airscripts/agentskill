@@ -3,8 +3,13 @@ description: Run Agentskill drift checks and publish an advisory report.
 
 inputs:
   version:
-    description: Agentskill release tag to install, for example 2.1.0.
-    required: true
+    description: Agentskill release tag to install when source mode is disabled.
+    required: false
+
+  source:
+    description: Use the checked-out Agentskill source instead of installing a release.
+    required: false
+    default: "false"
 
   signature:
     description: Signature mode passed to agentskill drift.
@@ -26,7 +31,7 @@ runs:
   steps:
     - id: install-unix
       name: Install Agentskill On Unix
-      if: runner.os != 'Windows'
+      if: runner.os != 'Windows' && inputs.source != 'true'
       shell: bash
 
       env:
@@ -36,7 +41,7 @@ runs:
 
     - id: install-windows
       name: Install Agentskill On Windows
-      if: runner.os == 'Windows'
+      if: runner.os == 'Windows' && inputs.source != 'true'
       shell: pwsh
 
       env:
@@ -62,7 +67,7 @@ runs:
         echo "report_path=$report" >> "$GITHUB_OUTPUT"
         echo "stale=$stale" >> "$GITHUB_OUTPUT"
         {
-          echo '### Agentskill Report'
+          echo '### Agentskill Drift'
           echo
           echo 'Agentskill completed an advisory drift check for this repository.'
           echo
@@ -86,7 +91,7 @@ runs:
         "report_path=$report" >> $env:GITHUB_OUTPUT
         "stale=$($payload.stale.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
         @"
-        ### Agentskill Report
+        ### Agentskill Drift
 
         Agentskill completed an advisory drift check for this repository.
 

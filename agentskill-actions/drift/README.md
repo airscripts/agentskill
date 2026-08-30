@@ -32,7 +32,8 @@ jobs:
           path: ${{ steps.agentskill.outputs.report-path }}
 ```
 
-The `version` input is required and should point to a published Agentskill
-release. The optional `signature` input accepts `auto`, `on`, or `off`. Findings
-appear in the job summary and JSON output. The summary explains that the check
-is advisory and points to the full report.
+The optional `version` input should point to a published Agentskill release
+unless `source: "true"` is used. The optional `signature` input accepts `auto`,
+`on`, or `off`. Findings appear in the job summary and JSON output. The summary
+explains that the check is advisory and points to the full report. Source mode
+expects an `agentskill` binary to already be available on `PATH`.

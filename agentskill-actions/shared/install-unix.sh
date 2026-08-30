@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+if [[ -z "${AGENTSKILL_VERSION:-}" ]]; then
+  echo "Agentskill version is required when source mode is disabled." >&2
+  exit 1
+fi
+
 case "$RUNNER_OS" in
   Linux)
     case "$RUNNER_ARCH" in

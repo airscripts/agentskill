@@ -32,7 +32,8 @@ jobs:
           path: ${{ steps.agentskill.outputs.report-path }}
 ```
 
-The `version` input is required and should point to a published Agentskill
-release. The optional `signature` input accepts `auto`, `on`, or `off`. The
-action fails when the documents are invalid and always writes a JSON report
-path to its output before returning the validation status.
+The optional `version` input should point to a published Agentskill release
+unless `source: "true"` is used. The optional `signature` input accepts `auto`,
+`on`, or `off`. The action fails when the documents are invalid and always
+writes a JSON report path to its output before returning the validation status.
+Source mode expects an `agentskill` binary to already be available on `PATH`.

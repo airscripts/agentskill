@@ -1,5 +1,9 @@
 $ErrorActionPreference = 'Stop'
 
+if ([string]::IsNullOrWhiteSpace($env:AGENTSKILL_VERSION)) {
+  throw 'Agentskill version is required when source mode is disabled.'
+}
+
 $target = switch ("$env:RUNNER_ARCH") {
   'X64' { 'x86_64-pc-windows-msvc' }
   'ARM64' { 'aarch64-pc-windows-msvc' }
