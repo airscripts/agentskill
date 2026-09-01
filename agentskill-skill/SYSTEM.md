@@ -39,9 +39,15 @@ maintainer answer. Preserve concrete examples when they are necessary to make
 a rule operational, but do not include raw analyzer statistics or duplicated
 rationale.
 
-`AGENTS.md` must contain exactly one root-level `## Free Region` section and
-must reference `AGENTS.reference.md` when that file exists. The operational
-document must remain safe and useful if the reference is not read.
+`AGENTS.md` must contain exactly one local `## Free Region` section and must
+reference its local `AGENTS.reference.md` when that file exists. A scoped
+document must also contain a compact managed `## Scope` section declaring its
+repository-relative path, nearest parent scope, and additive inheritance. The
+operational document must remain useful when its reference is not read; parent
+guidance is inherited through the portable Agentskill hierarchy and is not
+flattened into child documents. When a child repeats an inherited rule, keep
+the nearest owner and remove the duplicate; when local guidance conflicts with
+an inherited rule, surface the conflict and resolve it explicitly.
 
 Generated workflows create or update `AGENTS.reference.md` when provenance or
 maintainer decisions need to be recorded. It contains detailed architecture,
@@ -63,7 +69,7 @@ history, and this specification before writing the final document. It must
 preserve `## Free Region` verbatim and must not ask maintainers to edit managed
 sections directly.
 
-The skill supports `init`, `enrich`, `scope`, `context`, `update`, `audit`, and
+The skill supports `init`, `enrich`, `scope`, `update`, `audit`, and
 `explain` workflows. `operational` and `reference` are depth views over one
 repository understanding, not competing sources of truth. Milestone 1
 formalizes `init`, `update`, `audit`, and `explain`; the other workflows remain
@@ -86,6 +92,25 @@ explicit mode overrides repository configuration for that run and never edits
 the configuration file. Custom instructions belong in `## Free Region`, not in
 the managed footer or other managed sections.
 
+## Resource Budgets
+
+Workflows accept an ephemeral `budget` mode. `standard` is the default and
+preserves normal evidence depth. `compact` is for CPU-constrained local
+harnesses and preserves high-confidence operational guidance before dropping
+low-confidence details, examples, history, or deep references. `deep` permits
+broader reference loading.
+
+The fixed ceilings are:
+
+| Mode | Input context | Output | Follow-up rounds |
+| --- | ---: | ---: | ---: |
+| `compact` | 4,000 tokens | 512 tokens | 1 |
+| `standard` | 8,000 tokens | 1,000 tokens | 2 |
+| `deep` | 16,000 tokens | 2,000 tokens | 4 |
+
+If a mode cannot produce a valid document within its output ceiling, the
+workflow must report insufficient budget instead of truncating guidance.
+
 ## Quality Requirements
 
 - Never invent commands, tools, file paths, or conventions.
@@ -93,6 +118,8 @@ the managed footer or other managed sections.
 - Surface unresolved ambiguity and preserve only the complete `## Free Region`
   verbatim. Content outside that section is managed by Agentskill.
 - Keep the root document self-sufficient and within its token budget.
+- Keep scoped operational documents within the same 500–1,000 token target and
+  1,500-token hard ceiling.
 - Use reference context for rationale instead of duplicating it in the root.
 - Keep markdown headings, links, code fences, and trailing newline behavior
   valid and deterministic.

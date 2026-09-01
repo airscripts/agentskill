@@ -5,6 +5,7 @@ pub mod git;
 pub mod graph;
 pub mod measure;
 pub mod scan;
+pub mod scope;
 pub mod symbols;
 pub mod tests;
 
@@ -94,5 +95,19 @@ pub fn run_many(repos: &[String], lang: Option<&str>) -> Value {
 /// Builds the normalized evidence bundle used by the LLM skill.
 pub fn run_evidence(repo: &str, lang: Option<&str>) -> agentskill_core::Result<Value> {
     let snapshot = common::RepoSnapshot::load(repo)?.filtered(lang);
-    evidence::run_snapshot(&snapshot, lang)
+    evidence::run_snapshot(&snapshot, lang, None, None)
+}
+
+pub fn run_evidence_scoped(
+    repo: &str,
+    lang: Option<&str>,
+    selected: Option<&[String]>,
+    budget: Option<&str>,
+) -> agentskill_core::Result<Value> {
+    let snapshot = common::RepoSnapshot::load(repo)?.filtered(lang);
+    evidence::run_snapshot(&snapshot, lang, selected, budget)
+}
+
+pub fn run_scopes(repo: &str, selected: Option<&[String]>) -> agentskill_core::Result<Value> {
+    scope::run(repo, selected)
 }

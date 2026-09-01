@@ -55,3 +55,48 @@ fn both_binaries_validate_with_each_signature_mode() {
         }
     }
 }
+
+#[test]
+fn exposes_scopes_budget_and_scope_filters() {
+    let directory = tempdir().unwrap();
+    fs::write(
+        directory.path().join("AGENTS.md"),
+        "# AGENTS.md\n\n## Free Region\n\nInstructions.\n",
+    )
+    .unwrap();
+
+    fs::create_dir_all(directory.path().join("packages/api")).unwrap();
+    fs::write(
+        directory.path().join("packages/api/package.json"),
+        "{\"name\":\"api\"}\n",
+    )
+    .unwrap();
+
+    let repo = directory.path().to_string_lossy().into_owned();
+
+    let scopes = Command::new(env!("CARGO_BIN_EXE_agentskill"))
+        .args(["scopes", &repo, "--pretty"])
+        .output()
+        .unwrap();
+
+    assert!(scopes.status.success());
+    let scopes: serde_json::Value = serde_json::from_slice(&scopes.stdout).unwrap();
+    assert_eq!(scopes["scopes"][1]["path"], "packages/api");
+
+    let evidence = Command::new(env!("CARGO_BIN_EXE_agsk"))
+        .args([
+            "evidence",
+            &repo,
+            "--scope",
+            "packages/api",
+            "--budget",
+            "compact",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(evidence.status.success());
+    let evidence: serde_json::Value = serde_json::from_slice(&evidence.stdout).unwrap();
+    assert_eq!(evidence["budget"]["mode"], "compact");
+    assert_eq!(evidence["scopes"][0]["path"], "packages/api");
+}

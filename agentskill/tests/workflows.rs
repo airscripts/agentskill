@@ -201,9 +201,15 @@ fn skill_contract_covers_managed_document_workflows() {
     for workflow in ["init", "update", "audit", "explain"] {
         assert!(skill.contains(&format!("### `{workflow}`")));
     }
+
     assert!(skill.contains("Use `## Free Region` for maintainer customs"));
+    assert!(skill.contains("agentskill scopes <repo> --pretty"));
+    assert!(skill.contains("budget compact|standard|deep"));
+    assert!(!skill.contains("`context`"));
     assert!(skill.contains("show a semantic diff"));
     assert!(system.contains("The LLM is the only author of semantic `AGENTS.md` content."));
     assert!(system.contains("preserve `## Free Region` verbatim"));
     assert!(system.contains("## Provenance And Decisions"));
+    assert!(system.contains("## Scope"));
+    assert!(system.contains("4,000 tokens"));
 }

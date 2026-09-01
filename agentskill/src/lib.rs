@@ -29,7 +29,9 @@ enum Commands {
     #[command(about = "Run all analyzers and merge output.")]
     Analyze(AnalyzeArgs),
     #[command(about = "Build normalized evidence for the LLM skill.")]
-    Evidence(RepoLangArgs),
+    Evidence(EvidenceArgs),
+    #[command(about = "Discover nested guidance scopes without writing.")]
+    Scopes(ScopesArgs),
     #[command(about = "Directory tree and file inventory.")]
     Scan(RepoLangArgs),
     #[command(about = "Exact formatting metrics.")]
@@ -63,6 +65,24 @@ struct RepoLangArgs {
 }
 
 #[derive(Args)]
+struct EvidenceArgs {
+    repo: String,
+    #[arg(long)]
+    lang: Option<String>,
+    #[arg(long = "scope", value_name = "PATH")]
+    scopes: Vec<String>,
+    #[arg(long, value_enum, default_value_t = BudgetArg::Standard)]
+    budget: BudgetArg,
+}
+
+#[derive(Args)]
+struct ScopesArgs {
+    repo: String,
+    #[arg(long = "scope", value_name = "PATH")]
+    scopes: Vec<String>,
+}
+
+#[derive(Args)]
 struct AnalyzeArgs {
     #[arg(required = true)]
     repos: Vec<String>,
@@ -75,6 +95,23 @@ enum SignatureArg {
     Auto,
     On,
     Off,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum BudgetArg {
+    Compact,
+    Standard,
+    Deep,
+}
+
+impl BudgetArg {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Compact => "compact",
+            Self::Standard => "standard",
+            Self::Deep => "deep",
+        }
+    }
 }
 
 impl From<SignatureArg> for SignatureMode {
@@ -97,6 +134,8 @@ struct ValidationArgs {
         help = "Signature mode used when checking managed document footers."
     )]
     signature: SignatureArg,
+    #[arg(long = "scope", value_name = "PATH")]
+    scopes: Vec<String>,
 }
 
 pub fn run() -> i32 {
@@ -122,7 +161,20 @@ fn dispatch(cli: Cli) -> agentskill_core::Result<bool> {
             write_value(&value, pretty, out).map(|()| failed)
         }
         Commands::Evidence(args) => write_result(
-            agentskill_analyzers::run_evidence(&args.repo, args.lang.as_deref()),
+            agentskill_analyzers::run_evidence_scoped(
+                &args.repo,
+                args.lang.as_deref(),
+                (!args.scopes.is_empty()).then_some(args.scopes.as_slice()),
+                Some(args.budget.as_str()),
+            ),
+            pretty,
+            out,
+        ),
+        Commands::Scopes(args) => write_result(
+            agentskill_analyzers::run_scopes(
+                &args.repo,
+                (!args.scopes.is_empty()).then_some(args.scopes.as_slice()),
+            ),
             pretty,
             out,
         ),
@@ -142,13 +194,21 @@ fn dispatch(cli: Cli) -> agentskill_core::Result<bool> {
         }
         Commands::Tests(args) => write_analyzer("tests", &args.repo, None, pretty, out),
         Commands::Validate(args) => write_validation(
-            agentskill_validation::validate_with_mode(&args.repo, args.signature.into()),
+            agentskill_validation::validate_with_mode_and_scopes(
+                &args.repo,
+                args.signature.into(),
+                (!args.scopes.is_empty()).then_some(args.scopes.as_slice()),
+            ),
             pretty,
             out,
             |value| value["valid"] != true,
         ),
         Commands::Drift(args) => write_validation(
-            agentskill_validation::drift_with_mode(&args.repo, args.signature.into()),
+            agentskill_validation::drift_with_mode_and_scopes(
+                &args.repo,
+                args.signature.into(),
+                (!args.scopes.is_empty()).then_some(args.scopes.as_slice()),
+            ),
             pretty,
             out,
             |_| false,

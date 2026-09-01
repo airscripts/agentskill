@@ -67,6 +67,21 @@ pub fn validate(repo: &str) -> Result<Value> {
 
 /// Validates documents using an ephemeral signature override.
 pub fn validate_with_mode(repo: &str, mode: SignatureMode) -> Result<Value> {
+    validate_with_mode_and_scopes(repo, mode, None)
+}
+
+/// Validates root and selected managed scoped documents.
+pub fn validate_with_mode_and_scopes(
+    repo: &str,
+    mode: SignatureMode,
+    selected: Option<&[String]>,
+) -> Result<Value> {
+    let mut report = validate_root_with_mode(repo, mode)?;
+    append_scoped_validation(&mut report, repo, mode, selected)?;
+    Ok(report)
+}
+
+fn validate_root_with_mode(repo: &str, mode: SignatureMode) -> Result<Value> {
     let root = validate_repo(repo)?;
     let configuration = load_config(&root);
     let operational = root.join("AGENTS.md");
@@ -235,6 +250,21 @@ pub fn drift(repo: &str) -> Result<Value> {
 
 /// Reports drift using an ephemeral signature override.
 pub fn drift_with_mode(repo: &str, mode: SignatureMode) -> Result<Value> {
+    drift_with_mode_and_scopes(repo, mode, None)
+}
+
+/// Reports drift for root and selected managed scoped documents.
+pub fn drift_with_mode_and_scopes(
+    repo: &str,
+    mode: SignatureMode,
+    selected: Option<&[String]>,
+) -> Result<Value> {
+    let mut report = drift_root_with_mode(repo, mode)?;
+    append_scoped_drift(&mut report, repo, mode, selected)?;
+    Ok(report)
+}
+
+fn drift_root_with_mode(repo: &str, mode: SignatureMode) -> Result<Value> {
     let root = validate_repo(repo)?;
     let configuration = load_config(&root);
 
@@ -376,6 +406,564 @@ pub fn drift_with_mode(repo: &str, mode: SignatureMode) -> Result<Value> {
         "revision_changed": revision_changed,
         "referenced_paths": referenced,
     }))
+}
+
+fn append_scoped_validation(
+    report: &mut Value,
+    repo: &str,
+    mode: SignatureMode,
+    selected: Option<&[String]>,
+) -> Result<()> {
+    let root = validate_repo(repo)?;
+    let scopes = agentskill_analyzers::run_scopes(repo, selected)?;
+    let all_scopes = selected
+        .is_some()
+        .then(|| agentskill_analyzers::run_scopes(repo, None))
+        .transpose()?
+        .unwrap_or_else(|| scopes.clone());
+
+    report["scopes"] = scopes["scopes"].clone();
+
+    let mut errors = report["errors"]
+        .take()
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+
+    let mut warnings = report["warnings"]
+        .take()
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+
+    let mut findings = report["findings"]
+        .take()
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+
+    let configured_signature = load_config(&root).resolved_signature(mode);
+    let mut validated = Vec::new();
+
+    for scope in scopes["scopes"].as_array().into_iter().flatten() {
+        let path = scope["path"].as_str().unwrap_or(".");
+        if path == "." {
+            continue;
+        }
+
+        let scope_root = root.join(path);
+        let operational = scope_root.join("AGENTS.md");
+        let reference = scope_root.join("AGENTS.reference.md");
+        if !operational.is_file() {
+            findings.push(finding(
+                "missing_scoped_document",
+                "info",
+                path,
+                "scope candidate has no AGENTS.md; creation is explicit",
+                Some(path),
+            ));
+            continue;
+        }
+
+        let content = read_document(&operational)?;
+        let canonical = has_scope_metadata(&content);
+        if !canonical {
+            warnings.push(format!(
+                "{path}/AGENTS.md is a legacy scoped document and needs review"
+            ));
+
+            findings.push(finding(
+                "legacy_scoped_document",
+                "warning",
+                path,
+                "scoped document lacks managed ## Scope metadata; review before adoption",
+                Some(path),
+            ));
+
+            continue;
+        }
+
+        let parent = scope["parent"].as_str().unwrap_or(".");
+        for issue in scope_metadata_issues(&content, path, parent) {
+            errors.push(format!("{path}/AGENTS.md: {issue}"));
+            findings.push(finding(
+                "invalid_scope_metadata",
+                "error",
+                path,
+                &issue,
+                Some(path),
+            ));
+        }
+
+        validate_markdown(
+            &scope_root,
+            &operational,
+            true,
+            configured_signature,
+            &mut errors,
+            &mut warnings,
+            &mut findings,
+        )?;
+
+        let tokens = approximate_tokens(&content);
+        if tokens > OPERATIONAL_TOKEN_HARD_LIMIT {
+            let message = format!(
+                "{path}/AGENTS.md is approximately {tokens} tokens; hard limit is {OPERATIONAL_TOKEN_HARD_LIMIT}"
+            );
+
+            errors.push(message.clone());
+            findings.push(finding(
+                "operational_token_limit",
+                "error",
+                path,
+                &message,
+                None,
+            ));
+        } else if tokens > OPERATIONAL_TOKEN_TARGET {
+            let message = format!(
+                "{path}/AGENTS.md is approximately {tokens} tokens; target is {OPERATIONAL_TOKEN_TARGET}"
+            );
+
+            warnings.push(message.clone());
+            findings.push(finding(
+                "operational_token_target",
+                "warning",
+                path,
+                &message,
+                None,
+            ));
+        }
+
+        if content.contains("AGENTS.reference.md") && !reference.is_file() {
+            let message = format!("{path}/AGENTS.md references missing AGENTS.reference.md");
+            errors.push(message.clone());
+
+            findings.push(finding(
+                "missing_reference_document",
+                "error",
+                path,
+                &message,
+                Some("AGENTS.reference.md"),
+            ));
+        }
+
+        if reference.is_file() {
+            validate_markdown(
+                &scope_root,
+                &reference,
+                false,
+                configured_signature,
+                &mut errors,
+                &mut warnings,
+                &mut findings,
+            )?;
+            validate_provenance(&scope_root, &reference, &mut errors, &mut findings)?;
+        }
+
+        if reference.is_file() {
+            let evidence = agentskill_analyzers::run_evidence_scoped(
+                repo,
+                None,
+                Some(&[path.to_string()]),
+                Some("standard"),
+            )?;
+
+            for document in [operational, reference]
+                .into_iter()
+                .filter(|document| document.is_file())
+            {
+                let content = read_document(&document)?;
+                let display = display_path(&root, &document);
+                for issue in guidance_issues(&content, &evidence) {
+                    let message = format!("{}: {}", display.display(), issue.message);
+                    match issue.severity {
+                        "error" => errors.push(message),
+                        _ => warnings.push(message),
+                    }
+
+                    findings.push(finding(
+                        issue.kind,
+                        issue.severity,
+                        &display.to_string_lossy(),
+                        &issue.message,
+                        Some(&issue.fact),
+                    ));
+                }
+
+                for issue in command_issues(&scope_root, &content) {
+                    let message = format!("{}: {}", display.display(), issue.message);
+                    warnings.push(message);
+                    findings.push(finding(
+                        issue.kind,
+                        issue.severity,
+                        &display.to_string_lossy(),
+                        &issue.message,
+                        Some(&issue.fact),
+                    ));
+                }
+            }
+        }
+
+        validated.push(path);
+    }
+
+    append_scope_relationship_findings(
+        &root,
+        &scopes["scopes"],
+        &all_scopes["scopes"],
+        &mut warnings,
+        &mut findings,
+    )?;
+
+    report["errors"] = json!(errors);
+    report["warnings"] = json!(warnings);
+    report["findings"] = json!(findings);
+    report["validated_scopes"] = json!(validated);
+    report["valid"] = json!(errors.is_empty());
+    Ok(())
+}
+
+fn append_scoped_drift(
+    report: &mut Value,
+    repo: &str,
+    mode: SignatureMode,
+    selected: Option<&[String]>,
+) -> Result<()> {
+    let root = validate_repo(repo)?;
+    let scopes = agentskill_analyzers::run_scopes(repo, selected)?;
+    let all_scopes = selected
+        .is_some()
+        .then(|| agentskill_analyzers::run_scopes(repo, None))
+        .transpose()?
+        .unwrap_or_else(|| scopes.clone());
+
+    report["scopes"] = scopes["scopes"].clone();
+    let mut issues = report["issues"]
+        .take()
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+
+    let signature_enabled = load_config(&root).resolved_signature(mode);
+    let current_version = report["agentskill_version"]
+        .as_str()
+        .unwrap_or("unknown")
+        .to_string();
+
+    let current_revision = report["repository_revision"].as_str().map(str::to_string);
+    let mut managed = Vec::new();
+
+    for scope in scopes["scopes"].as_array().into_iter().flatten() {
+        let path = scope["path"].as_str().unwrap_or(".");
+        if path == "." {
+            continue;
+        }
+        let scope_root = root.join(path);
+        let operational = scope_root.join("AGENTS.md");
+        let reference = scope_root.join("AGENTS.reference.md");
+        if !operational.is_file() {
+            issues.push(json!({
+                "kind": "missing_scoped_document",
+                "severity": "info",
+                "document": path,
+                "path": path,
+                "message": "scope candidate has no AGENTS.md; creation is explicit",
+            }));
+            continue;
+        }
+
+        let operational_content = read_document(&operational)?;
+        if !has_scope_metadata(&operational_content) {
+            issues.push(json!({
+                "kind": "legacy_scoped_document",
+                "severity": "warning",
+                "document": path,
+                "path": path,
+                "message": "scoped document lacks managed ## Scope metadata; review before adoption",
+            }));
+            continue;
+        }
+
+        let evidence = agentskill_analyzers::run_evidence_scoped(
+            repo,
+            None,
+            Some(&[path.to_string()]),
+            Some("standard"),
+        )?;
+        for document in [operational, reference]
+            .into_iter()
+            .filter(|document| document.is_file())
+        {
+            let content = read_document(&document)?;
+            let display = display_path(&root, &document);
+            for issue in guidance_issues(&content, &evidence) {
+                issues.push(json!({
+                    "kind": issue.kind,
+                    "severity": issue.severity,
+                    "document": display,
+                    "fact": issue.fact,
+                    "message": issue.message,
+                }));
+            }
+
+            for issue in command_issues(&scope_root, &content) {
+                issues.push(json!({
+                    "kind": issue.kind,
+                    "severity": issue.severity,
+                    "document": display,
+                    "command": issue.fact,
+                    "message": issue.message,
+                }));
+            }
+
+            for issue in signature::issues(&content, signature_enabled) {
+                issues.push(json!({
+                    "kind": issue.kind(),
+                    "severity": "error",
+                    "document": display,
+                    "message": issue.message(),
+                }));
+            }
+
+            if document.file_name().and_then(|name| name.to_str()) == Some("AGENTS.reference.md") {
+                let version = provenance_field(&content, "agentskill version:");
+                if version.as_deref() != Some(current_version.as_str()) {
+                    issues.push(json!({
+                        "kind": "stale_version",
+                        "severity": "warning",
+                        "document": display,
+                        "fact": "agentskill.version",
+                        "message": format!("reference was generated with Agentskill version {}, current version is {current_version}", version.unwrap_or_else(|| "unknown".into())),
+                    }));
+                }
+
+                if let Some(revision) = provenance_field(&content, "repository revision:")
+                    && Some(revision.as_str()) != current_revision.as_deref()
+                {
+                    issues.push(json!({
+                        "kind": "changed_revision",
+                        "severity": "info",
+                        "document": display,
+                        "fact": "repository.revision",
+                        "message": "reference revision differs from current repository revision; refresh provenance when guidance changes",
+                    }));
+                }
+            }
+        }
+
+        managed.push(path);
+    }
+
+    append_scope_drift_relationships(&root, &scopes["scopes"], &all_scopes["scopes"], &mut issues)?;
+
+    let stale = issues.iter().any(|issue| issue["severity"] != "info");
+    report["issues"] = json!(issues);
+    report["managed_scopes"] = json!(managed);
+    report["stale"] = json!(stale);
+    Ok(())
+}
+
+fn has_scope_metadata(content: &str) -> bool {
+    parse(content)
+        .sections
+        .iter()
+        .any(|section| section.level == 2 && normalize_section_name(&section.heading) == "scope")
+}
+
+fn scope_metadata_issues(content: &str, path: &str, parent: &str) -> Vec<String> {
+    let body = parse(content)
+        .sections
+        .into_iter()
+        .find(|section| section.level == 2 && normalize_section_name(&section.heading) == "scope")
+        .map(|section| section.body)
+        .unwrap_or_default();
+
+    let mut issues = Vec::new();
+    if scope_metadata_value(&body, "path").as_deref() != Some(path) {
+        issues.push(format!("scope metadata must declare path: {path}"));
+    }
+
+    if scope_metadata_value(&body, "parent").as_deref() != Some(parent) {
+        issues.push(format!("scope metadata must declare parent: {parent}"));
+    }
+
+    if scope_metadata_value(&body, "inheritance")
+        .is_none_or(|value| !value.to_ascii_lowercase().contains("additive"))
+    {
+        issues.push("scope metadata must declare additive inheritance".into());
+    }
+    issues
+}
+
+fn scope_metadata_value(body: &str, key: &str) -> Option<String> {
+    body.lines().find_map(|line| {
+        let line = line.trim().trim_start_matches('-').trim();
+        let (line_key, value) = line.split_once(':')?;
+        (line_key.trim().eq_ignore_ascii_case(key) && !value.trim().is_empty())
+            .then(|| value.trim().to_string())
+    })
+}
+
+fn append_scope_relationship_findings(
+    root: &Path,
+    scopes: &Value,
+    all_scopes: &Value,
+    warnings: &mut Vec<String>,
+    findings: &mut Vec<Value>,
+) -> Result<()> {
+    for scope in scopes.as_array().into_iter().flatten() {
+        let path = scope["path"].as_str().unwrap_or(".");
+        if path == "." || scope["status"] != "managed" {
+            continue;
+        }
+
+        let local_path = root.join(path).join("AGENTS.md");
+        let local_rules = managed_rules(&read_document(&local_path)?);
+        let Some(ancestor) = scope["resolution"]["ancestors"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .find(|ancestor| {
+                if *ancestor == "." {
+                    root.join("AGENTS.md").is_file()
+                } else {
+                    all_scopes
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .any(|candidate| {
+                            candidate["path"] == *ancestor
+                                && candidate["status"] == "managed"
+                                && root.join(ancestor).join("AGENTS.md").is_file()
+                        })
+                }
+            })
+        else {
+            continue;
+        };
+
+        let ancestor_path = if ancestor == "." {
+            root.join("AGENTS.md")
+        } else {
+            root.join(ancestor).join("AGENTS.md")
+        };
+
+        let ancestor_rules = managed_rules(&read_document(&ancestor_path)?);
+        for rule in local_rules.intersection(&ancestor_rules) {
+            let mut issue = finding(
+                "duplicated_inherited_rule",
+                "info",
+                path,
+                "managed rule duplicates an inherited rule; keep the rule at the nearest owner",
+                None,
+            );
+
+            issue["ancestor"] = json!(ancestor);
+            issue["rule"] = json!(rule);
+            findings.push(issue);
+        }
+        for local_rule in &local_rules {
+            for ancestor_rule in &ancestor_rules {
+                if contradictory_rules(local_rule, ancestor_rule) {
+                    let message =
+                        format!("managed rule conflicts with inherited guidance from {ancestor}");
+
+                    warnings.push(format!("{path}/AGENTS.md: {message}"));
+                    let mut issue = finding(
+                        "conflicting_inherited_rule",
+                        "warning",
+                        path,
+                        &message,
+                        None,
+                    );
+
+                    issue["ancestor"] = json!(ancestor);
+                    issue["rule"] = json!(local_rule);
+                    issue["inherited_rule"] = json!(ancestor_rule);
+                    findings.push(issue);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn append_scope_drift_relationships(
+    root: &Path,
+    scopes: &Value,
+    all_scopes: &Value,
+    issues: &mut Vec<Value>,
+) -> Result<()> {
+    let mut warnings = Vec::new();
+    let mut findings = Vec::new();
+
+    append_scope_relationship_findings(root, scopes, all_scopes, &mut warnings, &mut findings)?;
+    issues.extend(findings);
+    Ok(())
+}
+
+fn managed_rules(content: &str) -> BTreeSet<String> {
+    parse(content)
+        .sections
+        .into_iter()
+        .filter(|section| {
+            !matches!(
+                normalize_section_name(&section.heading).as_str(),
+                "scope" | "free region"
+            )
+        })
+        .flat_map(|section| {
+            section
+                .body
+                .lines()
+                .map(str::trim)
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .filter_map(|line| {
+            line.strip_prefix("- ")
+                .or_else(|| line.strip_prefix("* "))
+                .map(normalize_rule)
+        })
+        .filter(|line| !line.is_empty())
+        .collect()
+}
+
+fn normalize_rule(rule: &str) -> String {
+    rule.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_lowercase()
+}
+
+fn contradictory_rules(left: &str, right: &str) -> bool {
+    let polarities = [
+        ("must not ", false),
+        ("do not ", false),
+        ("never ", false),
+        ("must ", true),
+        ("do ", true),
+        ("always ", true),
+    ];
+    polarities.iter().any(|(prefix, polarity)| {
+        let Some(left_rest) = left.strip_prefix(prefix) else {
+            return false;
+        };
+
+        polarities.iter().any(|(other_prefix, other_polarity)| {
+            *polarity != *other_polarity
+                && right
+                    .strip_prefix(other_prefix)
+                    .is_some_and(|right_rest| right_rest == left_rest)
+        })
+    })
 }
 
 fn validate_markdown(

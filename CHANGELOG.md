@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added deterministic nested scope discovery, scoped evidence, scoped
+  validation and drift reporting, and Compact/Standard/Deep local-model budget
+  profiles.
 - Added a concise root `Makefile` for local verification and release checks.
 - Added repository signature configuration, managed-document ownership with a
   preserved `## Free Region`, and reusable `drift` and `validate` Actions with
@@ -20,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bumped the normalized evidence schema to version 4 while preserving existing
+  analyzer keys and evidence fields.
 - Removed obsolete marketplace badge and listing documentation.
 - Removed the obsolete Star History chart from the README.
 - Made the LLM skill the only author of semantic `AGENTS.md` content; the CLI

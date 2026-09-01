@@ -12,16 +12,21 @@ finished document.
 ## Workflow
 
 1. Confirm the target repository path.
-2. Collect normalized evidence with `agentskill evidence <repo> --pretty`.
+2. Discover scopes with `agentskill scopes <repo> --pretty`, then collect
+   normalized evidence with `agentskill evidence <repo> --pretty`.
 3. Inspect representative entrypoints, core modules, tests, manifests, CI, and
    configuration files directly.
 4. Read `SYSTEM.md` fully before drafting or updating documents.
 5. Ask only high-impact questions that evidence cannot resolve.
-6. Write compact managed `AGENTS.md` guidance and reference context when
-   provenance or decisions require it. Include exactly one root-level
-   `## Free Region` section and tell maintainers to place custom instructions
-   there.
-7. Run `agentskill validate <repo> --signature <mode>` and show the semantic
+6. Select an explicit scope and budget mode. Use `compact` for CPU-constrained
+   local harnesses, `standard` by default, and `deep` only when broader context
+   is justified.
+7. Write compact managed `AGENTS.md` guidance and reference context when
+   provenance or decisions require it. Scoped documents include local `## Scope`
+   metadata, an independent `## Free Region`, and an explicit parent link.
+8. Present the complete semantic plan and diff before writing. Never create
+   documents for merely suggested candidates.
+9. Run `agentskill validate <repo> --signature <mode>` and show the semantic
    diff. Use `auto` unless the workflow request explicitly selects `on` or
    `off`.
 
@@ -35,6 +40,8 @@ agentskill git <repo> --pretty
 agentskill graph <repo> --pretty
 agentskill symbols <repo> --pretty
 agentskill tests <repo> --pretty
+agentskill scopes <repo> --pretty
+agentskill evidence <repo> --scope packages/api --budget compact --pretty
 ```
 
 References are explicit inputs to the LLM workflow and must contain a readable
@@ -51,7 +58,7 @@ agentskill validate <repo>
 agentskill drift <repo>
 ```
 
-The LLM skill owns `init`, `enrich`, `scope`, `context`, `update`, `audit`, and
+The LLM skill owns `init`, `enrich`, `scope`, `update`, `audit`, and
 `explain`. The Rust CLI never writes semantic Markdown.
 
 ### `init`
@@ -65,6 +72,15 @@ repository revision, configuration source, maintainer decisions, and
 unresolved uncertainty in its `## Provenance And Decisions` section. The
 Agentskill version controls freshness; the repository revision records exact
 provenance and may change without making guidance stale.
+
+### `scope`
+
+Discover existing nested documents and high-confidence package, workspace, or
+service boundaries. Show parent relationships and missing-document suggestions.
+Create or adopt a scope only after the maintainer explicitly selects its
+repository-relative path. Follow the reported ancestor chain and nearest
+managed fallback. Keep shared rules at their nearest owner, and resolve
+conflicting inherited rules explicitly before writing.
 
 ### `update`
 
@@ -88,6 +104,9 @@ unsupported facts as errors and inferred or uncertain facts as warnings.
 Make no document changes. Given a selected rule, explain its supporting fact
 IDs, source paths, confidence, repository revision, and maintainer decision or
 uncertainty.
+
+All generation and maintenance workflows accept `budget compact|standard|deep`
+with fixed input, output, and follow-up ceilings defined in `SYSTEM.md`.
 
 ## Evidence Rules
 

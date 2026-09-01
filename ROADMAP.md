@@ -39,6 +39,8 @@ semantic Markdown authorship and document maintenance.
   a sidecar file.
 - Keep measurement opt-in and privacy-preserving, with no hosted telemetry
   requirement.
+- Keep model-facing context bounded so local CPU-based harnesses can use the
+  skill with compact, standard, or deep budget modes.
 
 ## Product Lifecycle
 
@@ -78,52 +80,37 @@ Deliverables:
 
 Implementation plan: [`PLAN.md`](./PLAN.md).
 
-### Milestone 2: Task Context
+### Milestone 2: Scoped Guidance
 
 Status: Planned
 
-Use the maintained repository understanding to generate task-specific context
-for coding agents.
+Extend the root-focused model to repositories with nested guidance files and
+resource-constrained local AI harnesses.
 
 Deliverables:
 
-- Relevant files and architecture or ownership boundaries for a requested task.
-- Applicable repository rules, required commands and tests, and known hazards.
-- Similar historical changes and unresolved uncertainty.
-- Evidence-backed playbooks for APIs, dependencies, configuration, tests,
-  schemas, releases, and generated files.
+- Deterministic scope discovery for existing documents and high-confidence
+  package, workspace, and service markers.
+- Explicit scope selection, local evidence with inherited support, and a
+  portable additive hierarchy with nearest-scope override.
+- Nested `AGENTS.md` and optional `AGENTS.reference.md` ownership, provenance,
+  signatures, independent `## Free Region` sections, and safe legacy migration.
+- Structural and evidence conflict reporting, root fallback, shared-rule
+  deduplication, and informational missing-scope suggestions.
+- Compact, standard, and deep workflow budgets for local model capability
+  profiles, with fixed input, output, and follow-up ceilings.
 
 Dependency: Milestone 1 must provide reliable evidence, provenance, and
 maintenance behavior first.
-
-### Milestone 3: Scoped Guidance
-
-Status: Planned
-
-Extend the root-focused model to repositories with nested guidance files.
-
-Deliverables:
-
-- Scope discovery for structures such as `packages/api/AGENTS.md` and
-  `services/payments/AGENTS.md`.
-- Inheritance, precedence, conflict reporting, root fallback, and shared-rule
-  deduplication.
-- Consistent configuration and managed signatures across scoped documents.
-
-Dependency: Milestone 1 establishes document ownership and Milestone 2
-establishes task-aware context boundaries.
 
 ## Milestone Exit Criteria
 
 - **Guidance:** Managed documents, `## Free Region`, signatures,
   provenance, validation, drift, skill workflows, and the advisory reusable
   GitHub Actions are covered by tests and locked verification passes.
-- **Task Context:** Repeatable benchmark tasks demonstrate that generated
-  context selects relevant files, rules, commands, tests, hazards, ownership,
-  and uncertainty with evidence.
 - **Scoped Guidance:** Nested-document fixtures demonstrate correct scope
   discovery, inheritance, precedence, conflict reporting, deduplication,
-  fallback, and signature configuration.
+  fallback, migration, signature configuration, and budget enforcement.
 
 ## Release-Wide Success Criteria
 
@@ -141,13 +128,14 @@ establishes task-aware context boundaries.
 
 ## Release Boundaries
 
-The first implementation is root-focused. The Rust runtime must remain Rust
-only, and it must not generate semantic Markdown. Target-language fixtures may
-continue to use any supported language.
+The Milestone 1 implementation is root-focused. The Rust runtime must remain
+Rust only, and it must not generate semantic Markdown. Target-language fixtures
+may continue to use any supported language.
 
-Defer hosted dashboards, hosted repository analysis, automatic local
-regeneration, broad team governance, enterprise policy enforcement, additional
-language support without guidance-quality improvements, and static semantic
+Defer task-specific context packs, hosted dashboards, hosted repository
+analysis, automatic local regeneration, broad team governance, enterprise
+policy enforcement, additional language support without guidance-quality
+improvements, automatic model or hardware detection, and static semantic
 Markdown generation in Rust.
 
 ## Open Risks And Decisions
@@ -158,7 +146,7 @@ Markdown generation in Rust.
   preserving safe default behavior.
 - Keep workflow-level signature overrides temporary and ensure post-write
   validation receives the same override.
-- Establish how scoped documents inherit the root `## Free Region` and signature
-  policy when Milestone 3 begins.
+- Establish benchmark baselines for compact, standard, and deep local-model
+  budget modes.
 - Evaluate whether advisory drift findings are sufficient before introducing a
   strict CI mode.

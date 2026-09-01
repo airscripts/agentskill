@@ -52,7 +52,7 @@ the synthesis contract and includes:
 
 ```json
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "agentskill_version": "2.0.0",
   "repository": {"root": "...", "revision": "...", "dirty": false},
   "facts": [
@@ -65,6 +65,27 @@ the synthesis contract and includes:
       "evidence": [{"path": "Makefile"}]
     }
   ],
+  "budget": {"mode": "standard", "input_tokens": 8000, "output_tokens": 1000, "follow_up_rounds": 2},
+  "scopes": [{
+    "path": ".",
+    "parent": ".",
+    "status": "managed",
+    "resolution": {
+      "ancestors": [],
+      "fallback": ".",
+      "precedence": "nearest-scope-wins"
+    }
+  }],
+  "scope_evidence": [{
+    "path": ".",
+    "parent": ".",
+    "ancestors": [],
+    "fallback": ".",
+    "local_files": [],
+    "inherited_files": [],
+    "graph_files": [],
+    "excluded_siblings": []
+  }],
   "analyzers": {}
 }
 ```
@@ -73,6 +94,14 @@ Every normalized fact has an identifier, scope, confidence, and provenance.
 Facts should be compact and actionable: inventories, tools, commands, test
 topology, language roles, and architectural boundaries. Raw analyzer output is
 retained for deeper inspection, not copied into Markdown.
+
+`scopes` is a deterministic manifest of existing and candidate guidance
+boundaries. `scope_evidence` identifies local files, inherited support files,
+graph-related files, and excluded siblings for each selected scope. Every scope
+also exposes its ancestor chain, nearest managed fallback, and precedence.
+Validation and drift report unsupported or low-confidence evidence, duplicate
+inherited rules, and contradictory inherited rules; semantic rule authorship
+remains with the LLM.
 
 ## Crate Responsibilities
 
@@ -127,7 +156,7 @@ repository workflow needs to test the checked-out CLI.
 
 ## LLM Document Contract
 
-The skill owns `init`, `enrich`, `scope`, `context`, `update`, `audit`, and
+The skill owns `init`, `enrich`, `scope`, `update`, `audit`, and
 `explain`.
 `operational` and `reference` are depth views of one understanding, not two
 independent generations.
@@ -144,10 +173,11 @@ architecture, rationale, ownership, workflows, examples, history, uncertainty,
 and evidence details. The skill should load it selectively; very large context
 may be split into topic files while keeping the root index compact.
 
-There are no Rust-side profiles, layouts, reference loaders, interactive
-prompts, or feedback sidecars. The LLM decides whether to create or update the
-root and reference views after comparing evidence with direct source
-inspection.
+The Rust runtime exposes scope discovery, scoped evidence, validation, drift,
+and fixed budget profiles, but never authors semantic Markdown. The LLM decides
+whether to create or update each scope after comparing evidence with direct
+source inspection and a semantic diff. Missing candidates are suggestions and
+do not create files automatically.
 
 ## CLI Contracts
 
@@ -156,9 +186,11 @@ agentskill <command> ...
 agsk       <command> ...
 ```
 
-Public commands are `analyze`, `evidence`, `scan`, `measure`, `config`, `git`,
-`graph`, `symbols`, `tests`, `validate`, and `drift`. JSON commands support
-`--pretty` and safe relative `--out FILE`. Analyzer failures are JSON payloads
+Public commands are `analyze`, `evidence`, `scopes`, `scan`, `measure`, `config`,
+`git`, `graph`, `symbols`, `tests`, `validate`, and `drift`. `evidence`,
+`validate`, and `drift` accept repeatable `--scope PATH`; `evidence` accepts
+`--budget compact|standard|deep`. JSON commands support `--pretty` and safe
+relative `--out FILE`. Analyzer failures are JSON payloads
 with a failed status; invalid arguments and unusable paths are process errors.
 
 ## Testing And Extension

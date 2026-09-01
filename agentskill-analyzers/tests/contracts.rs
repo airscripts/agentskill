@@ -89,10 +89,13 @@ fn evidence_bundle_contains_scoped_facts_and_provenance() {
     );
 
     let output = agentskill_analyzers::run_evidence(&example, None).unwrap();
-    assert_eq!(output["schema_version"], 3);
+    assert_eq!(output["schema_version"], 4);
     assert_eq!(output["agentskill_version"], env!("CARGO_PKG_VERSION"));
     assert!(output["repository"]["root"].is_string());
     assert!(output["repository"]["dirty"].is_boolean());
+    assert!(output["budget"]["input_tokens"].is_number());
+    assert!(output["scopes"].is_array());
+    assert!(output["scope_evidence"].is_array());
     let facts = output["facts"].as_array().unwrap();
     assert!(!facts.is_empty());
     assert!(output["repository"]["configuration"]["valid"].is_boolean());
@@ -119,6 +122,139 @@ fn evidence_bundle_contains_scoped_facts_and_provenance() {
     let mut sorted_ids = ids.clone();
     sorted_ids.sort_unstable();
     assert_eq!(ids, sorted_ids);
+}
+
+#[test]
+fn scope_manifest_and_budgeted_evidence_are_deterministic() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::write(directory.path().join("AGENTS.md"), "# AGENTS\n").unwrap();
+    fs::create_dir_all(directory.path().join("packages/api/src")).unwrap();
+    fs::create_dir_all(directory.path().join("packages/web")).unwrap();
+
+    fs::write(
+        directory.path().join("packages/api/package.json"),
+        "{\"name\":\"api\"}\n",
+    )
+    .unwrap();
+
+    fs::write(
+        directory.path().join("packages/api/AGENTS.md"),
+        "# API\n\n## Scope\n\n- Path: packages/api\n- Parent: .\n- Inheritance: additive.\n\n## Free Region\n\nLocal.\n",
+    )
+    .unwrap();
+
+    fs::write(
+        directory.path().join("packages/api/src/lib.rs"),
+        "pub fn api() {}\n",
+    )
+    .unwrap();
+
+    fs::write(
+        directory.path().join("packages/api/src/index.js"),
+        "import { util } from './util.js'; export const api = util;\n",
+    )
+    .unwrap();
+
+    fs::write(
+        directory.path().join("packages/api/src/util.js"),
+        "export const util = true;\n",
+    )
+    .unwrap();
+
+    fs::write(
+        directory.path().join("packages/web/index.js"),
+        "export const web = true;\n",
+    )
+    .unwrap();
+
+    fs::create_dir_all(directory.path().join("src")).unwrap();
+    for index in 0..40 {
+        fs::write(
+            directory.path().join(format!("src/file{index}.rs")),
+            "pub fn generated_fixture() {}\n",
+        )
+        .unwrap();
+    }
+
+    let repo = directory.path().to_string_lossy().into_owned();
+    let manifest = agentskill_analyzers::run_scopes(&repo, None).unwrap();
+    let paths = manifest["scopes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|scope| scope["path"].as_str().unwrap())
+        .collect::<Vec<_>>();
+
+    assert_eq!(paths, vec![".", "packages/api"]);
+
+    let selected = ["packages/api".to_string()];
+    let evidence =
+        agentskill_analyzers::run_evidence_scoped(&repo, None, Some(&selected), Some("compact"))
+            .unwrap();
+
+    assert_eq!(evidence["budget"]["mode"], "compact");
+    assert_eq!(evidence["scopes"][0]["path"], "packages/api");
+    assert_eq!(evidence["scopes"][0]["resolution"]["fallback"], ".");
+    assert_eq!(evidence["scopes"][0]["resolution"]["ancestors"][0], ".");
+    assert_eq!(evidence["scope_evidence"][0]["fallback"], ".");
+    assert_eq!(evidence["scope_evidence"][0]["ancestors"][0], ".");
+
+    assert!(
+        evidence["scope_evidence"][0]["graph_files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|path| path == "packages/api/src/util.js")
+    );
+
+    assert_eq!(
+        evidence["scopes"][0]["resolution"]["precedence"],
+        "nearest-scope-wins"
+    );
+
+    assert!(
+        evidence["scope_evidence"][0]["local_files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|path| path == "packages/api/src/lib.rs")
+    );
+
+    assert!(
+        evidence["scope_evidence"][0]["excluded_siblings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|path| path == "packages/web/index.js")
+    );
+
+    assert!(
+        evidence["analyzers"]["scan"]["tree"]
+            .as_array()
+            .unwrap()
+            .len()
+            <= 32
+    );
+
+    let standard =
+        agentskill_analyzers::run_evidence_scoped(&repo, None, Some(&selected), Some("standard"))
+            .unwrap();
+
+    assert!(
+        standard["analyzers"]["scan"]["tree"]
+            .as_array()
+            .unwrap()
+            .len()
+            > 32
+    );
+
+    let explicit = ["src".to_string()];
+    let explicit_manifest = agentskill_analyzers::run_scopes(&repo, Some(&explicit)).unwrap();
+    assert_eq!(explicit_manifest["scopes"][0]["path"], "src");
+    assert_eq!(
+        explicit_manifest["scopes"][0]["resolution"]["ancestors"][0],
+        "."
+    );
 }
 
 #[test]

@@ -10,10 +10,15 @@ use crate::common::RepoSnapshot;
 
 use agentskill_core::Result;
 
-pub(crate) fn run_snapshot(snapshot: &RepoSnapshot, lang: Option<&str>) -> Result<Value> {
+pub(crate) fn run_snapshot(
+    snapshot: &RepoSnapshot,
+    lang: Option<&str>,
+    selected: Option<&[String]>,
+    budget: Option<&str>,
+) -> Result<Value> {
     let root = &snapshot.root;
     let files = &snapshot.files;
-    let analysis = crate::run_all_snapshot(snapshot, lang);
+    let mut analysis = crate::run_all_snapshot(snapshot, lang);
     let configuration = load_config(root);
 
     let mut facts = Vec::new();
@@ -24,13 +29,187 @@ pub(crate) fn run_snapshot(snapshot: &RepoSnapshot, lang: Option<&str>) -> Resul
     add_repository_config_fact(&mut facts, &configuration);
     facts.sort_by(|left, right| left["id"].as_str().cmp(&right["id"].as_str()));
 
+    let scopes = crate::scope::run(root.to_string_lossy().as_ref(), selected)?;
+    let budget = budget_profile(budget)?;
+    apply_budget(&mut analysis, budget["mode"].as_str().unwrap_or("standard"));
+    let scope_evidence = scoped_evidence(snapshot, &scopes["scopes"], &analysis);
+
     Ok(json!({
-        "schema_version": 3,
+        "schema_version": 4,
         "agentskill_version": env!("CARGO_PKG_VERSION"),
         "repository": repository_metadata(root, &configuration),
+        "budget": budget,
+        "scopes": scopes["scopes"],
+        "scope_evidence": scope_evidence,
         "facts": facts,
         "analyzers": analysis,
     }))
+}
+
+fn budget_profile(mode: Option<&str>) -> Result<Value> {
+    let mode = mode.unwrap_or("standard");
+    let profile = match mode {
+        "compact" => (4_000, 512, 1),
+        "standard" => (8_000, 1_000, 2),
+        "deep" => (16_000, 2_000, 4),
+        other => {
+            return Err(agentskill_core::AgentskillError::InvalidArgument(format!(
+                "unknown budget mode: {other}"
+            )));
+        }
+    };
+
+    Ok(json!({
+        "mode": mode,
+        "input_tokens": profile.0,
+        "output_tokens": profile.1,
+        "follow_up_rounds": profile.2,
+    }))
+}
+
+fn apply_budget(analysis: &mut Value, mode: &str) {
+    if mode != "compact" {
+        return;
+    }
+
+    for (key, limit) in [("tree", 32), ("read_order", 16)] {
+        if let Some(values) = analysis["scan"][key].as_array_mut() {
+            values.truncate(limit);
+        }
+    }
+
+    if let Some(languages) = analysis["graph"].as_object_mut() {
+        for result in languages.values_mut() {
+            if let Some(edges) = result["edges"].as_array_mut() {
+                edges.truncate(32);
+            }
+        }
+    }
+
+    truncate_arrays(analysis, 32);
+}
+
+fn truncate_arrays(value: &mut Value, limit: usize) {
+    match value {
+        Value::Array(values) => {
+            values.truncate(limit);
+            for value in values {
+                truncate_arrays(value, limit);
+            }
+        }
+        Value::Object(values) => {
+            for value in values.values_mut() {
+                truncate_arrays(value, limit);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn scoped_evidence(snapshot: &RepoSnapshot, scopes: &Value, analysis: &Value) -> Vec<Value> {
+    scopes
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|scope| {
+            let path = scope["path"].as_str().unwrap_or(".");
+            let local_prefix = if path == "." {
+                String::new()
+            } else {
+                format!("{path}/")
+            };
+
+            let local = snapshot
+                .files
+                .iter()
+                .filter(|file| {
+                    path == "." || file.relative == path || file.relative.starts_with(&local_prefix)
+                })
+                .map(|file| file.relative.clone())
+                .collect::<Vec<_>>();
+
+            let inherited = snapshot
+                .files
+                .iter()
+                .filter(|file| {
+                    !local.contains(&file.relative)
+                        && inherited_support_file(&file.relative, path, file.role)
+                })
+                .map(|file| file.relative.clone())
+                .collect::<Vec<_>>();
+
+            let excluded_siblings = snapshot
+                .files
+                .iter()
+                .filter(|file| {
+                    !local.contains(&file.relative)
+                        && !inherited.contains(&file.relative)
+                        && path != "."
+                        && !file.relative.starts_with(&local_prefix)
+                })
+                .map(|file| file.relative.clone())
+                .take(32)
+                .collect::<Vec<_>>();
+
+            let graph_files = graph_related_files(analysis, &local, path);
+            json!({
+                "path": path,
+                "parent": scope["parent"],
+                "ancestors": scope["resolution"]["ancestors"],
+                "fallback": scope["resolution"]["fallback"],
+                "local_files": local,
+                "inherited_files": inherited,
+                "graph_files": graph_files,
+                "excluded_siblings": excluded_siblings,
+            })
+        })
+        .collect()
+}
+
+fn inherited_support_file(path: &str, scope: &str, role: agentskill_core::fs::FileRole) -> bool {
+    if scope == "." {
+        return true;
+    }
+
+    let depth = Path::new(scope).components().count();
+    let file_depth = Path::new(path).components().count();
+
+    let is_ancestor = file_depth <= depth
+        && Path::new(scope).starts_with(Path::new(path).parent().unwrap_or_else(|| Path::new(".")));
+
+    let top_level = file_depth == 1;
+    let shared_ci = path.starts_with(".github/");
+    shared_ci
+        || is_ancestor
+            && (top_level
+                || matches!(
+                    role,
+                    FileRole::Configuration | FileRole::Documentation | FileRole::Auxiliary
+                ))
+}
+
+fn graph_related_files(analysis: &Value, local: &[String], scope: &str) -> Vec<String> {
+    let mut related = BTreeSet::new();
+    let Some(languages) = analysis["graph"].as_object() else {
+        return Vec::new();
+    };
+
+    for result in languages.values() {
+        for edge in result["edges"].as_array().into_iter().flatten() {
+            let from = edge["from"].as_str().unwrap_or_default();
+            let to = edge["to"].as_str().unwrap_or_default();
+
+            let local_edge = local
+                .iter()
+                .any(|path| path.ends_with(from) || path.ends_with(to));
+
+            if local_edge || scope == "." {
+                related.insert(from.to_string());
+                related.insert(to.to_string());
+            }
+        }
+    }
+    related.into_iter().collect()
 }
 
 fn repository_metadata(root: &Path, configuration: &RepositoryConfig) -> Value {

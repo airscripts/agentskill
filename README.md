@@ -152,7 +152,7 @@ directory as a skill, run the evidence command, read `SYSTEM.md`, and author
 the final `AGENTS.md` itself. Semantic Markdown generation happens through the
 LLM skill rather than the Rust CLI.
 
-The skill supports `init`, `enrich`, `scope`, `context`, `update`, and `audit`
+The skill supports `init`, `enrich`, `scope`, `update`, and `audit`
 workflows. `operational` output is the compact root document; `reference`
 output is deeper context loaded only when needed.
 
@@ -235,6 +235,8 @@ CLI never writes semantic Markdown.
 agentskill analyze <repo> --pretty
 agentskill analyze <repo-a> <repo-b> --pretty
 agentskill evidence <repo> --pretty
+agentskill scopes <repo> --pretty
+agentskill evidence <repo> --scope packages/api --budget compact --pretty
 agentskill scan <repo> --pretty
 agentskill measure <repo> --lang rust --pretty
 agentskill config <repo> --pretty
@@ -248,6 +250,7 @@ agentskill --out report.json analyze <repo>
 
 agentskill validate <repo> --signature auto
 agentskill drift <repo> --signature auto
+agentskill validate <repo> --scope packages/api --signature auto
 ```
 
 Use `agsk` in place of `agentskill` for every command. Run
@@ -262,12 +265,21 @@ path. Use an individual analyzer when a focused signal is needed.
 
 Use `evidence` when an LLM needs normalized facts with scope, confidence, and
 provenance. Use an individual analyzer when a focused static signal is needed.
+Scope manifests include ancestor chains, nearest managed fallback, and
+nearest-scope-wins precedence. Validation and drift also report unsupported or
+low-confidence facts, duplicate inherited rules, and conflicting inherited
+rules.
 
-Use the installed skill for `init`, `enrich`, `scope`, `context`, `update`, and
-`audit`, and `explain` a rule with its evidence. Use `validate` and `drift` after
-the skill writes or updates documents. Custom maintainer instructions belong in
-the root-level `## Free Region`; other document content is managed by
+Use the installed skill for `init`, `enrich`, `scope`, `update`, and `audit`, and
+`explain` a rule with its evidence. Use `validate` and `drift` after the skill
+writes or updates documents. Custom maintainer instructions belong in each
+document's local `## Free Region`; other document content is managed by
 Agentskill.
+
+The skill supports `compact`, `standard`, and `deep` budget modes for local AI
+harnesses. Compact mode keeps high-confidence operational guidance while
+reducing context, output, and follow-up rounds; it does not attempt to detect
+hardware or guarantee tokens-per-second performance.
 
 For CI integration, use the reusable GitHub Actions in `agentskill-actions/`
 from a caller workflow after checking out the repository. Use `drift` for
@@ -295,8 +307,8 @@ When a reference document exists, it must include visible provenance and
 decision fields so drift checks can compare its evidence revision with the
 current repository.
 
-The LLM skill is responsible for `init`, `enrich`, `scope`, `context`, `update`,
-`audit`, and `explain`. The CLI remains deterministic and read-only: `evidence`
+The LLM skill is responsible for `init`, `enrich`, `scope`, `update`, `audit`,
+and `explain`. The CLI remains deterministic and read-only: `evidence`
 supplies facts, while `validate` and `drift` check the documents after the skill
 writes them.
 
