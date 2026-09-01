@@ -188,6 +188,31 @@ fn scope_manifest_and_budgeted_evidence_are_deterministic() {
     assert_eq!(paths, vec![".", "packages/api"]);
 
     let selected = ["packages/api".to_string()];
+
+    for (mode, input_tokens, output_tokens, follow_up_rounds) in [
+        ("compact", 4_000, 512, 1),
+        ("standard", 8_000, 1_000, 2),
+        ("deep", 16_000, 2_000, 4),
+    ] {
+        let profile =
+            agentskill_analyzers::run_evidence_scoped(&repo, None, Some(&selected), Some(mode))
+                .unwrap();
+
+        assert_eq!(profile["budget"]["mode"], mode);
+        assert_eq!(profile["budget"]["input_tokens"], input_tokens);
+        assert_eq!(profile["budget"]["output_tokens"], output_tokens);
+        assert_eq!(profile["budget"]["follow_up_rounds"], follow_up_rounds);
+        let tree_len = profile["analyzers"]["scan"]["tree"]
+            .as_array()
+            .unwrap()
+            .len();
+        if mode == "compact" {
+            assert!(tree_len <= 32);
+        } else {
+            assert!(tree_len > 32);
+        }
+    }
+
     let evidence =
         agentskill_analyzers::run_evidence_scoped(&repo, None, Some(&selected), Some("compact"))
             .unwrap();
@@ -235,6 +260,18 @@ fn scope_manifest_and_budgeted_evidence_are_deterministic() {
             .len()
             <= 32
     );
+    assert!(
+        evidence["analyzers"]["scan"]["read_order"]
+            .as_array()
+            .unwrap()
+            .len()
+            <= 16
+    );
+    for result in evidence["analyzers"]["graph"].as_object().unwrap().values() {
+        if let Some(edges) = result["edges"].as_array() {
+            assert!(edges.len() <= 32);
+        }
+    }
 
     let standard =
         agentskill_analyzers::run_evidence_scoped(&repo, None, Some(&selected), Some("standard"))
@@ -246,6 +283,22 @@ fn scope_manifest_and_budgeted_evidence_are_deterministic() {
             .unwrap()
             .len()
             > 32
+    );
+
+    let deep =
+        agentskill_analyzers::run_evidence_scoped(&repo, None, Some(&selected), Some("deep"))
+            .unwrap();
+    assert!(deep["analyzers"]["scan"]["tree"].as_array().unwrap().len() > 32);
+    assert!(
+        deep["analyzers"]["scan"]["tree"].as_array().unwrap().len()
+            >= standard["analyzers"]["scan"]["tree"]
+                .as_array()
+                .unwrap()
+                .len()
+    );
+    assert!(
+        agentskill_analyzers::run_evidence_scoped(&repo, None, Some(&selected), Some("unknown"))
+            .is_err()
     );
 
     let explicit = ["src".to_string()];

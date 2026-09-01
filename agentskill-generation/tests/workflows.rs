@@ -33,6 +33,24 @@ fn validates_operational_and_reference_documents() {
     let result = validate(directory.path().to_string_lossy().as_ref()).unwrap();
 
     assert_eq!(result["valid"], true);
+
+    let without_reference_link = fs::read_to_string(directory.path().join("AGENTS.md"))
+        .unwrap()
+        .replace("\nRead `AGENTS.reference.md`.", "");
+    fs::write(directory.path().join("AGENTS.md"), without_reference_link).unwrap();
+
+    let unreferenced = validate(directory.path().to_string_lossy().as_ref()).unwrap();
+    assert_eq!(unreferenced["valid"], false);
+    assert!(
+        unreferenced["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|finding| {
+                finding["kind"] == "unreferenced_reference_document"
+                    && finding["document"] == "AGENTS.md"
+            })
+    );
 }
 
 #[test]
@@ -487,6 +505,153 @@ fn validates_nested_scopes_and_reports_missing_candidates_advisory() {
                     && finding["document"] == "packages/web"
             })
     );
+}
+
+#[test]
+fn validates_nested_references_with_inherited_signature_configuration() {
+    let directory = tempdir().unwrap();
+    fs::write(
+        directory.path().join("agentskill.toml"),
+        "signature = false\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("AGENTS.md"),
+        "# Root Guidance\n\n## Free Region\n\nRoot custom instructions.\n",
+    )
+    .unwrap();
+    fs::create_dir_all(directory.path().join("packages/api/src")).unwrap();
+    fs::write(
+        directory.path().join("packages/api/src/lib.rs"),
+        "pub fn api() {}\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("packages/api/AGENTS.md"),
+        "# API Guidance\n\n## Scope\n\n- Path: packages/api\n- Parent: .\n- Inheritance: additive; nearest scope wins.\n\n## Mission\n\nRead `src/lib.rs`.\n\nRead `AGENTS.reference.md` for local API context.\n\n## Free Region\n\nAPI custom instructions.\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("packages/api/AGENTS.reference.md"),
+        "# API Reference\n\n## Provenance And Decisions\n\n- Agentskill Version: `2.0.0`.\n- Evidence Schema Version: `4`.\n- Repository Revision: `fixture-revision`.\n- Configuration: inherited signature disabled.\n- Maintainer-Confirmed Decisions: Scope uses local API instructions.\n- Unresolved Uncertainty: None recorded.\n\nLocal API reference context.\n",
+    )
+    .unwrap();
+
+    let root = fs::read_to_string(directory.path().join("AGENTS.md")).unwrap();
+    let scoped = fs::read_to_string(directory.path().join("packages/api/AGENTS.md")).unwrap();
+    let repo = directory.path().to_string_lossy().into_owned();
+
+    let report = validate_with_mode_and_scopes(&repo, SignatureMode::Auto, None).unwrap();
+    assert_eq!(report["valid"], true);
+    assert_eq!(report["configuration"]["signature"], false);
+    assert!(
+        report["validated_scopes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|path| path == "packages/api")
+    );
+
+    let root_free = parse(&root)
+        .sections
+        .into_iter()
+        .find(|section| section.heading == "Free Region")
+        .unwrap()
+        .body;
+    let scoped_free = parse(&scoped)
+        .sections
+        .into_iter()
+        .find(|section| section.heading == "Free Region")
+        .unwrap()
+        .body;
+    assert_ne!(root_free, scoped_free);
+
+    let without_reference_link =
+        scoped.replace("\nRead `AGENTS.reference.md` for local API context.", "");
+    fs::write(
+        directory.path().join("packages/api/AGENTS.md"),
+        without_reference_link,
+    )
+    .unwrap();
+
+    let unreferenced = validate_with_mode_and_scopes(&repo, SignatureMode::Auto, None).unwrap();
+    assert_eq!(unreferenced["valid"], false);
+    assert!(
+        unreferenced["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|finding| {
+                finding["kind"] == "unreferenced_reference_document"
+                    && finding["document"] == "AGENTS.md"
+            })
+    );
+
+    fs::write(directory.path().join("packages/api/AGENTS.md"), &scoped).unwrap();
+
+    let overridden = validate_with_mode_and_scopes(&repo, SignatureMode::On, None).unwrap();
+    assert_eq!(overridden["valid"], false);
+    assert!(
+        overridden["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|finding| finding["kind"] == "missing_signature")
+    );
+
+    let disabled = validate_with_mode_and_scopes(&repo, SignatureMode::Off, None).unwrap();
+    assert_eq!(disabled["valid"], true);
+}
+
+#[test]
+fn legacy_scoped_documents_are_advisory_until_explicitly_adopted() {
+    let directory = tempdir().unwrap();
+    fs::write(
+        directory.path().join("AGENTS.md"),
+        "# Root Guidance\n\n## Free Region\n\nRoot custom instructions.\n",
+    )
+    .unwrap();
+    fs::create_dir_all(directory.path().join("packages/api")).unwrap();
+    fs::write(
+        directory.path().join("packages/api/AGENTS.md"),
+        "# Legacy API Guidance\n\n## Free Region\n\nLegacy custom instructions.\n",
+    )
+    .unwrap();
+
+    let path = directory.path().join("packages/api/AGENTS.md");
+    let before = fs::read_to_string(&path).unwrap();
+    let repo = directory.path().to_string_lossy().into_owned();
+    let scopes = agentskill_analyzers::run_scopes(&repo, None).unwrap();
+    let legacy = scopes["scopes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|scope| scope["path"] == "packages/api")
+        .unwrap();
+
+    assert_eq!(legacy["status"], "legacy");
+
+    let report = validate_with_mode_and_scopes(&repo, SignatureMode::Off, None).unwrap();
+    assert_eq!(report["valid"], true);
+    assert!(
+        report["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|finding| {
+                finding["kind"] == "legacy_scoped_document"
+                    && finding["severity"] == "warning"
+                    && finding["document"] == "packages/api"
+            })
+    );
+    assert!(
+        !report["validated_scopes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|path| path == "packages/api")
+    );
+    assert_eq!(fs::read_to_string(&path).unwrap(), before);
 }
 
 #[test]

@@ -82,7 +82,9 @@ Implementation plan: [`PLAN.md`](./PLAN.md).
 
 ### Milestone 2: Scoped Guidance
 
-Status: Planned
+Status: Complete
+
+Completed: 2026-09-01
 
 Extend the root-focused model to repositories with nested guidance files and
 resource-constrained local AI harnesses.
@@ -110,7 +112,8 @@ maintenance behavior first.
   GitHub Actions are covered by tests and locked verification passes.
 - **Scoped Guidance:** Nested-document fixtures demonstrate correct scope
   discovery, inheritance, precedence, conflict reporting, deduplication,
-  fallback, migration, signature configuration, and budget enforcement.
+  fallback, migration, signature configuration, and budget profile selection
+  with evidence bounding.
 
 ## Release-Wide Success Criteria
 
@@ -140,8 +143,6 @@ Markdown generation in Rust.
 
 ## Open Risks And Decisions
 
-- Define the migration experience for existing documents that lack provenance
-  or a `## Free Region`.
 - Confirm how malformed `agentskill.toml` is surfaced to the LLM workflow while
   preserving safe default behavior.
 - Keep workflow-level signature overrides temporary and ensure post-write

@@ -103,6 +103,11 @@ Validation and drift report unsupported or low-confidence evidence, duplicate
 inherited rules, and contradictory inherited rules; semantic rule authorship
 remains with the LLM.
 
+The Rust runtime bounds evidence detail for the selected profile. The invoking
+LLM harness owns actual input-context, output-token, and follow-up-round
+ceilings using the profile metadata; the runtime does not perform token
+counting.
+
 ## Crate Responsibilities
 
 ### Core

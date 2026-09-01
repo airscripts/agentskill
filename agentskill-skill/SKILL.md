@@ -24,9 +24,12 @@ finished document.
 7. Write compact managed `AGENTS.md` guidance and reference context when
    provenance or decisions require it. Scoped documents include local `## Scope`
    metadata, an independent `## Free Region`, and an explicit parent link.
-8. Present the complete semantic plan and diff before writing. Never create
+8. Treat legacy scoped documents as read-only advisory candidates. Adopt or
+   migrate one only after explicit, reviewed LLM workflow selection; never
+   rewrite it automatically.
+9. Present the complete semantic plan and diff before writing. Never create
    documents for merely suggested candidates.
-9. Run `agentskill validate <repo> --signature <mode>` and show the semantic
+10. Run `agentskill validate <repo> --signature <mode>` and show the semantic
    diff. Use `auto` unless the workflow request explicitly selects `on` or
    `off`.
 

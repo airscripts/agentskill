@@ -61,6 +61,10 @@ uncertainty. The Agentskill version determines freshness; the repository
 revision records exact source provenance and may change without making
 guidance stale.
 
+Safe legacy migration means read-only detection followed by explicit, reviewed
+adoption through the LLM skill. Legacy scoped documents are advisory candidates;
+the Rust CLI never rewrites or automatically adopts them.
+
 ## Generation Modes
 
 The packaged skill provides the complete LLM workflow. The model reads the
@@ -72,8 +76,8 @@ sections directly.
 The skill supports `init`, `enrich`, `scope`, `update`, `audit`, and
 `explain` workflows. `operational` and `reference` are depth views over one
 repository understanding, not competing sources of truth. Milestone 1
-formalizes `init`, `update`, `audit`, and `explain`; the other workflows remain
-compatible but are not expanded here.
+formalizes `init`, `update`, `audit`, and `explain`; Milestone 2 formalizes
+`scope`. The `enrich` workflow remains compatible but is not expanded here.
 
 ## Managed Signature
 
@@ -99,6 +103,11 @@ preserves normal evidence depth. `compact` is for CPU-constrained local
 harnesses and preserves high-confidence operational guidance before dropping
 low-confidence details, examples, history, or deep references. `deep` permits
 broader reference loading.
+
+The Rust runtime directly bounds repository evidence detail, especially in
+compact mode. The invoking LLM harness owns actual input-context, output-token,
+and follow-up-round ceilings using the profile metadata; the Rust runtime does
+not perform token counting.
 
 The fixed ceilings are:
 

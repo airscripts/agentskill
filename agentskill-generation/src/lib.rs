@@ -1026,6 +1026,21 @@ fn validate_markdown(
         ));
     }
 
+    let is_operational = path.file_name().and_then(|name| name.to_str()) == Some("AGENTS.md");
+    let reference = path.with_file_name("AGENTS.reference.md");
+    if is_operational && reference.is_file() && !content.contains("AGENTS.reference.md") {
+        let message = "AGENTS.md must reference local AGENTS.reference.md when it exists";
+        errors.push(format!("{}: {message}", display_path(root, path).display()));
+
+        findings.push(finding(
+            "unreferenced_reference_document",
+            "error",
+            &display_path(root, path).to_string_lossy(),
+            message,
+            Some("AGENTS.reference.md"),
+        ));
+    }
+
     for referenced in referenced_paths(&content) {
         if referenced != "."
             && !is_optional_reference(root, &referenced)
