@@ -26,7 +26,7 @@ fn validates_operational_and_reference_documents() {
 
     fs::write(
         directory.path().join("AGENTS.reference.md"),
-        "# AGENTS Reference\n\n## Provenance And Decisions\n\n- Agentskill Version: `2.0.0`\n- Evidence Schema Version: `4`\n- Repository Revision: `unknown`\n- Configuration: default signature enabled.\n- Maintainer-Confirmed Decisions: None recorded.\n- Unresolved Uncertainty: None recorded.\n\nDetailed context.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
+        "# AGENTS Reference\n\n## Provenance And Decisions\n\n- Agentskill Version: `2.1.0`\n- Evidence Schema Version: `4`\n- Repository Revision: `unknown`\n- Configuration: default signature enabled.\n- Maintainer-Confirmed Decisions: None recorded.\n- Unresolved Uncertainty: None recorded.\n\nDetailed context.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
     )
     .unwrap();
 
@@ -197,7 +197,7 @@ fn reports_changed_reference_revision_without_marking_drift_stale() {
 
     fs::write(
         directory.path().join("AGENTS.reference.md"),
-        "# Reference\n\n## Provenance And Decisions\n\n- Agentskill Version: `2.0.0`\n- Evidence Schema Version: `4`\n- Repository Revision: `old-revision`\n- Configuration: default signature enabled.\n- Maintainer-Confirmed Decisions: None recorded.\n- Unresolved Uncertainty: None recorded.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
+        "# Reference\n\n## Provenance And Decisions\n\n- Agentskill Version: `2.1.0`\n- Evidence Schema Version: `4`\n- Repository Revision: `old-revision`\n- Configuration: default signature enabled.\n- Maintainer-Confirmed Decisions: None recorded.\n- Unresolved Uncertainty: None recorded.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
     )
     .unwrap();
 
@@ -328,7 +328,7 @@ fn reports_unsupported_and_uncertain_fact_references() {
 
     fs::write(
         directory.path().join("AGENTS.reference.md"),
-        "# Reference\n\n## Provenance And Decisions\n\n- Agentskill Version: `2.0.0`\n- Evidence Schema Version: `4`\n- Repository Revision: `current`\n- Configuration: invalid configuration is uncertain.\n- Maintainer-Confirmed Decisions: None recorded.\n- Unresolved Uncertainty: None recorded.\n\nThe `configuration.signature` fact is uncertain.\nThe `test.command.999` fact is unsupported.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
+        "# Reference\n\n## Provenance And Decisions\n\n- Agentskill Version: `2.1.0`\n- Evidence Schema Version: `4`\n- Repository Revision: `current`\n- Configuration: invalid configuration is uncertain.\n- Maintainer-Confirmed Decisions: None recorded.\n- Unresolved Uncertainty: None recorded.\n\nThe `configuration.signature` fact is uncertain.\nThe `test.command.999` fact is unsupported.\n\n---\n\n> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).\n> Do not touch this file. It is automatically managed by Agentskill.\n",
     )
     .unwrap();
 
@@ -533,7 +533,7 @@ fn validates_nested_references_with_inherited_signature_configuration() {
     .unwrap();
     fs::write(
         directory.path().join("packages/api/AGENTS.reference.md"),
-        "# API Reference\n\n## Provenance And Decisions\n\n- Agentskill Version: `2.0.0`.\n- Evidence Schema Version: `4`.\n- Repository Revision: `fixture-revision`.\n- Configuration: inherited signature disabled.\n- Maintainer-Confirmed Decisions: Scope uses local API instructions.\n- Unresolved Uncertainty: None recorded.\n\nLocal API reference context.\n",
+        "# API Reference\n\n## Provenance And Decisions\n\n- Agentskill Version: `2.1.0`.\n- Evidence Schema Version: `4`.\n- Repository Revision: `fixture-revision`.\n- Configuration: inherited signature disabled.\n- Maintainer-Confirmed Decisions: Scope uses local API instructions.\n- Unresolved Uncertainty: None recorded.\n\nLocal API reference context.\n",
     )
     .unwrap();
 

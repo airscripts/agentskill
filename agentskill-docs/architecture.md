@@ -53,7 +53,7 @@ the synthesis contract and includes:
 ```json
 {
   "schema_version": 4,
-  "agentskill_version": "2.0.0",
+  "agentskill_version": "2.1.0",
   "repository": {"root": "...", "revision": "...", "dirty": false},
   "facts": [
     {
@@ -217,5 +217,5 @@ documentation.
 
 Numeric `X.Y.Z` and `X.Y.Z-rc.N` tags drive verified GitHub Actions releases.
 Archives contain both binaries and `LICENSE`; `SHA256SUMS` is required. `VERSION`
-and the workspace version are `2.0.0`. Locked checks, archive
+and the workspace version are `2.1.0`. Locked checks, archive
 verification, and release-note extraction remain mandatory.

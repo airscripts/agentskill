@@ -208,7 +208,7 @@ Repository history uses conventional prefixes such as `feat`, `fix`, `docs`,
 Use a conventional prefix for commits unless a maintainer says otherwise.
 The analyzer does not have enough evidence to assert a merge strategy.
 
-`VERSION` and the workspace version are `2.0.0`. Stable releases use numeric
+`VERSION` and the workspace version are `2.1.0`. Stable releases use numeric
 `X.Y.Z` tags; release candidates use `X.Y.Z-rc.N`. Release notes come from the
 matching `CHANGELOG.md` section. Archives must contain `agentskill`, `agsk`,
 and `LICENSE`, and publication requires `SHA256SUMS` plus locked verification.
@@ -224,7 +224,7 @@ surface the uncertainty or ask a focused maintainer question.
 
 ## Provenance And Decisions
 
-- Agentskill Version: `2.0.0`
+- Agentskill Version: `2.1.0`
 - Evidence Schema Version: `3`
 - Repository Revision: `b9cee616e1bc27469459210e2305db82dd2b6ed9`
 - Configuration: signature enabled by root `agentskill.toml`.

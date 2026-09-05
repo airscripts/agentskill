@@ -2,7 +2,7 @@
 
 ## Provenance And Decisions
 
-- Agentskill Version: `2.0.0`.
+- Agentskill Version: `2.1.0`.
 - Evidence Schema Version: `4`.
 - Repository Revision: `fixture-revision`.
 - Configuration: default signature enabled.

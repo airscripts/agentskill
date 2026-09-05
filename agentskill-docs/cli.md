@@ -93,7 +93,7 @@ Repositories can run document checks in CI with the reusable GitHub Actions in
 ```yaml
 - uses: airscripts/agentskill/agentskill-actions/drift@<commit-sha>
   with:
-    version: 2.0.0
+    version: 2.1.0
 ```
 
 Use `agentskill-actions/validate` for strict validation. Release mode requires a
@@ -105,7 +105,7 @@ documents are invalid.
 ```yaml
 - uses: airscripts/agentskill/agentskill-actions/validate@<commit-sha>
   with:
-    version: 2.0.0
+    version: 2.1.0
 ```
 
 Repository workflows can set `source: "true"` after building the checked-out
