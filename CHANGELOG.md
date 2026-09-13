@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added an ANSI Shadow banner to CLI help and a `version` command equivalent to
+  `--version`.
+
 ## [2.1.0] - 2026-09-01
 
 ### Added

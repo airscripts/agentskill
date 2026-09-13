@@ -206,6 +206,13 @@ is:
 make verify
 ```
 
+After changing the CLI, reinstall the development binaries from this checkout
+with:
+
+```bash
+cargo install --path agentskill --locked --force
+```
+
 This runs locked linting and compilation, the complete workspace test suite,
 and workflow/script validation. Individual targets are
 available when iterating:

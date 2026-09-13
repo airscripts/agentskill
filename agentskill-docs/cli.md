@@ -3,6 +3,7 @@
 Both `agentskill` and `agsk` expose the same read-only command surface:
 
 ```text
+version
 analyze <repo>...
 evidence <repo>
 scopes <repo>
@@ -16,6 +17,8 @@ tests <repo>
 validate <repo>
 drift <repo>
 ```
+
+`agentskill version` prints the same output as `agentskill --version`.
 
 Analyzer commands accept `--pretty` and `--out FILE`; language-aware commands
 also accept `--lang`. `analyze` accepts multiple repositories. `evidence`,

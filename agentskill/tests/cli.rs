@@ -6,10 +6,25 @@ use tempfile::tempdir;
 #[test]
 fn both_binaries_report_version() {
     for binary in [env!("CARGO_BIN_EXE_agentskill"), env!("CARGO_BIN_EXE_agsk")] {
-        let output = Command::new(binary).arg("--version").output().unwrap();
+        let flag_output = Command::new(binary).arg("--version").output().unwrap();
+        let command_output = Command::new(binary).arg("version").output().unwrap();
+
+        assert!(flag_output.status.success());
+        assert!(command_output.status.success());
+        assert_eq!(command_output.stdout, flag_output.stdout);
+        assert!(String::from_utf8_lossy(&flag_output.stdout).contains("2.1.0"));
+    }
+}
+
+#[test]
+fn both_binaries_show_the_banner_in_help() {
+    for binary in [env!("CARGO_BIN_EXE_agentskill"), env!("CARGO_BIN_EXE_agsk")] {
+        let output = Command::new(binary).arg("--help").output().unwrap();
 
         assert!(output.status.success());
-        assert!(String::from_utf8_lossy(&output.stdout).contains("2.1.0"));
+        let help = String::from_utf8_lossy(&output.stdout);
+        assert!(help.contains("█████╗"));
+        assert!(help.contains("Commands:"));
     }
 }
 

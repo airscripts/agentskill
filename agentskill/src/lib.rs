@@ -1,14 +1,23 @@
 use agentskill_core::config::SignatureMode;
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 
 use agentskill_core::output::{ANALYZER_NAMES, write_value};
 use serde_json::Value;
+
+const BANNER: &str = r#"
+ █████╗  ██████╗ ███████╗███╗   ██╗████████╗███████╗██╗  ██╗██╗██╗     ██╗
+██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝██╔════╝██║ ██╔╝██║██║     ██║
+███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   ███████╗█████╔╝ ██║██║     ██║
+██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   ╚════██║██╔═██╗ ██║██║     ██║
+██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   ███████║██║  ██╗██║███████╗███████╗
+╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝"#;
 
 #[derive(Parser)]
 #[command(
     name = "agentskill",
     version,
-    about = "Collect repository evidence for LLM-authored AGENTS.md files."
+    about = "Collect repository evidence for LLM-authored AGENTS.md files.",
+    before_help = BANNER
 )]
 pub struct Cli {
     #[arg(long, global = true, help = "Pretty-print JSON output.")]
@@ -26,6 +35,8 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    #[command(about = "Print the Agentskill version.")]
+    Version,
     #[command(about = "Run all analyzers and merge output.")]
     Analyze(AnalyzeArgs),
     #[command(about = "Build normalized evidence for the LLM skill.")]
@@ -155,6 +166,10 @@ fn dispatch(cli: Cli) -> agentskill_core::Result<bool> {
     let out = cli.out.as_deref();
 
     match cli.command {
+        Commands::Version => {
+            print!("{}", Cli::command().render_long_version());
+            Ok(false)
+        }
         Commands::Analyze(args) => {
             let value = agentskill_analyzers::run_many(&args.repos, args.lang.as_deref());
             let failed = aggregate_failed(&value, args.repos.len() > 1);
