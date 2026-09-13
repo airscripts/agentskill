@@ -14,15 +14,16 @@ follow.
 
 ## Table Of Contents
 
+- [For Agents](#for-agents)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Choosing a Command](#choosing-a-command)
 - [What It Does](#what-it-does)
 - [How It Works](#how-it-works)
 - [Supported Languages](#supported-languages)
 - [Generation Modes](#generation-modes)
-- [Installation](#installation)
-- [Development Checks](#development-checks)
-- [Usage](#usage)
-- [Choosing a Command](#choosing-a-command)
 - [AGENTS.md Output](#agentsmd-output)
+- [Development Checks](#development-checks)
 - [Maintainer Context](#maintainer-context)
 - [Repository Layout](#repository-layout)
 - [Where Code Goes](#where-code-goes)
@@ -37,6 +38,107 @@ follow.
 - [License](#license)
 
 ---
+
+## For Agents
+
+Copy this prompt into your coding agent to install and use Agentskill in the
+current repository:
+
+```text
+Install and use Agentskill for this repository.
+
+1. Check whether `agentskill` or `agsk` is available. If neither is installed,
+   install it with:
+
+   cargo install --git https://github.com/airscripts/agentskill agentskill
+
+   If this is the Agentskill source checkout, use this local install instead:
+
+   cargo install --path agentskill --locked --force
+
+2. Discover guidance boundaries and collect evidence:
+
+   agentskill scopes "$PWD" --pretty
+   agentskill evidence "$PWD" --pretty
+
+3. Read the Agentskill skill instructions, inspect the relevant repository
+   files, and use the evidence to create or update the appropriate AGENTS.md
+   files. Preserve existing maintainer instructions and keep guidance concise
+   and repository-specific.
+
+4. Validate the result:
+
+   agentskill validate "$PWD" --signature auto
+   agentskill drift "$PWD" --signature auto
+
+Summarize the evidence used, files changed, validation result, and any
+remaining uncertainty. The Agentskill CLI is deterministic and read-only; the
+coding agent authors the semantic Markdown.
+```
+
+## Installation
+
+Download a release archive from
+[GitHub Releases](https://github.com/airscripts/agentskill/releases), extract
+it, and put either `agentskill` or `agsk` on your `PATH`. Verify downloads with
+the release's `SHA256SUMS` file.
+
+For a source checkout, install the binaries with Cargo:
+
+```bash
+cargo install --git https://github.com/airscripts/agentskill agentskill
+```
+
+For local development, reinstall the binaries from the checkout after making
+changes:
+
+```bash
+cargo install --path agentskill --locked --force
+```
+
+Both binary names are built from the workspace. `agsk` is an equivalent short
+name for `agentskill`.
+
+## Usage
+
+Start with the help banner:
+
+```bash
+agentskill --help
+```
+
+Run all analyzers and emit normalized evidence:
+
+```bash
+agentskill analyze <repo> --pretty
+agentskill evidence <repo> --pretty
+```
+
+Other common commands:
+
+```bash
+agentskill scopes <repo> --pretty
+agentskill scan <repo> --pretty
+agentskill measure <repo> --lang rust --pretty
+agentskill validate <repo> --signature auto
+agentskill drift <repo> --signature auto
+agentskill version
+```
+
+Use `agsk` in place of `agentskill` for every command. `--pretty` formats JSON,
+and `--out FILE` writes JSON to a relative output file. The CLI never writes
+semantic Markdown.
+
+## Choosing a Command
+
+Use `analyze` for all analyzers, `evidence` for compact LLM-ready facts, and
+an individual analyzer such as `scan`, `measure`, or `tests` when you need a
+focused signal. Use `scopes` to discover nested guidance boundaries.
+
+After the LLM skill writes `AGENTS.md`, run `validate` for strict checks and
+`drift` for advisory freshness and evidence reporting. See the
+[`agentskill-docs/cli.md`](./agentskill-docs/cli.md) reference for the complete
+command surface.
 
 ## What It Does
 
@@ -156,40 +258,6 @@ The skill supports `init`, `enrich`, `scope`, `update`, and `audit`
 workflows. `operational` output is the compact root document; `reference`
 output is deeper context loaded only when needed.
 
-## Installation
-
-Download the archive for your platform from
-[GitHub Releases](https://github.com/airscripts/agentskill/releases), extract
-it, and put either `agentskill` or `agsk` on your `PATH`. Verify downloads with
-the release's `SHA256SUMS` file.
-
-For a source checkout, install the release binary with Cargo:
-
-```bash
-cargo install --git https://github.com/airscripts/agentskill agentskill
-```
-
-Both binary names are built from the workspace. `agsk` is an equivalent short
-name for `agentskill`.
-
-### For Agents
-
-Install the repository root as a skill when your harness supports filesystem or
-Git skill installation. The relevant package layout is:
-
-```text
-agentskill-skill/
-  SKILL.md            # skill entrypoint and workflow
-  SYSTEM.md           # generated-document contract
-  references/         # extraction and synthesis guidance
-  examples/           # target-language fixtures and reference shapes
-```
-
-If the harness only needs the analyzer runtime, install the binaries and use
-the commands below. The skill package and the Rust CLI are intentionally
-separate: the former gives an agent a synthesis workflow, while the latter
-provides deterministic evidence and document operations.
-
 ## Development Checks
 
 Install Rust through [rustup](https://rustup.rs/) and Lefthook with
@@ -231,67 +299,6 @@ make workflows   # actionlint and shellcheck
 `Cargo.lock` is committed so local and CI builds use reproducible dependency
 resolution. Optional staged-file checks are configured through `lefthook.yml`
 and `agentskill-scripts/pre-commit.sh`.
-
-## Usage
-
-Global `--pretty` and `--out FILE` options apply to static JSON commands. The
-CLI never writes semantic Markdown.
-
-```bash
-# Aggregate or focused evidence.
-agentskill analyze <repo> --pretty
-agentskill analyze <repo-a> <repo-b> --pretty
-agentskill evidence <repo> --pretty
-agentskill scopes <repo> --pretty
-agentskill evidence <repo> --scope packages/api --budget compact --pretty
-agentskill scan <repo> --pretty
-agentskill measure <repo> --lang rust --pretty
-agentskill config <repo> --pretty
-agentskill git <repo> --pretty
-agentskill graph <repo> --pretty
-agentskill symbols <repo> --pretty
-agentskill tests <repo> --pretty
-
-# Save analyzer JSON.
-agentskill --out report.json analyze <repo>
-
-agentskill validate <repo> --signature auto
-agentskill drift <repo> --signature auto
-agentskill validate <repo> --scope packages/api --signature auto
-```
-
-Use `agsk` in place of `agentskill` for every command. Run
-`agentskill --help` or `agentskill <command> --help` for the exact current
-Clap syntax.
-
-## Choosing A Command
-
-Use `analyze` when you want JSON from all analyzers without writing markdown.
-It accepts one or more repositories and is the contract-stable inspection
-path. Use an individual analyzer when a focused signal is needed.
-
-Use `evidence` when an LLM needs normalized facts with scope, confidence, and
-provenance. Use an individual analyzer when a focused static signal is needed.
-Scope manifests include ancestor chains, nearest managed fallback, and
-nearest-scope-wins precedence. Validation and drift also report unsupported or
-low-confidence facts, duplicate inherited rules, and conflicting inherited
-rules.
-
-Use the installed skill for `init`, `enrich`, `scope`, `update`, and `audit`, and
-`explain` a rule with its evidence. Use `validate` and `drift` after the skill
-writes or updates documents. Custom maintainer instructions belong in each
-document's local `## Free Region`; other document content is managed by
-Agentskill.
-
-The skill supports `compact`, `standard`, and `deep` budget modes for local AI
-harnesses. Compact mode keeps high-confidence operational guidance while
-reducing context, output, and follow-up rounds; it does not attempt to detect
-hardware or guarantee tokens-per-second performance.
-
-For CI integration, use the reusable GitHub Actions in `agentskill-actions/`
-from a caller workflow after checking out the repository. Use `drift` for
-advisory checks or `validate` for strict document validation. Both write a job
-summary and expose a JSON report path for artifact upload.
 
 ## AGENTS.md Output
 
